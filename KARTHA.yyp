@@ -24,7 +24,7 @@
   "isEcma":false,
   "LibraryEmitters":[],
   "MetaData":{
-    "IDEVersion":"2026.0.0.16",
+    "IDEVersion":"2024.14.4.222",
   },
   "name":"KARTHA",
   "resources":[
@@ -43,6 +43,7 @@
     {"id":{"name":"obj_slot","path":"objects/obj_slot/obj_slot.yy",},},
     {"id":{"name":"Room1","path":"rooms/Room1/Room1.yy",},},
     {"id":{"name":"scr_dados_cartas","path":"scripts/scr_dados_cartas/scr_dados_cartas.yy",},},
+    {"id":{"name":"olaamigo","path":"sprites/olaamigo/olaamigo.yy",},},
     {"id":{"name":"spr_background","path":"sprites/spr_background/spr_background.yy",},},
     {"id":{"name":"spr_botao","path":"sprites/spr_botao/spr_botao.yy",},},
     {"id":{"name":"spr_carta","path":"sprites/spr_carta/spr_carta.yy",},},
