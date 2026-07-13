@@ -1,3 +1,9 @@
+if keyboard_check_pressed(vk_escape){
+	game_end()
+	}
+
+
+
 var _total = array_length(mao);
 var _melhor_carta = noone;
 var _menor_distancia = 999999;
@@ -47,7 +53,7 @@ if (mouse_check_button_pressed(mb_left)) {
 }
     }
 }
-
+/*
 // pega a posição do mouse relativa à JANELA (gui), não à room
 var _mouse_gui_y = device_mouse_y_to_gui(0);
 
@@ -69,3 +75,4 @@ camera_y_alvo = clamp(camera_y_alvo, 0, room_height - altura_view);
 camera_y += (camera_y_alvo - camera_y) * 0.1;
 
 camera_set_view_pos(minha_camera, 0, camera_y);
+*/

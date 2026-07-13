@@ -30,10 +30,12 @@ carta_selecionada = noone;
 recursos_jogador = [];
 max_recursos = 6;
 recurso_colocado_no_turno = false; // 1 por turno
-window_set_fullscreen(true);
+//window_set_fullscreen(true);
 
 // garante que a área de desenho acompanha o tamanho real da tela
-display_set_gui_size(display_get_width(), display_get_height());
+
+#region camera antiga
+/*display_set_gui_size(display_get_width(), display_get_height());
 // tamanho da "janela" visível (menor que a room inteira)
 altura_view = 650;
 largura_view = 800;
@@ -44,9 +46,11 @@ camera_y_alvo = camera_y;
 
 // cria a câmera
 minha_camera = camera_create();
-camera_set_view_size(minha_camera, largura_view, altura_view);
+camera_set_view_size(minha_camera, room_width, room_height);
 camera_set_view_pos(minha_camera, 0, camera_y);
 
 view_camera[0] = minha_camera;
 view_enabled = true;
-view_visible[0] = true;
+view_visible[0] = true;*/
+#endregion
+

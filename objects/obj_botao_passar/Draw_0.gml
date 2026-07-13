@@ -12,4 +12,11 @@ if (obj_controlador.rolagens_pendentes > 0) {
     }
 }
 
-draw_text(x - 55, y - 60, _texto);
+draw_set_font(fnt_botao)
+draw_set_halign(fa_center);
+draw_set_valign(fa_middle);
+draw_text(x, y - 30, _texto);
+
+draw_set_halign(-1);
+draw_set_valign(-1);
+draw_set_font(-1)

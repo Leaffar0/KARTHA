@@ -8,7 +8,7 @@
     "children":[],
     "name":"Default",
   },
-  "defaultScriptType":0,
+  "defaultScriptType":1,
   "Folders":[
     {"$GMFolder":"","%Name":"Foontas","folderPath":"folders/Foontas.yy","name":"Foontas","resourceType":"GMFolder","resourceVersion":"2.0",},
     {"$GMFolder":"","%Name":"Objetos","folderPath":"folders/Objetos.yy","name":"Objetos","resourceType":"GMFolder","resourceVersion":"2.0",},
@@ -28,8 +28,10 @@
   },
   "name":"KARTHA",
   "resources":[
+    {"id":{"name":"fnt_botao","path":"fonts/fnt_botao/fnt_botao.yy",},},
     {"id":{"name":"Fontenil","path":"fonts/Fontenil/Fontenil.yy",},},
     {"id":{"name":"obj_botao_passar","path":"objects/obj_botao_passar/obj_botao_passar.yy",},},
+    {"id":{"name":"obj_camera","path":"objects/obj_camera/obj_camera.yy",},},
     {"id":{"name":"obj_carta","path":"objects/obj_carta/obj_carta.yy",},},
     {"id":{"name":"obj_construcao","path":"objects/obj_construcao/obj_construcao.yy",},},
     {"id":{"name":"obj_controlador","path":"objects/obj_controlador/obj_controlador.yy",},},
@@ -59,6 +61,7 @@
     {"id":{"name":"spr_slot_recursos","path":"sprites/spr_slot_recursos/spr_slot_recursos.yy",},},
     {"id":{"name":"spr_slot","path":"sprites/spr_slot/spr_slot.yy",},},
     {"id":{"name":"spr_torre","path":"sprites/spr_torre/spr_torre.yy",},},
+    {"id":{"name":"Sprite17","path":"sprites/Sprite17/Sprite17.yy",},},
   ],
   "resourceType":"GMProject",
   "resourceVersion":"2.0",
