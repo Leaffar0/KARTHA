@@ -1,0 +1,51 @@
+arrastando = false;
+offset_x = 0;
+offset_y = 0;
+origem_x = x;
+origem_y = y;
+slot_atual = noone;
+destino_x = x;
+destino_y = y;
+velocidade_movimento = 0.2;
+hover_ativo = false;
+hover_ativo_externo = false; // controlado pelo obj_controlador, não pela própria carta
+travada = false;
+dono = "jogador"; // ou "inimigo"
+lane_atual = -1;
+posicao_atual = -1;
+moveu_este_turno = false;
+atacou_este_turno = false;
+dado_dano = 4;
+mod_dano = 0;
+defesa_fisica = 0;
+defesa_magica = 0;
+custo = noone;
+categoria = "tropa";
+tipo_recurso = "";
+custo_construcao = noone; // reaproveita "custo" na verdade, mas deixo separado se quiser diferenciar depois
+condicao = noone;              // "queimado", "envenenado", "paralisado", etc, ou noone
+condicao_turnos_restantes = 0; // -1 = dura pra sempre (até morrer ou ser curada)
+condicao_dano_por_turno = 0;
+dado_efeito = 0;
+chance_queimar = 0;
+efeito_timer = 0;
+efeito_tipo = ""; // qual magia essa carta é: "bola_fogo", "veneno", "gelo", "choque"
+vezes_eletrocutado_seguidas = 0; // contador pro efeito de Loucura
+
+
+// --- efeitos visuais ---
+pulando = false;
+pulo_origem_x = 0;
+pulo_origem_y = 0;
+pulo_destino_x = 0;
+pulo_destino_y = 0;
+pulo_progresso = 0;
+pulo_duracao = 20; // quantos frames o pulo demora (ajuste a velocidade aqui)
+pulo_altura = 25;  // altura máxima do arco do pulo
+rotacao_alvo = 0;      // rotação que a carta "deveria" ter (definida pelo leque)
+rotacao_atual = 0;     // rotação sendo exibida (suaviza a transição)
+escala_alvo = 1;        // tamanho que a carta "deveria" ter
+escala_atual = 1;       // escala sendo exibida
+y_offset_alvo = 0;      // deslocamento vertical (arco do leque)
+y_offset_atual = 0;
+esta_na_mao = true;     // controla se aplica os efeitos de mão

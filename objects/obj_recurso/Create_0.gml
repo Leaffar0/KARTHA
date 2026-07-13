@@ -1,0 +1,3 @@
+dono = "jogador";
+virado = false;
+
