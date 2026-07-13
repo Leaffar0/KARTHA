@@ -1,9 +1,9 @@
 {
   "FolderOrderSettings":[
     {"name":"Cartas","order":4,"path":"folders/Objetos/Cartas.yy",},
-    {"name":"Particula","order":5,"path":"folders/Objetos/Particula.yy",},
     {"name":"Jogo","order":3,"path":"folders/Objetos/Jogo.yy",},
     {"name":"Mesa","order":2,"path":"folders/Objetos/Mesa.yy",},
+    {"name":"Particula","order":5,"path":"folders/Objetos/Particula.yy",},
     {"name":"Condicoes","order":3,"path":"folders/Sprite/Condicoes.yy",},
     {"name":"Construcoes","order":4,"path":"folders/Sprite/Construcoes.yy",},
     {"name":"Mesa","order":5,"path":"folders/Sprite/Mesa.yy",},
