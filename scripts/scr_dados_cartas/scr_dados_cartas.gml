@@ -291,6 +291,9 @@ function processar_combate(_lado_atacante) {
                         obj_controlador.vida_inimigo -= _dano_direto;
                     } else {
                         obj_controlador.vida_jogador -= _dano_direto;
+						if obj_controlador.vida_jogador <= 0{
+							global.vivo = 0	
+						}
                     }
                 }
             }

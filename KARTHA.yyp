@@ -41,6 +41,7 @@
   "name":"KARTHA",
   "resources":[
     {"id":{"name":"fnt_botao","path":"fonts/fnt_botao/fnt_botao.yy",},},
+    {"id":{"name":"fnt_vitoria","path":"fonts/fnt_vitoria/fnt_vitoria.yy",},},
     {"id":{"name":"Fontenil","path":"fonts/Fontenil/Fontenil.yy",},},
     {"id":{"name":"obj_botao_passar","path":"objects/obj_botao_passar/obj_botao_passar.yy",},},
     {"id":{"name":"obj_camera","path":"objects/obj_camera/obj_camera.yy",},},
