@@ -1,3 +1,6 @@
+draw_set_font(Fontenil)
+
+
 var _rotacao_extra = (dono == "inimigo") ? 180 : 0;
 var _rotacao_total = rotacao_atual + _rotacao_extra;
 
@@ -118,3 +121,4 @@ if (condicao != noone && condicao != "imune_queimado") {
 
 draw_set_halign(fa_left);
 draw_set_valign(fa_top);
+draw_set_font(-1)
