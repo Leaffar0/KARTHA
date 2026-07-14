@@ -1,0 +1,1 @@
+tocar_musica(snd_jogo);

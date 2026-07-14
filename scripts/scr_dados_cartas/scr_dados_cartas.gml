@@ -854,3 +854,13 @@ function obter_config_condicao(_tipo) {
     }
     return { cor: c_white, sprite: -1, modo: "meio" };
 }
+	
+function tocar_musica(_musica)
+{
+    audio_stop_all();
+
+    if (!audio_is_playing(_musica))
+    {
+        audio_play_sound(_musica, 0, true);
+    }
+}

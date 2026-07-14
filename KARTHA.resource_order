@@ -1,5 +1,6 @@
 {
   "FolderOrderSettings":[
+    {"name":"Sound","order":1,"path":"folders/Sound.yy",},
     {"name":"Cartas","order":4,"path":"folders/Objetos/Cartas.yy",},
     {"name":"Jogo","order":3,"path":"folders/Objetos/Jogo.yy",},
     {"name":"Mesa","order":2,"path":"folders/Objetos/Mesa.yy",},
@@ -17,14 +18,20 @@
     {"name":"obj_construcao","order":4,"path":"objects/obj_construcao/obj_construcao.yy",},
     {"name":"obj_dado","order":3,"path":"objects/obj_dado/obj_dado.yy",},
     {"name":"obj_deck","order":1,"path":"objects/obj_deck/obj_deck.yy",},
+    {"name":"obj_menu","order":2,"path":"objects/obj_menu/obj_menu.yy",},
+    {"name":"obj_musica_jogo","order":3,"path":"objects/obj_musica_jogo/obj_musica_jogo.yy",},
     {"name":"obj_recurso","order":2,"path":"objects/obj_recurso/obj_recurso.yy",},
     {"name":"obj_texto_flutuante","order":3,"path":"objects/obj_texto_flutuante/obj_texto_flutuante.yy",},
+    {"name":"rm_menu","order":1,"path":"rooms/rm_menu/rm_menu.yy",},
+    {"name":"snd_jogo","order":1,"path":"sounds/snd_jogo/snd_jogo.yy",},
+    {"name":"snd_menu","order":2,"path":"sounds/snd_menu/snd_menu.yy",},
     {"name":"spr_botao","order":1,"path":"sprites/spr_botao/spr_botao.yy",},
     {"name":"spr_carta","order":2,"path":"sprites/spr_carta/spr_carta.yy",},
     {"name":"spr_congelado","order":3,"path":"sprites/spr_congelado/spr_congelado.yy",},
     {"name":"spr_dado_d6","order":3,"path":"sprites/spr_dado_d6/spr_dado_d6.yy",},
     {"name":"spr_deck","order":4,"path":"sprites/spr_deck/spr_deck.yy",},
     {"name":"spr_eletrocutado","order":1,"path":"sprites/spr_eletrocutado/spr_eletrocutado.yy",},
+    {"name":"spr_menu","order":5,"path":"sprites/spr_menu/spr_menu.yy",},
     {"name":"spr_veneno","order":2,"path":"sprites/spr_veneno/spr_veneno.yy",},
   ],
 }
