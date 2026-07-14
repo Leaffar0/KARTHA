@@ -1,6 +1,3 @@
-
-if vida_jogador <= 0 exit;	
-
 if keyboard_check_pressed(vk_escape){
 	game_end()
 	}
@@ -8,6 +5,11 @@ if keyboard_check_pressed(vk_escape){
 if keyboard_check_pressed(ord("R")){
 	game_restart()	
 }
+
+
+if vida_jogador <= 0 exit;	
+
+
 
 if keyboard_check_pressed(ord("K")){
 	vida_inimigo = 0	

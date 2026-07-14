@@ -108,7 +108,7 @@ function criar_dados_magica_bola_fogo() {
         nome: "Bola de Fogo",
         custo: { tipo: "mana", quantidade: 2 },
         dado_efeito: 8,      // 1D8 de dano
-        chance_queimar: 0.5  // 50% de chance de aplicar queimado
+        chance_queimar: 1 // 50% de chance de aplicar queimado
     };
 }
 	
@@ -131,7 +131,7 @@ function criar_dados_magica_gelo() {
 function criar_dados_magica_choque() {
     return {
         categoria: "magica",
-        nome: "Raio",
+        nome: "Choque Elétrico",
         custo: { tipo: "mana", quantidade: 1 }
     };
 }
@@ -226,7 +226,7 @@ function comprar_carta_do_deck(_x_inicial, _y_inicial) {
         _carta.chance_queimar = _dados.chance_queimar;
     } else if (_dados.nome == "Veneno Mortal") {
         _carta.efeito_tipo = "veneno";
-    } else if (_dados.nome == "Sopro Congelante") {
+    } else if (_dados.nome == "Congelante") {
         _carta.efeito_tipo = "gelo";
     } else if (_dados.nome == "Choque Elétrico") {
         _carta.efeito_tipo = "choque";

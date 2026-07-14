@@ -156,7 +156,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         aplicar_condicao(_alvo_mais_perto, "congelado", 1, 0);
         break;
 			case "choque":
-        aplicar_eletrocutado(_alvo_mais_perto);
+        aplicar_condicao(_alvo_mais_perto, "eletrocutado",1,0);
         break;
 }
         
