@@ -1,1 +1,1 @@
-quantidade_cartas = 20; // quantas cartas tem no deck (só pra exibir visualmente)
+quantidade_cartas = 30; // quantas cartas tem no deck (só pra exibir visualmente)

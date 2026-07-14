@@ -6,36 +6,41 @@ var _rotacao_total = rotacao_atual + _rotacao_extra;
 
 var _y_desenho = y + y_offset_atual;
 
+var _escala_final = escala_atual * escala_base;
+if (travada) {
+    _escala_final *= escala_no_campo;
+}
+
 draw_sprite_ext(
     sprite_index,
     image_index,
     x,
     _y_desenho,
-    escala_atual,
-    escala_atual,
+    _escala_final,
+    _escala_final,
     _rotacao_total,
     c_white,
     1
 );
 
-// --- posição do nome ---
-var _dist_nome = point_distance(0, 0, 0, -sprite_height/2 * escala_atual + 4);
-var _dir_nome = point_direction(0, 0, 0, -sprite_height/2 * escala_atual + 4);
-var _nome_x = x + lengthdir_x(_dist_nome, _dir_nome + _rotacao_total);
-var _nome_y = _y_desenho + lengthdir_y(_dist_nome, _dir_nome + _rotacao_total);
-
-// calcula se o nome cabe na largura da carta; se não, encolhe o texto
-var _largura_maxima = sprite_width * escala_atual * 0.65;
-var _largura_texto = string_width(nome_carta);
-var _escala_texto = 0.5;
-
-if (_largura_texto > _largura_maxima) {
-    _escala_texto = _largura_maxima / _largura_texto;
+if (!tem_arte_propria) {
+    var _dist_nome = point_distance(0, 0, 0, -sprite_height/2 * escala_atual + 4);
+    var _dir_nome = point_direction(0, 0, 0, -sprite_height/2 * escala_atual + 4);
+    var _nome_x = x + lengthdir_x(_dist_nome, _dir_nome + _rotacao_total);
+    var _nome_y = _y_desenho + lengthdir_y(_dist_nome, _dir_nome + _rotacao_total);
+    
+    var _largura_maxima = sprite_width * escala_atual * 0.85;
+    var _largura_texto = string_width(nome_carta);
+    var _escala_texto = 1;
+    
+    if (_largura_texto > _largura_maxima) {
+        _escala_texto = _largura_maxima / _largura_texto;
+    }
+    
+    draw_set_halign(fa_center);
+    draw_set_valign(fa_top);
+    draw_text_transformed(_nome_x, _nome_y, nome_carta, escala_atual * _escala_texto, escala_atual * _escala_texto, _rotacao_total);
 }
-
-draw_set_halign(fa_center);
-draw_set_valign(fa_top);
-draw_text_transformed(_nome_x, _nome_y, nome_carta, escala_atual * _escala_texto, escala_atual * _escala_texto, _rotacao_total);
 
 // --- ataque e vida: só desenha se for tropa ---
 if (categoria == "tropa") {

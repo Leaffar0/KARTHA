@@ -40,13 +40,12 @@ for (var i = 0; i < _total; i++) {
     if (!_carta.esta_na_mao) continue;
     if (_carta.travada) continue;
     
-    var _dentro_y = (mouse_y >= _carta.y - _carta.sprite_height/2 - 40) 
-                  && (mouse_y <= _carta.y + _carta.sprite_height/2);
-    
-    if (_dentro_y) {
-        var _dist_x = abs(mouse_x - _carta.x);
-        
-        if (_dist_x < _carta.sprite_width/2 && _dist_x < _menor_distancia) {
+   var _dentro_y = (mouse_y >= _carta.y - global.CARTA_ALTURA/2 - 40) 
+              && (mouse_y <= _carta.y + global.CARTA_ALTURA/2);
+
+	if (_dentro_y) {
+		var _dist_x = abs(mouse_x - _carta.x);
+		if (_dist_x < global.CARTA_LARGURA/2 && _dist_x < _menor_distancia) {
             _menor_distancia = _dist_x;
             _melhor_carta = _carta;
         }
@@ -78,3 +77,20 @@ if (mouse_check_button_pressed(mb_left)) {
 }
     }
 }
+
+// --- scroll horizontal da mão, ativado perto das bordas ---
+if (mao_scroll_max > 0) {
+    var _mouse_gui_x = device_mouse_x_to_gui(0);
+    var _zona_scroll_h = 100;
+    var _velocidade_scroll_h = 15;
+    
+    if (_mouse_gui_x < _zona_scroll_h) {
+        mao_scroll_offset_alvo += _velocidade_scroll_h;
+    } else if (_mouse_gui_x > (display_get_gui_width() - _zona_scroll_h)) {
+        mao_scroll_offset_alvo -= _velocidade_scroll_h;
+    }
+    
+    mao_scroll_offset_alvo = clamp(mao_scroll_offset_alvo, -mao_scroll_max, mao_scroll_max);
+}
+
+mao_scroll_offset += (mao_scroll_offset_alvo - mao_scroll_offset) * 0.15;

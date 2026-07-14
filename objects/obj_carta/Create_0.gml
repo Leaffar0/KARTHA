@@ -30,7 +30,14 @@ chance_queimar = 0;
 efeito_timer = 0;
 efeito_tipo = ""; // qual magia essa carta é: "bola_fogo", "veneno", "gelo", "choque"
 vezes_eletrocutado_seguidas = 0; // contador pro efeito de Loucura
-
+bonus_mod_dano_item = 0;
+bonus_defesa_item = 0;
+cura_item = 0;
+tem_item_equipado = false;
+bonus_defesa_global = 0;
+tem_arte_propria = false;
+escala_base = 1; // recalculado sempre que o sprite for atribuído
+escala_no_campo = 0.55; // ajuste esse valor até a carta caber certinho no slot
 
 // --- efeitos visuais ---
 pulando = false;
@@ -48,3 +55,5 @@ escala_atual = 1;       // escala sendo exibida
 y_offset_alvo = 0;      // deslocamento vertical (arco do leque)
 y_offset_atual = 0;
 esta_na_mao = true;     // controla se aplica os efeitos de mão
+mao_base_x = 0;
+mao_base_y = 0;

@@ -17,7 +17,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         // --- código de soltar tropa que já existe, sem mudar nada ---
         var _slot_mais_perto = noone;
         var _menor_distancia = 9999;
-        var _distancia_maxima = 48;
+        var _distancia_maxima = global.CARTA_LARGURA * 0.7;
         
         with (obj_slot_batalha) {
             var _dist = point_distance(x, y, other.x, other.y);
@@ -67,7 +67,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         // --- novo: soltar carta de recurso ---
         var _slot_recurso_perto = noone;
         var _menor_distancia = 9999;
-        var _distancia_maxima = 48;
+        var _distancia_maxima = global.CARTA_LARGURA * 0.7;
         
         with (obj_slot_recurso) {
             var _dist = point_distance(x, y, other.x, other.y);
@@ -98,7 +98,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
     } else if (categoria == "construcao") {
     var _slot_construcao_perto = noone;
     var _menor_distancia = 9999;
-    var _distancia_maxima = 48;
+    var _distancia_maxima = global.CARTA_LARGURA * 0.7;
     
     with (obj_slot_construcao) {
         var _dist = point_distance(x, y, other.x, other.y);
@@ -176,7 +176,128 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         x = origem_x; y = origem_y;
         esta_na_mao = true;
     }
-	}
+	} else if (categoria == "item_equipavel") {
+    var _alvo = noone;
+    var _menor_distancia = 9999;
+    
+    with (obj_carta) {
+        if (id == other.id) continue;
+        if (!travada || dono != "jogador") continue; // só equipa em tropa sua
+        if (tem_item_equipado) continue; // já tem item, não aceita outro
+        
+        var _dist = point_distance(x, y, other.x, other.y);
+        if (_dist < 60 && _dist < _menor_distancia) {
+            _menor_distancia = _dist;
+            _alvo = id;
+        }
+    }
+    
+    if (_alvo != noone && pode_pagar_custo(custo, "jogador")) {
+        pagar_custo(custo, "jogador");
+        
+        _alvo.mod_dano += bonus_mod_dano_item;
+        _alvo.defesa_fisica += bonus_defesa_item;
+        _alvo.tem_item_equipado = true;
+        
+        var _index = array_get_index(obj_controlador.mao, id);
+        if (_index != -1) {
+            array_delete(obj_controlador.mao, _index, 1);
+            organizar_mao();
+        }
+        instance_destroy(id);
+    } else {
+        x = origem_x; y = origem_y;
+        esta_na_mao = true;
+    }
+    
+} else if (categoria == "item_consumivel") {
+    var _alvo = noone;
+    var _menor_distancia = 9999;
+    
+    with (obj_carta) {
+        if (id == other.id) continue;
+        if (!travada || dono != "jogador") continue;
+        
+        var _dist = point_distance(x, y, other.x, other.y);
+        if (_dist < 60 && _dist < _menor_distancia) {
+            _menor_distancia = _dist;
+            _alvo = id;
+        }
+    }
+    
+    if (_alvo != noone && pode_pagar_custo(custo, "jogador")) {
+        pagar_custo(custo, "jogador");
+        _alvo.vida = min(_alvo.vida + cura_item, _alvo.vida_maxima);
+        
+        var _index = array_get_index(obj_controlador.mao, id);
+        if (_index != -1) {
+            array_delete(obj_controlador.mao, _index, 1);
+            organizar_mao();
+        }
+        instance_destroy(id);
+    } else {
+        x = origem_x; y = origem_y;
+        esta_na_mao = true;
+    }
+	
+	} else if (categoria == "armadilha") {
+	    var _alvo = noone;
+	    var _menor_distancia = 9999;
+    
+	    with (obj_carta) {
+	        if (id == other.id) continue;
+	        if (!travada) continue;
+        
+	        var _dist = point_distance(x, y, other.x, other.y);
+	        if (_dist < 60 && _dist < _menor_distancia) {
+	            _menor_distancia = _dist;
+	            _alvo = id;
+	        }
+	    }
+    
+	    if (_alvo != noone && pode_pagar_custo(custo, "jogador")) {
+	        pagar_custo(custo, "jogador");
+        
+	        var _dano = irandom_range(1, dado_efeito);
+	        _alvo.vida -= _dano;
+	        aplicar_condicao(_alvo, "sangrando", 1, 3);
+        
+	        if (_alvo.vida <= 0) destruir_tropa(_alvo);
+        
+	        var _index = array_get_index(obj_controlador.mao, id);
+	        if (_index != -1) {
+	            array_delete(obj_controlador.mao, _index, 1);
+	            organizar_mao();
+	        }
+	        instance_destroy(id);
+	    } else {
+	        x = origem_x; y = origem_y;
+	        esta_na_mao = true;
+	    }
+} else if (categoria == "terreno") {
+    if (pode_pagar_custo(custo, "jogador")) {
+        pagar_custo(custo, "jogador");
+        
+        // remove o terreno antigo, se tiver
+        with (obj_slot_terreno) {
+            if (ocupado && terreno_atual != noone) {
+                instance_destroy(terreno_atual);
+            }
+        }
+        
+        obj_controlador.terreno_bonus_defesa = bonus_defesa_global;
+        
+        var _index = array_get_index(obj_controlador.mao, id);
+        if (_index != -1) {
+            array_delete(obj_controlador.mao, _index, 1);
+            organizar_mao();
+        }
+        instance_destroy(id);
+    } else {
+        x = origem_x; y = origem_y;
+        esta_na_mao = true;
+    }
+}
 }
 
 if (pulando) {
@@ -202,6 +323,12 @@ if (pulando) {
 }
 
 if (esta_na_mao && !arrastando && !travada) {
+    
+    // recalcula o destino toda vez, somando o scroll horizontal atual
+    destino_x = mao_base_x + obj_controlador.mao_scroll_offset;
+    destino_y = mao_base_y;
+    origem_x = destino_x;
+    origem_y = destino_y;
     
     x += (destino_x - x) * velocidade_movimento;
     y += (destino_y - y) * velocidade_movimento;

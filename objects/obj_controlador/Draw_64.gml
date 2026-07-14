@@ -22,7 +22,8 @@ if (carta_preview != noone && instance_exists(carta_preview)) {
     draw_rectangle(0, 0, display_get_gui_width(), display_get_gui_height(), false);
     draw_set_alpha(1);
     
-    var _escala_preview = 8; // ajuste esse número pro tamanho que quiser (2 = dobro, 4 = quádruplo, etc)
+	var _largura_preview_alvo = 350; // tamanho final desejado do preview, em pixels na tela
+	var _escala_preview = _largura_preview_alvo / _carta.sprite_width;
     
     draw_sprite_ext(
         _carta.sprite_index,

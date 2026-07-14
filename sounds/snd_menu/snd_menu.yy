@@ -10,7 +10,7 @@
   "compression":0,
   "compressionQuality":4,
   "conversionMode":0,
-  "duration":3600.138,
+  "duration":186.91,
   "exportDir":"",
   "name":"snd_menu",
   "parent":{
@@ -22,5 +22,5 @@
   "resourceVersion":"2.0",
   "sampleRate":44100,
   "soundFile":"snd_menu.mp3",
-  "volume":0.46,
+  "volume":0.4,
 }

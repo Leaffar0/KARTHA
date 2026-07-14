@@ -39,6 +39,7 @@ function criar_dados_esquilo() {
     return {
         categoria: "tropa",
         nome: "Esquilo",
+		sprite_carta: noone,
         vida: 1,
         sacrificio: 0,
         dado_dano: 4,
@@ -53,6 +54,7 @@ function criar_dados_lobo() {
     return {
         categoria: "tropa",
         nome: "Lobo",
+		sprite_carta: noone,
         vida: 6,
         sacrificio: 1,
         dado_dano: 6,
@@ -67,6 +69,7 @@ function criar_dados_urso() {
     return {
         categoria: "tropa",
         nome: "Urso",
+		sprite_carta: noone,
         vida: 10,
         sacrificio: 0,
         dado_dano: 6,
@@ -78,25 +81,26 @@ function criar_dados_urso() {
 }
 
 function criar_dados_recurso_sangue() {
-    return { categoria: "recurso", nome: "Sangue", tipo_recurso: "sangue" };
+    return { categoria: "recurso", nome: "Sangue", tipo_recurso: "sangue", sprite_carta: spr_recurso_sangue, };
 }
 
 function criar_dados_recurso_ossos() {
-    return { categoria: "recurso", nome: "Ossos", tipo_recurso: "ossos" };
+    return { categoria: "recurso", nome: "Ossos", tipo_recurso: "ossos", sprite_carta: spr_recurso_ossos, };
 }
 
 function criar_dados_recurso_sucata() {
-    return { categoria: "recurso", nome: "Sucata", tipo_recurso: "sucata" };
+    return { categoria: "recurso", nome: "Sucata", tipo_recurso: "sucata", sprite_carta: spr_recurso_sucata, };
 }
 
 function criar_dados_recurso_mana() {
-    return { categoria: "recurso", nome: "Mana", tipo_recurso: "mana" };
+    return { categoria: "recurso", nome: "Mana", tipo_recurso: "mana", sprite_carta: spr_recurso_mana, };
 }
 	
 function criar_dados_construcao_torre() {
     return {
         categoria: "construcao",
         nome: "Torre de Vigia",
+		sprite_carta: noone,
         vida: 5,
         custo: { tipo: "sucata", quantidade: 1 }
     };
@@ -106,6 +110,7 @@ function criar_dados_magica_bola_fogo() {
     return {
         categoria: "magica",
         nome: "Bola de Fogo",
+		sprite_carta: spr_bola_de_fogo,
         custo: { tipo: "mana", quantidade: 2 },
         dado_efeito: 8,      // 1D8 de dano
         chance_queimar: 1 // 50% de chance de aplicar queimado
@@ -116,6 +121,7 @@ function criar_dados_magica_veneno() {
     return {
         categoria: "magica",
         nome: "Veneno Mortal",
+		sprite_carta: noone,
         custo: { tipo: "mana", quantidade: 1 }
     };
 }
@@ -124,6 +130,7 @@ function criar_dados_magica_gelo() {
     return {
         categoria: "magica",
         nome: "Congelante",
+		sprite_carta: noone,
         custo: { tipo: "mana", quantidade: 1 }
     };
 }
@@ -132,10 +139,63 @@ function criar_dados_magica_choque() {
     return {
         categoria: "magica",
         nome: "Choque Elétrico",
+		sprite_carta: noone,
         custo: { tipo: "mana", quantidade: 1 }
     };
 }
+
+function criar_dados_item_espada() {
+    return {
+        categoria: "item_equipavel",
+        nome: "Espada Enferrujada",
+		sprite_carta: noone,
+        custo: { tipo: "sucata", quantidade: 1 },
+        bonus_mod_dano: 2,
+        bonus_defesa: 0
+    };
+}
+
+function criar_dados_item_escudo() {
+    return {
+        categoria: "item_equipavel",
+        nome: "Escudo de Madeira",
+		sprite_carta: noone,
+        custo: { tipo: "sucata", quantidade: 1 },
+        bonus_mod_dano: 0,
+        bonus_defesa: 2
+    };
+}
+
+function criar_dados_item_pocao() {
+    return {
+        categoria: "item_consumivel",
+        nome: "Poção de Cura",
+		sprite_carta: noone,
+        custo: { tipo: "mana", quantidade: 1 },
+        cura: 5
+    };
+}
 	
+function criar_dados_armadilha_urso() {
+    return {
+        categoria: "armadilha",
+        nome: "Armadilha de Urso",
+		sprite_carta: spr_armadilha_de_urso,
+        custo: noone,
+        dado_efeito: 6
+    };
+}
+
+function criar_dados_terreno_pantano() {
+    return {
+        categoria: "terreno",
+        nome: "Pântano Sombrio",
+		sprite_carta: noone,
+        custo: { tipo: "ossos", quantidade: 1 },
+        bonus_defesa_global: -1 // reduz a defesa de todo mundo (terreno traiçoeiro)
+    };
+}
+
 function organizar_mao() {
     var _mao = obj_controlador.mao;
     var _total = array_length(_mao);
@@ -147,7 +207,7 @@ function organizar_mao() {
     var _x_inicial = _centro_x - (_largura_total / 2);
     
     var _angulo_maximo = 10;
-    var _altura_arco = 20; // <-- quanto as pontas descem (aumente pra descer mais)
+    var _altura_arco = 20;
     
     for (var i = 0; i < _total; i++) {
         var _carta = _mao[i];
@@ -155,21 +215,23 @@ function organizar_mao() {
         
         var _posicao_relativa = 0;
         if (_total > 1) {
-            _posicao_relativa = (i / (_total - 1)) - 0.5; // vai de -0.5 a 0.5
+            _posicao_relativa = (i / (_total - 1)) - 0.5;
         }
         
-        // quanto mais longe do centro (0.5 ou -0.5), mais desce
         var _deslocamento_y = abs(_posicao_relativa) * abs(_posicao_relativa) * 4 * _altura_arco;
         var _nova_y = _y + _deslocamento_y;
         
-        _carta.destino_x = _nova_x;
-        _carta.destino_y = _nova_y;
-        _carta.origem_x = _nova_x;
-        _carta.origem_y = _nova_y;
+        // guarda a posição "base" do leque, sem o scroll ainda
+        _carta.mao_base_x = _nova_x;
+        _carta.mao_base_y = _nova_y;
         _carta.esta_na_mao = true;
         _carta.depth = _total - i;
         _carta.rotacao_alvo = -_posicao_relativa * (_angulo_maximo * 2);
     }
+    
+    // calcula quanto dá pra rolar (só rola se a mão for mais larga que o espaço visível)
+    obj_controlador.mao_scroll_max = max(0, (_largura_total - obj_controlador.mao_largura_visivel) / 2);
+    obj_controlador.mao_scroll_offset_alvo = clamp(obj_controlador.mao_scroll_offset_alvo, -obj_controlador.mao_scroll_max, obj_controlador.mao_scroll_max);
 }
 	
 function comprar_carta_do_deck(_x_inicial, _y_inicial) {
@@ -179,6 +241,9 @@ function comprar_carta_do_deck(_x_inicial, _y_inicial) {
     
     var _carta = instance_create_layer(_x_inicial, _y_inicial, "Instances", obj_carta);
     _carta.nome_carta = _dados.nome;
+	_carta.sprite_index = (_dados.sprite_carta != noone) ? _dados.sprite_carta : spr_carta_placeholder;
+	_carta.escala_base = global.CARTA_LARGURA / sprite_get_width(_carta.sprite_index);
+	_carta.tem_arte_propria = (_dados.sprite_carta != noone);
     _carta.categoria = _dados.categoria;
 	
     if (_dados.categoria == "tropa") {
@@ -197,6 +262,22 @@ function comprar_carta_do_deck(_x_inicial, _y_inicial) {
 	} else if (_dados.categoria == "construcao") {
 	    _carta.vida = _dados.vida;
 	    _carta.custo = _dados.custo;
+		
+	} else if (_dados.categoria == "item_equipavel") {
+	    _carta.custo = _dados.custo;
+	    _carta.bonus_mod_dano_item = _dados.bonus_mod_dano;
+	    _carta.bonus_defesa_item = _dados.bonus_defesa;
+	} else if (_dados.categoria == "item_consumivel") {
+	    _carta.custo = _dados.custo;
+	    _carta.cura_item = _dados.cura;
+		
+	} else if (_dados.categoria == "armadilha") {
+	    _carta.custo = _dados.custo;
+	    _carta.dado_efeito = _dados.dado_efeito;
+		
+	} else if (_dados.categoria == "terreno") {
+    _carta.custo = _dados.custo;
+    _carta.bonus_defesa_global = _dados.bonus_defesa_global;	
 		
 	} else if (_dados.categoria == "magica") {
 		_carta.custo = _dados.custo;
@@ -346,6 +427,7 @@ function ia_jogar_cartas() {
                 
                 var _carta = instance_create_layer(x, y, "Instances", obj_carta);
                 _carta.nome_carta = _dados.nome;
+				_carta.escala_base = global.CARTA_LARGURA / sprite_get_width(_carta.sprite_index);
                 _carta.categoria = _dados.categoria;
                 _carta.vida = _dados.vida;
                 _carta.vida_maxima = _dados.vida;
@@ -437,9 +519,7 @@ function processar_resultado_acerto(_dado_acerto, _atacante, _defensor) {
     if (!instance_exists(_atacante) || !instance_exists(_defensor)) {
         return;
     }
-
     show_debug_message("D20 rolou: " + string(_dado_acerto));
-
     if (_dado_acerto == 1) {
         show_debug_message("Erro crítico! Defensor vai contra-atacar.");
         
@@ -454,9 +534,8 @@ function processar_resultado_acerto(_dado_acerto, _atacante, _defensor) {
             if (!instance_exists(atacante) || !instance_exists(defensor)) {
                 return;
             }
-
             var _dano_contra = _resultado + defensor.mod_dano;
-            _dano_contra = max(0, _dano_contra - atacante.defesa_fisica);
+            _dano_contra = max(0, _dano_contra - atacante.defesa_fisica - obj_controlador.terreno_bonus_defesa);
             atacante.vida -= _dano_contra;
             
             show_debug_message(atacante.nome_carta + " tomou " + string(_dano_contra) + " de contra-ataque. Vida: " + string(atacante.vida));
@@ -484,24 +563,8 @@ function processar_resultado_acerto(_dado_acerto, _atacante, _defensor) {
     var _dados_dano = {
         atacante: _atacante,
         defensor: _defensor
-    };
-    
-    rolar_dado_visual(_atacante.x, _atacante.y, _defensor.x, _defensor.y, _atacante.dado_dano, _dano_dado, method(_dados_dano, function(_resultado) {
-        if (!instance_exists(atacante) || !instance_exists(defensor)) {
-            return;
-        }
-
-        var _dano_final = _resultado + atacante.mod_dano;
-        _dano_final = max(0, _dano_final - defensor.defesa_fisica);
-        defensor.vida -= _dano_final;
-        
-        show_debug_message(defensor.nome_carta + " tomou " + string(_dano_final) + " de dano. Vida agora: " + string(defensor.vida));
-        
-        if (defensor.vida <= 0) {
-            destruir_tropa(defensor);
-        }
-    }));
-}
+    }
+};
 
 function destruir_tropa(_carta) {
     if (_carta.slot_atual != noone) {
@@ -610,6 +673,8 @@ function colocar_recurso(_tipo, _dono) {
         case "mana": _recurso.sprite_index = spr_recurso_mana; break;
     }
     
+	_recurso.escala_recurso = global.RECURSO_LARGURA / sprite_get_width(_recurso.sprite_index);
+	
     _slot_livre.ocupado = true;
     _slot_livre.recurso_atual = _recurso.id;
     
