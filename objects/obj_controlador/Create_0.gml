@@ -38,3 +38,4 @@ carta_selecionada = noone;
 recursos_jogador = [];
 max_recursos = 6;
 recurso_colocado_no_turno = false; // 1 por turno
+preevile = 0;

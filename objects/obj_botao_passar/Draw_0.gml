@@ -1,4 +1,5 @@
 draw_self();
+draw_set_font(Fontenil);
 
 var _texto = "Concluir fase";
 if (obj_controlador.rolagens_pendentes > 0) {

@@ -31,12 +31,13 @@
     {"link":"io.gamemaker.gm_effect_blend-1.0.0","name":"io.gamemaker.gm_effect_blend-1.0.0","path":"io.gamemaker.gm_effect_blend-1.0.0.yyp",},
     {"link":"io.gamemaker.gm_effect_blend_ext-1.0.0","name":"io.gamemaker.gm_effect_blend_ext-1.0.0","path":"io.gamemaker.gm_effect_blend_ext-1.0.0.yyp",},
     {"link":"io.gamemaker.gm_filter_twirl_distort-1.0.0","name":"io.gamemaker.gm_filter_twirl_distort-1.0.0","path":"io.gamemaker.gm_filter_twirl_distort-1.0.0.yyp",},
+    {"link":"io.gamemaker.sdfshaders-1.0.0","name":"io.gamemaker.sdfshaders-1.0.0","path":"io.gamemaker.sdfshaders-1.0.0.yyp",},
   ],
   "IncludedFiles":[],
   "isEcma":false,
   "LibraryEmitters":[],
   "MetaData":{
-    "IDEVersion":"2024.14.4.222",
+    "IDEVersion":"2026.0.0.16",
   },
   "name":"KARTHA",
   "resources":[

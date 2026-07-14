@@ -1,0 +1,1 @@
+obj_controlador.preevile = 0;

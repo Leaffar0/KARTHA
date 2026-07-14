@@ -25,7 +25,7 @@ var _nome_x = x + lengthdir_x(_dist_nome, _dir_nome + _rotacao_total);
 var _nome_y = _y_desenho + lengthdir_y(_dist_nome, _dir_nome + _rotacao_total);
 
 // calcula se o nome cabe na largura da carta; se não, encolhe o texto
-var _largura_maxima = sprite_width * escala_atual * 0.85;
+var _largura_maxima = sprite_width * escala_atual * 0.65;
 var _largura_texto = string_width(nome_carta);
 var _escala_texto = 0.5;
 
@@ -43,15 +43,15 @@ if (categoria == "tropa") {
     var _texto_vida = string(vida);
     
     // limite de largura pra cada texto (metade da carta, com uma margem)
-    var _largura_max_stat = sprite_width * escala_atual * 0.42;
+    var _largura_max_stat = sprite_width * escala_atual * 0.40;
     
-    var _escala_atk = 1;
+    var _escala_atk = 0.8;
     var _largura_atk = string_width(_texto_atk);
     if (_largura_atk > _largura_max_stat) {
         _escala_atk = _largura_max_stat / _largura_atk;
     }
     
-    var _escala_vida = 1;
+    var _escala_vida = 0.8;
     var _largura_vida = string_width(_texto_vida);
     if (_largura_vida > _largura_max_stat) {
         _escala_vida = _largura_max_stat / _largura_vida;

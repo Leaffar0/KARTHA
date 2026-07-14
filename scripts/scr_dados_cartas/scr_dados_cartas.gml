@@ -123,7 +123,7 @@ function criar_dados_magica_veneno() {
 function criar_dados_magica_gelo() {
     return {
         categoria: "magica",
-        nome: "Sopro Congelante",
+        nome: "Congelante",
         custo: { tipo: "mana", quantidade: 1 }
     };
 }
@@ -131,7 +131,7 @@ function criar_dados_magica_gelo() {
 function criar_dados_magica_choque() {
     return {
         categoria: "magica",
-        nome: "Choque Elétrico",
+        nome: "Raio",
         custo: { tipo: "mana", quantidade: 1 }
     };
 }

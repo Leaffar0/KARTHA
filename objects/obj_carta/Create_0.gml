@@ -49,3 +49,4 @@ escala_atual = 1;       // escala sendo exibida
 y_offset_alvo = 0;      // deslocamento vertical (arco do leque)
 y_offset_atual = 0;
 esta_na_mao = true;     // controla se aplica os efeitos de mão
+preevile = 0;
