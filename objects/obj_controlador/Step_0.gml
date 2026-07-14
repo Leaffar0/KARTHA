@@ -6,10 +6,7 @@ if keyboard_check_pressed(ord("R")){
 	game_restart()	
 }
 
-
 if vida_jogador <= 0 exit;	
-
-
 
 if keyboard_check_pressed(ord("K")){
 	vida_inimigo = 0	

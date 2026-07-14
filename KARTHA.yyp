@@ -37,7 +37,7 @@
   "isEcma":false,
   "LibraryEmitters":[],
   "MetaData":{
-    "IDEVersion":"2024.14.4.222",
+    "IDEVersion":"2026.0.0.16",
   },
   "name":"KARTHA",
   "resources":[
@@ -56,7 +56,6 @@
     {"id":{"name":"obj_slot_batalha","path":"objects/obj_slot_batalha/obj_slot_batalha.yy",},},
     {"id":{"name":"obj_slot_construcao","path":"objects/obj_slot_construcao/obj_slot_construcao.yy",},},
     {"id":{"name":"obj_slot_recurso","path":"objects/obj_slot_recurso/obj_slot_recurso.yy",},},
-    {"id":{"name":"obj_slot","path":"objects/obj_slot/obj_slot.yy",},},
     {"id":{"name":"obj_texto_flutuante","path":"objects/obj_texto_flutuante/obj_texto_flutuante.yy",},},
     {"id":{"name":"Room1","path":"rooms/Room1/Room1.yy",},},
     {"id":{"name":"scr_dados_cartas","path":"scripts/scr_dados_cartas/scr_dados_cartas.yy",},},

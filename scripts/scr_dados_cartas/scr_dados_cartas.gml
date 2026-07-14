@@ -136,26 +136,6 @@ function criar_dados_magica_choque() {
     };
 }
 	
-function comprar_carta() {
-    // sorteia uma função de carta aleatória do baralho
-    var _funcoes = obj_controlador.baralho;
-    var _funcao_sorteada = _funcoes[irandom(array_length(_funcoes) - 1)];
-    var _dados = _funcao_sorteada();
-    
-    // cria a carta na tela (posição inicial não importa, vai ser ajustada)
-    var _carta = instance_create_layer(0, 0, "Instances", obj_carta);
-    _carta.nome_carta = _dados.nome;
-    _carta.ataque = _dados.ataque;
-    _carta.vida = _dados.vida;
-    _carta.custo_sacrificio = _dados.sacrificio;
-    
-    // adiciona essa carta no array da mão
-    array_push(obj_controlador.mao, _carta);
-    
-    // reorganiza a mão pra caber a nova carta
-    organizar_mao();
-}
-
 function organizar_mao() {
     var _mao = obj_controlador.mao;
     var _total = array_length(_mao);
@@ -203,6 +183,7 @@ function comprar_carta_do_deck(_x_inicial, _y_inicial) {
 	
     if (_dados.categoria == "tropa") {
         _carta.vida = _dados.vida;
+        _carta.vida_maxima = _dados.vida;
         _carta.custo_sacrificio = _dados.sacrificio;
         _carta.dado_dano = _dados.dado_dano;
         _carta.mod_dano = _dados.mod_dano;
@@ -291,9 +272,6 @@ function processar_combate(_lado_atacante) {
                         obj_controlador.vida_inimigo -= _dano_direto;
                     } else {
                         obj_controlador.vida_jogador -= _dano_direto;
-						if obj_controlador.vida_jogador <= 0{
-							global.vivo = 0	
-						}
                     }
                 }
             }
@@ -302,51 +280,7 @@ function processar_combate(_lado_atacante) {
     }
 }
 
-function organizar_lado(_lado_alvo) {
-    var _lista = [];
-    with (obj_slot) {
-        if (lado == _lado_alvo) {
-            array_push(_lista, id);
-        }
-    }
-    
-    var _n = array_length(_lista);
-    for (var i = 0; i < _n - 1; i++) {
-        for (var j = 0; j < _n - i - 1; j++) {
-            if (_lista[j].x > _lista[j+1].x) {
-                var _temp = _lista[j];
-                _lista[j] = _lista[j+1];
-                _lista[j+1] = _temp;
-            }
-        }
-    }
-    
-    for (var i = 0; i < _n; i++) {
-        _lista[i].indice = i;
-    }
-}
-
-// função chamada pelo botão de passar turno
-function passar_turno() {
-    if (obj_controlador.turno != "jogador") return;
-    
-    mover_tropas_automatico("jogador");
-    processar_combate("jogador");
-    if (obj_controlador.vida_inimigo <= 0) return;
-    
-    obj_controlador.turno = "inimigo";
-    mover_tropas_automatico("inimigo");  // <-- move ANTES de jogar carta nova
-    ia_jogar_cartas();                    // <-- carta nova nasce depois, fica parada até o próximo turno
-    processar_combate("inimigo");
-    if (obj_controlador.vida_jogador <= 0) return;
-    
-    obj_controlador.turno = "jogador";
-    obj_controlador.cartas_jogadas_no_turno = 0;
-}
-	
 function iniciar_pulo_tropa(_carta, _novo_x, _novo_y) {
-    show_debug_message("PULO (" + _carta.dono + "): " + _carta.nome_carta + " origem=(" + string(_carta.x) + "," + string(_carta.y) + ") destino=(" + string(_novo_x) + "," + string(_novo_y) + ")");
-    
     _carta.pulando = true;
     _carta.pulo_origem_x = _carta.x;
     _carta.pulo_origem_y = _carta.y;
@@ -414,6 +348,7 @@ function ia_jogar_cartas() {
                 _carta.nome_carta = _dados.nome;
                 _carta.categoria = _dados.categoria;
                 _carta.vida = _dados.vida;
+                _carta.vida_maxima = _dados.vida;
                 _carta.custo_sacrificio = _dados.sacrificio;
                 _carta.dado_dano = _dados.dado_dano;
                 _carta.mod_dano = _dados.mod_dano;
@@ -435,14 +370,6 @@ function ia_jogar_cartas() {
                 
                 _cartas_jogadas += 1;
             }
-        }
-    }
-}
-	
-function ia_mover_tropas() {
-    with (obj_carta) {
-        if (dono == "inimigo" && travada) {
-            mover_tropa(id, 1);
         }
     }
 }
@@ -633,6 +560,9 @@ function iniciar_turno_inimigo() {
     obj_controlador.fase = "turno_inimigo";
     
     processar_condicoes("inimigo");
+    desvirar_recursos("inimigo");
+    ia_jogar_recursos();
+    ia_jogar_construcao();
     
     mover_tropas_automatico("inimigo");
     ia_jogar_cartas();

@@ -1,6 +1,12 @@
 if (arrastando && mouse_check_button_released(mb_left)) {
     arrastando = false;
     
+    if (obj_controlador.vida_jogador <= 0 || obj_controlador.vida_inimigo <= 0) {
+        x = origem_x; y = origem_y;
+        esta_na_mao = true;
+        exit;
+    }
+    
     if (obj_controlador.turno != "jogador" || obj_controlador.fase != "gerenciamento") {
         x = origem_x; y = origem_y;
         esta_na_mao = true;

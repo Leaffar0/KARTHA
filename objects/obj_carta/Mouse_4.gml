@@ -1,3 +1,4 @@
+if (obj_controlador.vida_jogador <= 0 || obj_controlador.vida_inimigo <= 0) exit;
 if (!travada || dono != "jogador") exit;
 if (obj_controlador.fase == "ataque") {
     // nada por enquanto

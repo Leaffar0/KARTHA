@@ -26,43 +26,29 @@ with (obj_slot_construcao) {
     dono = (y >= _meio_construcao) ? "jogador" : "inimigo";
 }
 
-var _lista_construcao = [];
-with (obj_slot_construcao) {
-    array_push(_lista_construcao, id);
-}
-
-var _n = array_length(_lista_construcao);
-for (var i = 0; i < _n - 1; i++) {
-    for (var j = 0; j < _n - i - 1; j++) {
-        if (_lista_construcao[j].x > _lista_construcao[j+1].x) {
-            var _temp = _lista_construcao[j];
-            _lista_construcao[j] = _lista_construcao[j+1];
-            _lista_construcao[j+1] = _temp;
+// organiza a lane das construções SEPARADAMENTE por dono
+// (senão a numeração ficava misturada entre jogador e inimigo, não batendo com as lanes do campo de batalha)
+function ordenar_lane_por_dono(_obj, _dono_alvo) {
+    var _lista = [];
+    with (_obj) {
+        if (dono == _dono_alvo) array_push(_lista, id);
+    }
+    
+    var _n = array_length(_lista);
+    for (var i = 0; i < _n - 1; i++) {
+        for (var j = 0; j < _n - i - 1; j++) {
+            if (_lista[j].x > _lista[j+1].x) {
+                var _temp = _lista[j];
+                _lista[j] = _lista[j+1];
+                _lista[j+1] = _temp;
+            }
         }
+    }
+    
+    for (var i = 0; i < _n; i++) {
+        _lista[i].lane = i;
     }
 }
 
-for (var i = 0; i < _n; i++) {
-    _lista_construcao[i].lane = i;
-}
-
-// organiza os 6 slots de recurso automaticamente por posição X
-var _lista_recursos = [];
-with (obj_slot_recurso) {
-    array_push(_lista_recursos, id);
-}
-
-var _n = array_length(_lista_recursos);
-for (var i = 0; i < _n - 1; i++) {
-    for (var j = 0; j < _n - i - 1; j++) {
-        if (_lista_recursos[j].x > _lista_recursos[j+1].x) {
-            var _temp = _lista_recursos[j];
-            _lista_recursos[j] = _lista_recursos[j+1];
-            _lista_recursos[j+1] = _temp;
-        }
-    }
-}
-
-for (var i = 0; i < _n; i++) {
-    _lista_recursos[i].indice = i;
-}
+ordenar_lane_por_dono(obj_slot_construcao, "jogador");
+ordenar_lane_por_dono(obj_slot_construcao, "inimigo");
