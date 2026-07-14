@@ -11,7 +11,6 @@
   "defaultScriptType":1,
   "Folders":[
     {"$GMFolder":"","%Name":"Fontes","folderPath":"folders/Fontes.yy","name":"Fontes","resourceType":"GMFolder","resourceVersion":"2.0",},
-    {"$GMFolder":"","%Name":"Sound","folderPath":"folders/Sound.yy","name":"Sound","resourceType":"GMFolder","resourceVersion":"2.0",},
     {"$GMFolder":"","%Name":"Objetos","folderPath":"folders/Objetos.yy","name":"Objetos","resourceType":"GMFolder","resourceVersion":"2.0",},
     {"$GMFolder":"","%Name":"Cartas","folderPath":"folders/Objetos/Cartas.yy","name":"Cartas","resourceType":"GMFolder","resourceVersion":"2.0",},
     {"$GMFolder":"","%Name":"Jogo","folderPath":"folders/Objetos/Jogo.yy","name":"Jogo","resourceType":"GMFolder","resourceVersion":"2.0",},
@@ -20,6 +19,7 @@
     {"$GMFolder":"","%Name":"Slots","folderPath":"folders/Objetos/Slots.yy","name":"Slots","resourceType":"GMFolder","resourceVersion":"2.0",},
     {"$GMFolder":"","%Name":"Sala","folderPath":"folders/Sala.yy","name":"Sala","resourceType":"GMFolder","resourceVersion":"2.0",},
     {"$GMFolder":"","%Name":"Script","folderPath":"folders/Script.yy","name":"Script","resourceType":"GMFolder","resourceVersion":"2.0",},
+    {"$GMFolder":"","%Name":"Sound","folderPath":"folders/Sound.yy","name":"Sound","resourceType":"GMFolder","resourceVersion":"2.0",},
     {"$GMFolder":"","%Name":"Sprite","folderPath":"folders/Sprite.yy","name":"Sprite","resourceType":"GMFolder","resourceVersion":"2.0",},
     {"$GMFolder":"","%Name":"Condicoes","folderPath":"folders/Sprite/Condicoes.yy","name":"Condicoes","resourceType":"GMFolder","resourceVersion":"2.0",},
     {"$GMFolder":"","%Name":"Construcoes","folderPath":"folders/Sprite/Construcoes.yy","name":"Construcoes","resourceType":"GMFolder","resourceVersion":"2.0",},

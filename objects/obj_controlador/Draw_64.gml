@@ -64,12 +64,12 @@ if (carta_preview != noone && instance_exists(carta_preview)) {
 
 if (vida_jogador <= 0) {
     draw_set_font(fnt_vitoria)
-    draw_text(room_width/2 - 100, room_height/2, "VOCÊ PERDEU");
+    draw_text(room_width/2 - 150, room_height/2.5, "VOCÊ PERDEU");
 	draw_set_font(-1)
 }
 if (vida_inimigo <= 0) {
 	draw_set_font(fnt_vitoria)
-    draw_text(room_width/2 - 100, room_height/2, "VOCÊ VENCEU");
+    draw_text(room_width/2 - 150, room_height/2.5, "VOCÊ VENCEU");
 	draw_set_font(-1)
 }
 draw_set_font(-1);
