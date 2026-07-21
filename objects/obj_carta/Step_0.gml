@@ -7,11 +7,11 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         exit;
     }
     
-    if (obj_controlador.turno != "jogador" || obj_controlador.fase != "gerenciamento") {
-        x = origem_x; y = origem_y;
-        esta_na_mao = true;
-        exit;
-    }
+    if (obj_controlador.turno != "jogador") {
+	    x = origem_x; y = origem_y;
+	    esta_na_mao = true;
+	    exit;
+	}
 	
     if (categoria == "tropa") {
         // --- código de soltar tropa que já existe, sem mudar nada ---

@@ -2,7 +2,7 @@ draw_set_font(Fontenil);
 
 draw_text(20, 20, "Vida jogador: " + string(vida_jogador));
 draw_text(20, 50, "Vida inimigo: " + string(vida_inimigo));
-draw_text(20, 80, "Fase: " + string(fase));
+draw_text(20, 80, (turno == "jogador") ? "Seu turno" : "Turno do inimigo");
 
 
 if(preevile){

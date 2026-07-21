@@ -17,6 +17,7 @@ baralho = [
 ];
 
 mao = [];
+monte = montar_deck();
 
 recursos_inimigo = [];
 recurso_colocado_no_turno_inimigo = false;
@@ -29,7 +30,6 @@ hover_atual = noone;
 vida_jogador = 20;
 vida_inimigo = 20;
 turno = "jogador";
-fase = "gerenciamento";
 rolagens_pendentes = 0;
 cartas_jogadas_no_turno = 0;
 max_cartas_por_turno = 1;
@@ -45,3 +45,6 @@ mao_scroll_max = 0;
 mao_largura_visivel = 400; // ajuste esse valor pro espaço disponível pra mão na sua tela
 terreno_bonus_defesa = 0; // efeito global ativo (soma na defesa de TODAS as tropas)
 espaco_entre_cartas = 90; // era 50 — ajuste conforme o visual que preferir
+carta_menu_aberto = noone;
+menu_escala = 0;
+depth = -10000;

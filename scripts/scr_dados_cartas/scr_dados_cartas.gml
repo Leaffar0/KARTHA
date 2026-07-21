@@ -235,9 +235,14 @@ function organizar_mao() {
 }
 	
 function comprar_carta_do_deck(_x_inicial, _y_inicial) {
-    var _funcoes = obj_controlador.baralho;
-    var _funcao_sorteada = _funcoes[irandom(array_length(_funcoes) - 1)];
-    var _dados = _funcao_sorteada();
+    if (array_length(obj_controlador.monte) == 0) {
+	    show_debug_message("Monte vazio! Sem cartas pra comprar.");
+	    return;
+	}
+
+	var _funcao_sorteada = obj_controlador.monte[0];
+	array_delete(obj_controlador.monte, 0, 1);
+	var _dados = _funcao_sorteada();
     
     var _carta = instance_create_layer(_x_inicial, _y_inicial, "Instances", obj_carta);
     _carta.nome_carta = _dados.nome;
@@ -303,9 +308,6 @@ function comprar_carta_do_deck(_x_inicial, _y_inicial) {
     _carta.x = _x_inicial;
     _carta.y = _y_inicial;
     
-    if (instance_exists(obj_deck)) {
-        obj_deck.quantidade_cartas -= 1;
-    }
 }
 
 // acha um slot específico pelo lado e coluna
@@ -588,39 +590,25 @@ function rolar_dado_visual(_x, _y, _destino_x, _destino_y, _tamanho_dado, _resul
     _dado.callback = _funcao_callback;
 }
 
-function avancar_fase_jogador() {
+function passar_turno_jogador() {
     if (obj_controlador.turno != "jogador") return;
     if (obj_controlador.rolagens_pendentes > 0) return;
-
-    switch (obj_controlador.fase) {
-        case "gerenciamento":
-            obj_controlador.fase = "ataque";
-            break;
-
-        case "ataque":
-		    processar_combate("jogador");
-		    obj_controlador.fase = "movimento";
-		    break;
-
-        case "movimento":
-            iniciar_turno_inimigo();
-            break;
-
-       case "compra":
-		    processar_condicoes("jogador");
-		    desvirar_recursos("jogador");
-		    if (instance_exists(obj_deck) && obj_deck.quantidade_cartas > 0) {
-		        comprar_carta_do_deck(obj_deck.x, obj_deck.y);
-		    }
-		    reiniciar_acoes_tropas("jogador");
-		    obj_controlador.fase = "gerenciamento";
-		    break;
+    
+    obj_controlador.carta_menu_aberto = noone;
+    
+    iniciar_turno_inimigo();
+    
+    processar_condicoes("jogador");
+    desvirar_recursos("jogador");
+    if (instance_exists(obj_deck) && array_length(obj_controlador.monte) > 0) {
+        comprar_carta_do_deck(obj_deck.x, obj_deck.y);
     }
+    reiniciar_acoes_tropas("jogador");
+    obj_controlador.cartas_jogadas_no_turno = 0;
 }
 
 function iniciar_turno_inimigo() {
     obj_controlador.turno = "inimigo";
-    obj_controlador.fase = "turno_inimigo";
     
     processar_condicoes("inimigo");
     desvirar_recursos("inimigo");
@@ -632,17 +620,13 @@ function iniciar_turno_inimigo() {
     processar_combate("inimigo");
     
     obj_controlador.turno = "jogador";
-    obj_controlador.fase = "compra";
-    obj_controlador.cartas_jogadas_no_turno = 0;
 }
-
-function reiniciar_acoes_tropas(_lado)
-{
-    with (obj_carta)
-    {
-        if (dono == _lado && travada)
-        {
+	
+function reiniciar_acoes_tropas(_lado) {
+    with (obj_carta) {
+        if (dono == _lado && travada) {
             moveu_este_turno = false;
+            atacou_este_turno = false;
         }
     }
 }
@@ -961,4 +945,93 @@ function jogar_moeda_visual(_origem_x, _origem_y, _destino_x, _destino_y, _funca
     _moeda.callback = _funcao_callback;
     
     obj_controlador.rolagens_pendentes += 1;
+}
+	
+function embaralhar_array(_array) {
+    var _n = array_length(_array);
+    for (var i = _n - 1; i > 0; i--) {
+        var _j = irandom(i);
+        var _temp = _array[i];
+        _array[i] = _array[_j];
+        _array[_j] = _temp;
+    }
+    return _array;
+}
+
+function montar_deck() {
+    var _monte = [];
+    var _copias_por_carta = 3; // ajuste esse número -- quantas cópias de cada carta entram no deck
+    
+    for (var i = 0; i < array_length(baralho); i++) {
+        for (var c = 0; c < _copias_por_carta; c++) {
+            array_push(_monte, baralho[i]);
+        }
+    }
+    
+    return embaralhar_array(_monte);
+}
+	
+function obter_opcoes_menu(_carta) {
+    var _opcoes = [];
+    if (!_carta.atacou_este_turno) array_push(_opcoes, "Atacar");
+    if (!_carta.moveu_este_turno) array_push(_opcoes, "Mover");
+    if (_carta.tem_habilidade) array_push(_opcoes, "Usar Habilidade");
+    return _opcoes;
+}
+
+function executar_opcao_menu(_carta, _opcao) {
+    switch (_opcao) {
+        case "Atacar":
+            processar_combate_tropa(_carta);
+            _carta.atacou_este_turno = true;
+            break;
+        case "Mover":
+            var _resultado = mover_tropa(_carta, 1);
+            if (_resultado == "movido") {
+                _carta.moveu_este_turno = true;
+            }
+            break;
+        case "Usar Habilidade":
+            show_debug_message(_carta.nome_carta + " tentou usar habilidade (ainda não implementada).");
+            break;
+    }
+}
+
+// versão do combate pra UMA tropa só (usada pelo menu do jogador)
+function processar_combate_tropa(_carta) {
+    if (!instance_exists(_carta) || !_carta.travada || _carta.slot_atual == noone) return;
+    
+    var _slot = _carta.slot_atual;
+    var _lado_atacante = _carta.dono;
+    var _lado_defensor = (_lado_atacante == "jogador") ? "inimigo" : "jogador";
+    var _sentido = direcao_avanco(_lado_atacante);
+    
+    var _proxima_posicao = _slot.posicao + _sentido;
+    var _slot_alvo = buscar_slot(_slot.lane, _proxima_posicao);
+    
+    if (_slot_alvo != noone && _slot_alvo.ocupado && _slot_alvo.carta_atual.dono == _lado_defensor) {
+        rolar_combate(_carta, _slot_alvo.carta_atual);
+    } else if (_slot.posicao == posicao_ataque()) {
+        var _construcao_alvo = buscar_construcao(_slot.lane, _lado_defensor);
+        
+        if (_construcao_alvo != noone) {
+            var _dano_construcao = irandom_range(1, _carta.dado_dano) + _carta.mod_dano;
+            _construcao_alvo.vida -= _dano_construcao;
+            
+            if (_construcao_alvo.vida <= 0) {
+                _construcao_alvo.slot_atual.ocupado = false;
+                _construcao_alvo.slot_atual.construcao_atual = noone;
+                instance_destroy(_construcao_alvo);
+            }
+        } else {
+            var _dano_direto = irandom_range(1, _carta.dado_dano) + _carta.mod_dano;
+            if (_lado_atacante == "jogador") {
+                obj_controlador.vida_inimigo -= _dano_direto;
+            } else {
+                obj_controlador.vida_jogador -= _dano_direto;
+            }
+        }
+    } else {
+        show_debug_message(_carta.nome_carta + " não tem alvo na frente ainda (precisa avançar mais).");
+    }
 }

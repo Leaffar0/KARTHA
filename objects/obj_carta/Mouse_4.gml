@@ -1,12 +1,10 @@
-if (obj_controlador.vida_jogador <= 0 || obj_controlador.vida_inimigo <= 0) exit;
 if (!travada || dono != "jogador") exit;
-if (obj_controlador.fase == "ataque") {
-    // nada por enquanto
-} else if (obj_controlador.fase == "movimento") {
-    if (!moveu_este_turno) {
-        var _resultado = mover_tropa(id, 1);
-        if (_resultado == "movido") {
-            moveu_este_turno = true;
-        }
-    }
+if (obj_controlador.turno != "jogador") exit;
+if (obj_controlador.rolagens_pendentes > 0) exit;
+
+// clicar na mesma carta fecha o menu; clicar em outra troca pra ela
+if (obj_controlador.carta_menu_aberto == id) {
+    obj_controlador.carta_menu_aberto = noone;
+} else {
+    obj_controlador.carta_menu_aberto = id;
 }

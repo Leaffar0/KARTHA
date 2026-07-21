@@ -57,3 +57,6 @@ y_offset_atual = 0;
 esta_na_mao = true;     // controla se aplica os efeitos de mão
 mao_base_x = 0;
 mao_base_y = 0;
+atacou_este_turno = false;
+tem_habilidade = false;
+habilidade_nome = "";

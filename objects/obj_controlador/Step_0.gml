@@ -94,3 +94,36 @@ if (mao_scroll_max > 0) {
 }
 
 mao_scroll_offset += (mao_scroll_offset_alvo - mao_scroll_offset) * 0.15;
+
+// --- animação do menu de ação ---
+var _alvo_escala_menu = (carta_menu_aberto != noone && instance_exists(carta_menu_aberto)) ? 1 : 0;
+menu_escala += (_alvo_escala_menu - menu_escala) * 0.25;
+if (_alvo_escala_menu == 0 && menu_escala < 0.02) {
+    menu_escala = 0;
+}
+
+// --- clique nas opções do menu (só quando já estiver bem aberto) ---
+if (carta_menu_aberto != noone && instance_exists(carta_menu_aberto) && menu_escala > 0.9) {
+    if (mouse_check_button_pressed(mb_left)) {
+        var _carta = carta_menu_aberto;
+        var _opcoes = obter_opcoes_menu(_carta);
+        var _n = array_length(_opcoes);
+        
+        var _largura_opcao = 130;
+        var _altura_opcao = 32;
+        var _espaco_opcao = 4;
+        var _altura_total = _n * _altura_opcao + (_n - 1) * _espaco_opcao;
+        
+        var _base_x = _carta.x + (global.CARTA_LARGURA * 0.6) + 20;
+        var _base_y = _carta.y - _altura_total/2;
+        
+        for (var i = 0; i < _n; i++) {
+            var _opt_y = _base_y + i * (_altura_opcao + _espaco_opcao);
+            if (mouse_x > _base_x && mouse_x < _base_x + _largura_opcao && mouse_y > _opt_y && mouse_y < _opt_y + _altura_opcao) {
+                executar_opcao_menu(_carta, _opcoes[i]);
+                carta_menu_aberto = noone;
+                break;
+            }
+        }
+    }
+}

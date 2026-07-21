@@ -12,7 +12,7 @@ draw_set_valign(fa_top);
 
 
 draw_set_font(fnt_botao)
-draw_text(x, y + sprite_height/2 + 8, string(quantidade_cartas) + " cartas");
+draw_text(x, y + sprite_height/2 + 8, string(array_length(obj_controlador.monte)) + " cartas");
 draw_set_halign(fa_left);
 draw_set_valign(fa_top);
 draw_set_font(-1)
