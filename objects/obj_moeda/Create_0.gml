@@ -1,0 +1,12 @@
+girando = false;
+tempo_girando = 0;
+tempo_total_giro = 105; // (removi a linha duplicada do 25, deixando só essa)
+resultado_final = 0;
+callback = noone;
+escala_moeda = 1;
+pos_inicial_x = 0;
+pos_inicial_y = 0;
+destino_x = 0;
+destino_y = 0;
+depth = -3000;
+image_speed = 0; // <-- impede o GameMaker de animar sozinho, deixando só nosso controle manual

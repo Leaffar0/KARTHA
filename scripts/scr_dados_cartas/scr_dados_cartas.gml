@@ -894,16 +894,30 @@ function aplicar_efeito_bola_fogo(_alvo, _dado_efeito, _chance_queimar) {
     
     _alvo.vida -= _dano;
     
-    if (random(1) < _chance_queimar) {
-        var _aplicou = aplicar_condicao(_alvo, "queimado", 3, 2);
-        if (_aplicou) {
-            show_debug_message(_alvo.nome_carta + " está QUEIMANDO!");
-        }
-    }
-    
     if (_alvo.vida <= 0) {
         destruir_tropa(_alvo);
+        return;
     }
+    
+    var _dados_moeda = { alvo: _alvo };
+    
+    // origem: perto da sua mão (seu lado da tela) -- destino: em cima do alvo
+    var _origem_x = _alvo.x;
+    var _origem_y = obj_controlador.mao_y;
+    var _escala_visual_alvo = _alvo.escala_base * (_alvo.travada ? _alvo.escala_no_campo : 1);
+	var _altura_visual_alvo = global.CARTA_ALTURA * _escala_visual_alvo;
+	var _altura_visual_moeda = global.MOEDA_LARGURA; // já que a moeda é quadrada (100x100), largura = altura
+
+	var _destino_x = _alvo.x;
+	var _destino_y = _alvo.y - _altura_visual_alvo/2 - (_altura_visual_moeda/2) + 20; // esse "+20" desce ela um pouco
+    
+    jogar_moeda_visual(_origem_x, _origem_y, _destino_x, _destino_y, method(_dados_moeda, function(_resultado) {
+        if (!instance_exists(alvo)) return;
+        
+        if (_resultado == 1) {
+            aplicar_condicao(alvo, "queimado", 3, 2);
+        }
+    }));
 }
 	
 function obter_config_condicao(_tipo) {
@@ -928,4 +942,23 @@ function tocar_musica(_musica)
     {
         audio_play_sound(_musica, 0, true);
     }
+}
+
+function jogar_moeda_visual(_origem_x, _origem_y, _destino_x, _destino_y, _funcao_callback) {
+    show_debug_message("jogar_moeda_visual chamada!");
+    
+    var _resultado = irandom(1);
+    
+    var _moeda = instance_create_layer(_origem_x, _origem_y, "Instances", obj_moeda);
+    _moeda.resultado_final = _resultado;
+    _moeda.pos_inicial_x = _origem_x;
+    _moeda.pos_inicial_y = _origem_y;
+    _moeda.destino_x = _destino_x;
+    _moeda.destino_y = _destino_y;
+    _moeda.escala_moeda = global.MOEDA_LARGURA / sprite_get_width(_moeda.sprite_index);
+    _moeda.girando = true;
+    _moeda.tempo_girando = 0;
+    _moeda.callback = _funcao_callback;
+    
+    obj_controlador.rolagens_pendentes += 1;
 }

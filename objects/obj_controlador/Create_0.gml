@@ -1,6 +1,7 @@
 global.CARTA_LARGURA = 80;
 global.CARTA_ALTURA = 107;
 global.RECURSO_LARGURA = 50; // ajuste pro tamanho que quiser na tela
+global.MOEDA_LARGURA = 50; // ajuste pro tamanho que quiser
 
 randomize(); // garante que os números aleatórios mudam a cada execução
 
