@@ -48,3 +48,4 @@ espaco_entre_cartas = 90; // era 50 — ajuste conforme o visual que preferir
 carta_menu_aberto = noone;
 menu_escala = 0;
 depth = -10000;
+rolagens_pendentes_timer = 0;

@@ -1,3 +1,16 @@
+// --- watchdog: se rolagens_pendentes ficar travado por muito tempo, força reset ---
+if (rolagens_pendentes > 0) {
+    rolagens_pendentes_timer += 1;
+    if (rolagens_pendentes_timer > 300) { // 5 segundos a 60fps
+        show_debug_message("AVISO: rolagens_pendentes travado em " + string(rolagens_pendentes) + ", forçando reset.");
+        rolagens_pendentes = 0;
+        rolagens_pendentes_timer = 0;
+    }
+} else {
+    rolagens_pendentes_timer = 0;
+}
+
+
 if keyboard_check_pressed(vk_escape){
 	game_end()
 	}

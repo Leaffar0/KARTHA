@@ -518,7 +518,10 @@ function rolar_combate(_atacante, _defensor) {
 }
 
 function processar_resultado_acerto(_dado_acerto, _atacante, _defensor) {
+    show_debug_message("--> processar_resultado_acerto chamado. atacante existe? " + string(instance_exists(_atacante)) + " defensor existe? " + string(instance_exists(_defensor)));
+    
     if (!instance_exists(_atacante) || !instance_exists(_defensor)) {
+        show_debug_message("--> SAIU CEDO: atacante ou defensor não existe mais!");
         return;
     }
     show_debug_message("D20 rolou: " + string(_dado_acerto));
@@ -534,6 +537,7 @@ function processar_resultado_acerto(_dado_acerto, _atacante, _defensor) {
         
         rolar_dado_visual(_defensor.x, _defensor.y, _atacante.x, _atacante.y, _defensor.dado_dano, _dano_contra_dado, method(_dados_contra, function(_resultado) {
             if (!instance_exists(atacante) || !instance_exists(defensor)) {
+                show_debug_message("--> contra-ataque SAIU CEDO: alvo sumiu");
                 return;
             }
             var _dano_contra = _resultado + defensor.mod_dano;
@@ -565,8 +569,27 @@ function processar_resultado_acerto(_dado_acerto, _atacante, _defensor) {
     var _dados_dano = {
         atacante: _atacante,
         defensor: _defensor
-    }
-};
+    };
+    
+    rolar_dado_visual(_atacante.x, _atacante.y, _defensor.x, _defensor.y, _atacante.dado_dano, _dano_dado, method(_dados_dano, function(_resultado) {
+        show_debug_message("--> callback do dado de DANO disparou. atacante existe? " + string(instance_exists(atacante)) + " defensor existe? " + string(instance_exists(defensor)));
+        
+        if (!instance_exists(atacante) || !instance_exists(defensor)) {
+            show_debug_message("--> dano SAIU CEDO: alvo sumiu");
+            return;
+        }
+        
+        var _dano_final = _resultado + atacante.mod_dano;
+        _dano_final = max(0, _dano_final - defensor.defesa_fisica - obj_controlador.terreno_bonus_defesa);
+        defensor.vida -= _dano_final;
+        
+        show_debug_message(defensor.nome_carta + " tomou " + string(_dano_final) + " de dano! Vida agora: " + string(defensor.vida));
+        
+        if (defensor.vida <= 0) {
+            destruir_tropa(defensor);
+        }
+    }));
+}
 
 function destruir_tropa(_carta) {
     if (_carta.slot_atual != noone) {
@@ -579,12 +602,11 @@ function destruir_tropa(_carta) {
 function rolar_dado_visual(_x, _y, _destino_x, _destino_y, _tamanho_dado, _resultado_final, _funcao_callback) {
     var _dado = instance_create_layer(_x, _y, "Instances", obj_dado);
     obj_controlador.rolagens_pendentes += 1;
+    show_debug_message("+1 pendente (dado id=" + string(_dado.id) + "). Total: " + string(obj_controlador.rolagens_pendentes));
     _dado.tamanho_dado = _tamanho_dado;
     _dado.valor_final = _resultado_final;
     _dado.destino_x = _destino_x;
     _dado.destino_y = _destino_y;
-	_dado.pos_inicial_x = _x;
-	_dado.pos_inicial_y = _y;
     _dado.girando = true;
     _dado.tempo_girando = 0;
     _dado.callback = _funcao_callback;
@@ -604,20 +626,23 @@ function passar_turno_jogador() {
         comprar_carta_do_deck(obj_deck.x, obj_deck.y);
     }
     reiniciar_acoes_tropas("jogador");
+    expirar_condicoes("jogador"); // desconta o turno da sua tropa só agora, depois de você já ter agido
     obj_controlador.cartas_jogadas_no_turno = 0;
 }
 
 function iniciar_turno_inimigo() {
     obj_controlador.turno = "inimigo";
     
-    processar_condicoes("inimigo");
+    processar_condicoes("inimigo"); // dano/cura no início
     desvirar_recursos("inimigo");
     ia_jogar_recursos();
     ia_jogar_construcao();
     
-    mover_tropas_automatico("inimigo");
+    mover_tropas_automatico("inimigo"); // aqui ele ainda está bloqueado, se congelado
     ia_jogar_cartas();
-    processar_combate("inimigo");
+    processar_combate("inimigo"); // aqui também
+    
+    expirar_condicoes("inimigo"); // só desconta o turno DEPOIS de tudo isso
     
     obj_controlador.turno = "jogador";
 }
@@ -830,18 +855,22 @@ function processar_condicoes(_dono) {
             continue;
         }
         
-        // corrosão diminui o dano a cada turno (3, 2, 1)
         if (condicao == "corrosao" && condicao_dano_por_turno > 1) {
             condicao_dano_por_turno -= 1;
         }
+    }
+}
+
+function expirar_condicoes(_dono) {
+    with (obj_carta) {
+        if (dono != _dono) continue;
+        if (condicao == noone) continue;
         
-        // conta os turnos restantes (se não for infinito)
         if (condicao_turnos_restantes > 0) {
             condicao_turnos_restantes -= 1;
             
             if (condicao_turnos_restantes <= 0) {
                 if (condicao == "queimado") {
-                    // fica 1 turno imune antes de poder ser queimada de novo
                     condicao = "imune_queimado";
                     condicao_turnos_restantes = 1;
                 } else {
@@ -929,7 +958,6 @@ function tocar_musica(_musica)
 }
 
 function jogar_moeda_visual(_origem_x, _origem_y, _destino_x, _destino_y, _funcao_callback) {
-    show_debug_message("jogar_moeda_visual chamada!");
     
     var _resultado = irandom(1);
     
