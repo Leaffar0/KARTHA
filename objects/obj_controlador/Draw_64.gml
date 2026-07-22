@@ -41,7 +41,7 @@ if (carta_preview != noone && instance_exists(carta_preview)) {
     draw_set_halign(fa_center);
     draw_set_valign(fa_top);
     draw_set_color(c_white);
-    draw_text_transformed(_centro_x, _centro_y - (_carta.sprite_height/2 * _escala_preview) + 10, _carta.nome_carta, _escala_preview * 0.35, _escala_preview * 0.35, 0);
+    draw_text_transformed(_centro_x, _centro_y - (_carta.sprite_height/2 * _escala_preview) + 10, _carta.nome_carta, _escala_preview * 0.25, _escala_preview * 0.25, 0);
     
     // ataque/vida, só se for tropa
     if (_carta.categoria == "tropa") {

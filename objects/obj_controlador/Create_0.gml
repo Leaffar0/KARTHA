@@ -25,7 +25,6 @@ carta_preview = noone;
 quantidade_inicial = 3;
 mao_x_centro = room_width / 2;
 mao_y = room_height - 100;
-espaco_entre_cartas = 50;
 hover_atual = noone;
 vida_jogador = 20;
 vida_inimigo = 20;
