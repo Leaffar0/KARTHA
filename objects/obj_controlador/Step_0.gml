@@ -122,12 +122,12 @@ if (carta_menu_aberto != noone && instance_exists(carta_menu_aberto) && menu_esc
         var _opcoes = obter_opcoes_menu(_carta);
         var _n = array_length(_opcoes);
         
-        var _largura_opcao = 130;
-        var _altura_opcao = 32;
+        var _largura_opcao = 100;
+        var _altura_opcao = 26;
         var _espaco_opcao = 4;
         var _altura_total = _n * _altura_opcao + (_n - 1) * _espaco_opcao;
         
-        var _base_x = _carta.x + (global.CARTA_LARGURA * 0.6) + 20;
+        var _base_x = _carta.x + (global.CARTA_LARGURA * 0.6);
         var _base_y = _carta.y - _altura_total/2;
         
         for (var i = 0; i < _n; i++) {
