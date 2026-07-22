@@ -60,3 +60,7 @@ mao_base_y = 0;
 atacou_este_turno = false;
 tem_habilidade = false;
 habilidade_nome = "";
+habilidade_usada_este_turno = false;
+sombra_ativa = false;
+sombra_cooldown = 0; // turnos restantes até poder usar de novo
+habilidade = noone;

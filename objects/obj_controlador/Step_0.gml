@@ -116,27 +116,46 @@ if (_alvo_escala_menu == 0 && menu_escala < 0.02) {
 }
 
 // --- clique nas opções do menu (só quando já estiver bem aberto) ---
+opcao_hover_index = -1;
+
 if (carta_menu_aberto != noone && instance_exists(carta_menu_aberto) && menu_escala > 0.9) {
-    if (mouse_check_button_pressed(mb_left)) {
-        var _carta = carta_menu_aberto;
-        var _opcoes = obter_opcoes_menu(_carta);
-        var _n = array_length(_opcoes);
-        
-        var _largura_opcao = 80;
-        var _altura_opcao = 20;
-        var _espaco_opcao = 6;
-        var _altura_total = _n * _altura_opcao + (_n - 1) * _espaco_opcao;
-        
-        var _base_x = _carta.x + (global.CARTA_LARGURA * 0.5);
-        var _base_y = _carta.y - _altura_total/2;
-        
-        for (var i = 0; i < _n; i++) {
-            var _opt_y = _base_y + i * (_altura_opcao + _espaco_opcao);
-            if (mouse_x > _base_x && mouse_x < _base_x + _largura_opcao && mouse_y > _opt_y && mouse_y < _opt_y + _altura_opcao) {
+    var _carta = carta_menu_aberto;
+    var _opcoes = obter_opcoes_menu(_carta);
+    var _n = array_length(_opcoes);
+    
+    var _largura_opcao = 100;
+    var _altura_opcao = 20;
+    var _espaco_opcao = 6;
+    var _altura_total = _n * _altura_opcao + (_n - 1) * _espaco_opcao;
+    
+    var _base_x = _carta.x + (global.CARTA_LARGURA * 0.5);
+    var _base_y = _carta.y - _altura_total/2;
+    
+    for (var i = 0; i < _n; i++) {
+        var _opt_y = _base_y + i * (_altura_opcao + _espaco_opcao);
+        if (mouse_x > _base_x && mouse_x < _base_x + _largura_opcao && mouse_y > _opt_y && mouse_y < _opt_y + _altura_opcao) {
+            opcao_hover_index = i;
+            
+            if (mouse_check_button_pressed(mb_left)) {
                 executar_opcao_menu(_carta, _opcoes[i]);
                 carta_menu_aberto = noone;
-                break;
             }
+            break;
         }
     }
+}
+
+// anima o tooltip crescendo/encolhendo, baseado se está em hover na opção certa
+var _mostrar_tooltip = false;
+if (carta_menu_aberto != noone && opcao_hover_index != -1) {
+    var _opcoes_atuais = obter_opcoes_menu(carta_menu_aberto);
+    if (opcao_hover_index < array_length(_opcoes_atuais) && _opcoes_atuais[opcao_hover_index] == "Habilidade") {
+        _mostrar_tooltip = true;
+    }
+}
+
+var _alvo_tooltip = _mostrar_tooltip ? 1 : 0;
+tooltip_escala += (_alvo_tooltip - tooltip_escala) * 0.3;
+if (_alvo_tooltip == 0 && tooltip_escala < 0.02) {
+    tooltip_escala = 0;
 }

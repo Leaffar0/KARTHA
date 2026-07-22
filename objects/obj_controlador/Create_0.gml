@@ -48,3 +48,5 @@ carta_menu_aberto = noone;
 menu_escala = 0;
 depth = -10000;
 rolagens_pendentes_timer = 0;
+opcao_hover_index = -1; // qual opção do menu está com o mouse em cima agora
+tooltip_escala = 0;

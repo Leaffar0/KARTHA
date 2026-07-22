@@ -11,6 +11,9 @@ if (travada) {
     _escala_final *= escala_no_campo;
 }
 
+var _alpha_carta = sombra_ativa ? 0.4 : 1;
+draw_set_alpha(_alpha_carta);
+
 draw_sprite_ext(
     sprite_index,
     image_index,
@@ -20,7 +23,7 @@ draw_sprite_ext(
     _escala_final,
     _rotacao_total,
     c_white,
-    1
+    _alpha_carta
 );
 
 if (!tem_arte_propria) {
@@ -127,3 +130,4 @@ if (condicao != noone && condicao != "imune_queimado") {
 draw_set_halign(fa_left);
 draw_set_valign(fa_top);
 draw_set_font(-1)
+draw_set_alpha(1);

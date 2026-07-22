@@ -46,7 +46,8 @@ function criar_dados_esquilo() {
         mod_dano: 0,
         defesa_fisica: 0,
         defesa_magica: 0,
-        custo: noone
+        custo: noone,
+		habilidade: "ferida_exposta"
     };
 }
 
@@ -61,7 +62,8 @@ function criar_dados_lobo() {
         mod_dano: 1,
         defesa_fisica: 1,
         defesa_magica: 0,
-        custo: { tipo: "sangue", quantidade: 1 }
+        custo: { tipo: "sangue", quantidade: 1 },
+		habilidade: "golpe_duplo"
     };
 }
 	
@@ -76,7 +78,8 @@ function criar_dados_urso() {
         mod_dano: 0,
         defesa_fisica: 0,
         defesa_magica: 0,
-        custo: noone
+        custo: noone,
+		habilidade: "sombra_translucida"
     };
 }
 
@@ -260,6 +263,8 @@ function comprar_carta_do_deck(_x_inicial, _y_inicial) {
         _carta.defesa_fisica = _dados.defesa_fisica;
         _carta.defesa_magica = _dados.defesa_magica;
         _carta.custo = _dados.custo;
+		_carta.habilidade = _dados.habilidade;
+		_carta.tem_habilidade = (_dados.habilidade != noone);
 		
     } else if (_dados.categoria == "recurso") {
 	    _carta.tipo_recurso = _dados.tipo_recurso;
@@ -332,7 +337,7 @@ function processar_combate(_lado_atacante) {
             var _proxima_posicao = posicao + _sentido;
             var _slot_alvo = buscar_slot(lane, _proxima_posicao);
             
-            if (_slot_alvo != noone && _slot_alvo.ocupado && _slot_alvo.carta_atual.dono == _lado_defensor) {
+            if (_slot_alvo != noone && _slot_alvo.ocupado && _slot_alvo.carta_atual.dono == _lado_defensor && !_slot_alvo.carta_atual.sombra_ativa) {
                 // tem tropa inimiga na frente, em QUALQUER posição: ataca ela
                 rolar_combate(_atacante, _slot_alvo.carta_atual);
                 
@@ -438,6 +443,8 @@ function ia_jogar_cartas() {
                 _carta.mod_dano = _dados.mod_dano;
                 _carta.defesa_fisica = _dados.defesa_fisica;
                 _carta.defesa_magica = _dados.defesa_magica;
+				_carta.habilidade = _dados.habilidade;
+				_carta.tem_habilidade = (_dados.habilidade != noone);
                 
                 _carta.esta_na_mao = false;
                 _carta.travada = true;
@@ -652,6 +659,7 @@ function reiniciar_acoes_tropas(_lado) {
         if (dono == _lado && travada) {
             moveu_este_turno = false;
             atacou_este_turno = false;
+            habilidade_usada_este_turno = false;
         }
     }
 }
@@ -864,6 +872,15 @@ function processar_condicoes(_dono) {
 function expirar_condicoes(_dono) {
     with (obj_carta) {
         if (dono != _dono) continue;
+        
+        // recarrega/desativa a sombra translúcida com o passar dos turnos
+        if (sombra_cooldown > 0) {
+            sombra_cooldown -= 1;
+            if (sombra_cooldown == 1) {
+                sombra_ativa = false; // já passou o turno de invisibilidade, agora só recarregando
+            }
+        }
+        
         if (condicao == noone) continue;
         
         if (condicao_turnos_restantes > 0) {
@@ -1003,8 +1020,17 @@ function obter_opcoes_menu(_carta) {
     var _opcoes = [];
     if (!_carta.atacou_este_turno) array_push(_opcoes, "Atacar");
     if (!_carta.moveu_este_turno) array_push(_opcoes, "Mover");
-    if (_carta.tem_habilidade) array_push(_opcoes, "Usar Habilidade");
+    if (_carta.tem_habilidade && !_carta.habilidade_usada_este_turno) array_push(_opcoes, "Habilidade");
     return _opcoes;
+}
+	
+function obter_nome_exibicao_habilidade(_habilidade) {
+    switch (_habilidade) {
+        case "golpe_duplo": return "Golpe Duplo";
+        case "sombra_translucida": return "Sombra Translucida";
+        case "ferida_exposta": return "Ferida Exposta";
+    }
+    return "Habilidade";
 }
 
 function executar_opcao_menu(_carta, _opcao) {
@@ -1019,12 +1045,25 @@ function executar_opcao_menu(_carta, _opcao) {
                 _carta.moveu_este_turno = true;
             }
             break;
-        case "Usar Habilidade":
-            show_debug_message(_carta.nome_carta + " tentou usar habilidade (ainda não implementada).");
+        case "Habilidade":
+            usar_habilidade(_carta);
             break;
     }
 }
 
+function usar_habilidade(_carta) {
+    switch (_carta.habilidade) {
+        case "golpe_duplo":
+            habilidade_golpe_duplo(_carta);
+            break;
+        case "sombra_translucida":
+            habilidade_sombra_translucida(_carta);
+            break;
+        case "ferida_exposta":
+            habilidade_ferida_exposta(_carta);
+            break;
+    }
+}
 // versão do combate pra UMA tropa só (usada pelo menu do jogador)
 function processar_combate_tropa(_carta) {
     if (!instance_exists(_carta) || !_carta.travada || _carta.slot_atual == noone) return;
@@ -1037,7 +1076,7 @@ function processar_combate_tropa(_carta) {
     var _proxima_posicao = _slot.posicao + _sentido;
     var _slot_alvo = buscar_slot(_slot.lane, _proxima_posicao);
     
-    if (_slot_alvo != noone && _slot_alvo.ocupado && _slot_alvo.carta_atual.dono == _lado_defensor) {
+    if (_slot_alvo != noone && _slot_alvo.ocupado && _slot_alvo.carta_atual.dono == _lado_defensor && !_slot_alvo.carta_atual.sombra_ativa) {
         rolar_combate(_carta, _slot_alvo.carta_atual);
     } else if (_slot.posicao == posicao_ataque()) {
         var _construcao_alvo = buscar_construcao(_slot.lane, _lado_defensor);
@@ -1062,4 +1101,79 @@ function processar_combate_tropa(_carta) {
     } else {
         show_debug_message(_carta.nome_carta + " não tem alvo na frente ainda (precisa avançar mais).");
     }
+}
+	
+function habilidade_golpe_duplo(_carta) {
+    if (_carta.atacou_este_turno) {
+        show_debug_message("Golpe Duplo: já atacou esse turno, não pode usar.");
+        return;
+    }
+    
+    show_debug_message(_carta.nome_carta + " usa GOLPE DUPLO!");
+    
+    processar_combate_tropa(_carta);
+    processar_combate_tropa(_carta); // ataca de novo, na sequência
+    
+    _carta.atacou_este_turno = true;
+    _carta.habilidade_usada_este_turno = true;
+}
+	
+function habilidade_sombra_translucida(_carta) {
+    if (_carta.sombra_cooldown > 0) {
+        show_debug_message("Sombra Translúcida ainda recarregando (" + string(_carta.sombra_cooldown) + " turnos).");
+        return;
+    }
+    
+    var _custo_mana = { tipo: "mana", quantidade: 2 };
+    if (!pode_pagar_custo(_custo_mana, _carta.dono)) {
+        show_debug_message("Sem mana suficiente pra Sombra Translúcida.");
+        return;
+    }
+    pagar_custo(_custo_mana, _carta.dono);
+    
+    _carta.sombra_ativa = true;
+    _carta.sombra_cooldown = 2; // 1 turno ativo + 1 turno de recarga
+    _carta.habilidade_usada_este_turno = true;
+    
+    show_debug_message(_carta.nome_carta + " fica INVISÍVEL por 1 turno!");
+    
+    var _texto_flutuante = instance_create_layer(_carta.x, _carta.y - _carta.sprite_height/2, "Instances", obj_texto_flutuante);
+    _texto_flutuante.texto = "INVISÍVEL";
+    _texto_flutuante.cor_texto = c_aqua;
+}
+	
+function habilidade_ferida_exposta(_carta) {
+    if (!_carta.travada || _carta.slot_atual == noone) return;
+    
+    var _slot = _carta.slot_atual;
+    var _lado_defensor = (_carta.dono == "jogador") ? "inimigo" : "jogador";
+    var _sentido = direcao_avanco(_carta.dono);
+    var _proxima_posicao = _slot.posicao + _sentido;
+    var _slot_alvo = buscar_slot(_slot.lane, _proxima_posicao);
+    
+    if (_slot_alvo == noone || !_slot_alvo.ocupado || _slot_alvo.carta_atual.dono != _lado_defensor) {
+        show_debug_message("Ferida Exposta: sem alvo na frente.");
+        return;
+    }
+    
+    var _alvo = _slot_alvo.carta_atual;
+    _carta.habilidade_usada_este_turno = true;
+    
+    var _dados_ferida = { atacante: _carta, alvo: _alvo };
+    
+    jogar_moeda_visual(_carta.x, obj_controlador.mao_y, _alvo.x, _alvo.y - _alvo.sprite_height/2 - 20, method(_dados_ferida, function(_resultado) {
+        if (!instance_exists(atacante) || !instance_exists(alvo)) return;
+        
+        if (_resultado == 1) { // cara
+            var _dano = irandom_range(1, atacante.dado_dano);
+            alvo.vida -= _dano;
+            aplicar_condicao(alvo, "sangrando", 1, 3);
+            
+            show_debug_message(alvo.nome_carta + " ficou SANGRANDO pela Ferida Exposta!");
+            
+            if (alvo.vida <= 0) destruir_tropa(alvo);
+        } else {
+            show_debug_message("Ferida Exposta: coroa, nada aconteceu.");
+        }
+    }));
 }
