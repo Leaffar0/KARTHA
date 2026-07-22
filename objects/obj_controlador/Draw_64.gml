@@ -60,7 +60,7 @@ if (carta_preview != noone && instance_exists(carta_preview)) {
     
     // dica de como fechar
     draw_set_color(c_white);
-    draw_text(_centro_x - 150, display_get_gui_height() - 40, "Clique com o botão direito pra fechar");
+    draw_text(_centro_x - 200, display_get_gui_height() - 40, "Clique com o botão direito pra fechar");
 }
 
 if (vida_jogador <= 0) {
