@@ -11,7 +11,7 @@ global.MOEDA_LARGURA = 50;
 
 // true = mostra no console cada rolagem de dado/moeda e resultado de combate.
 // Mude pra false quando quiser jogar sem poluir o console.
-global.DEBUG_COMBATE = true;
+global.DEBUG_COMBATE = false;
 
 randomize(); // garante que os números aleatórios mudam a cada execução do jogo
 #endregion
