@@ -31,8 +31,8 @@ if (carta_menu_aberto != noone && instance_exists(carta_menu_aberto) && menu_esc
         draw_set_color(c_white);
         draw_rectangle(_x1, _y1, _x2, _y2, true);
         
-		// tooltip com o nome da habilidade, se o mouse estiver em cima da opção certa
-		if (tooltip_escala > 0.01 && opcao_hover_index != -1 && opcao_hover_index < array_length(_opcoes) && _opcoes[opcao_hover_index] == "Habilidade") {
+		// tooltip com o nome da habilidade, mostrado só quando o mouse está exatamente nesta opção
+		if (i == opcao_hover_index && tooltip_escala > 0.01 && _opcoes[i] == "Habilidade") {
 	    var _nome_habilidade = obter_nome_exibicao_habilidade(_carta.habilidade);
     
 	    var _tooltip_x_base = _base_x + _largura_opcao + 10;

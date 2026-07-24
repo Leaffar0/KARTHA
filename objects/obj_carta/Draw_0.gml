@@ -95,22 +95,22 @@ if (condicao != noone && condicao != "imune_queimado") {
         var _frame = floor(efeito_timer / 4) mod _num_frames;
         
         if (_config.modo == "meio") {
-            // aparece centralizado, tamanho normal da carta
+            // aparece centralizado, no mesmo tamanho de exibição real da carta
             draw_sprite_ext(
                 _config.sprite,
                 _frame,
                 x,
                 y,
-                escala_atual,
-                escala_atual,
+                _escala_final,
+                _escala_final,
                 0,
                 c_white,
                 0.85
             );
         } else if (_config.modo == "envolta") {
             // aparece maior, cobrindo a carta inteira (efeito de "envolvida")
-            var _escala_envolta_x = (sprite_width * escala_atual * 1) / sprite_get_width(_config.sprite);
-            var _escala_envolta_y = (sprite_height * escala_atual * 1) / sprite_get_height(_config.sprite);
+            var _escala_envolta_x = (sprite_width * _escala_final * 1) / sprite_get_width(_config.sprite);
+            var _escala_envolta_y = (sprite_height * _escala_final * 1) / sprite_get_height(_config.sprite);
             
             draw_sprite_ext(
                 _config.sprite,

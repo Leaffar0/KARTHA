@@ -1,1 +1,0 @@
-obj_controlador.preevile = 1;
