@@ -888,8 +888,6 @@ function ia_jogar_cartas() {
                 var _funcao_sorteada = _funcoes[irandom(array_length(_funcoes) - 1)];
                 var _dados = _funcao_sorteada();
 				
-				if (_dados.categoria != "tropa") continue;
-                if (!pode_pagar_custo(_dados.custo, "inimigo")) continue;
 				if (_dados.categoria == "bencao") {
 				    adicionar_bencao("inimigo", _dados.efeito);
 				    continue;
@@ -898,6 +896,8 @@ function ia_jogar_cartas() {
 				    adicionar_maldicao("inimigo", _dados.efeito);
 				    continue;
 				}
+				if (_dados.categoria != "tropa") continue;
+				if (!pode_pagar_custo(_dados.custo, "inimigo")) continue;
 				
 
 
