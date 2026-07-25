@@ -297,6 +297,30 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         x = origem_x; y = origem_y;
         esta_na_mao = true;
     }
+	} else if (categoria == "bencao" || categoria == "maldicao") {
+    var _distancia_arrastada = point_distance(x, y, mao_base_x, mao_base_y);
+    
+    if (_distancia_arrastada > 80 && pode_pagar_custo(custo, "jogador")) {
+        var _sucesso = (categoria == "bencao") ? adicionar_bencao("jogador", efeito_passivo) : adicionar_maldicao("jogador", efeito_passivo);
+        
+        if (_sucesso) {
+            pagar_custo(custo, "jogador");
+            
+            var _index = array_get_index(obj_controlador.mao, id);
+            if (_index != -1) {
+                array_delete(obj_controlador.mao, _index, 1);
+                organizar_mao();
+            }
+            instance_destroy(id);
+        } else {
+            debug_combate("Já tem " + string(obj_controlador.max_bencaos_maldicoes) + " " + categoria + "s ativas!");
+            x = origem_x; y = origem_y;
+            esta_na_mao = true;
+        }
+    } else {
+        x = origem_x; y = origem_y;
+        esta_na_mao = true;
+    }
 }
 }
 

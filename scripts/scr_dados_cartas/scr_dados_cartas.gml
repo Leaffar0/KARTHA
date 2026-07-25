@@ -95,7 +95,8 @@ function criar_dados_esquilo() {
         defesa_fisica: 0,
         defesa_magica: 0,
         custo: noone,
-        habilidade: "ferida_exposta"
+        habilidade: "ferida_exposta",
+		evolucao: criar_dados_esquilo_evoluido
     };
 }
 
@@ -111,7 +112,8 @@ function criar_dados_lobo() {
         defesa_fisica: 1,
         defesa_magica: 0,
         custo: { tipo: "sangue", quantidade: 1 },
-        habilidade: "golpe_duplo"
+        habilidade: "golpe_duplo",
+		evolucao: criar_dados_lobo_evoluido
     };
 }
 
@@ -121,15 +123,51 @@ function criar_dados_urso() {
         nome: "Urso",
         sprite_carta: noone,
         vida: 10,
-        sacrificio: 0,
-        dado_dano: 6,
-        mod_dano: 0,
-        defesa_fisica: 0,
+        sacrificio: 2,
+        dado_dano: 8,
+        mod_dano: 2,
+        defesa_fisica: 2,
         defesa_magica: 0,
-        custo: noone,
-        habilidade: "sombra_translucida"
+        custo: { tipo: "ossos", quantidade: 2 },
+		habilidade: noone,
+        selo_abissal: true // <-- adiciona essa linha nas cartas que quiser marcadas
     };
 }
+	
+function criar_dados_esquilo_evoluido() {
+    return {
+        categoria: "tropa",
+        nome: "Esquilo Gigante",
+        sprite_carta: noone, // troca quando tiver a arte
+        vida: 4,
+        sacrificio: 0,
+        dado_dano: 6,
+        mod_dano: 1,
+        defesa_fisica: 1,
+        defesa_magica: 0,
+        custo: { tipo: "ossos", quantidade: 1 },
+        habilidade: noone,
+        evolucao: noone // forma final, não evolui mais
+    };
+}
+
+function criar_dados_lobo_evoluido() {
+    return {
+        categoria: "tropa",
+        nome: "Lobo Alfa",
+        sprite_carta: noone,
+        vida: 5,
+        sacrificio: 1,
+        dado_dano: 8,
+        mod_dano: 2,
+        defesa_fisica: 2,
+        defesa_magica: 0,
+        custo: { tipo: "sangue", quantidade: 1 },
+        habilidade: "golpe_duplo",
+        evolucao: noone
+    };
+}	
+	
 #endregion
 
 #region Dados das cartas — Recursos
@@ -252,6 +290,82 @@ function criar_dados_terreno_pantano() {
 }
 #endregion
 
+#region Dados das cartas - Bençãos e Maldições
+function criar_dados_bencao_vida() {
+    return {
+        categoria: "bencao",
+        nome: "Bênção da Vida",
+        sprite_carta: noone,
+        custo: noone,
+        efeito: "cura_ao_morrer"
+    };
+}
+
+function criar_dados_maldicao_perda() {
+    return {
+        categoria: "maldicao",
+        nome: "Maldição da Perda",
+        sprite_carta: noone,
+        custo: noone,
+        efeito: "perde_vida_ao_morrer"
+    };
+}
+
+function lista_bencaos(_dono) {
+    return (_dono == "jogador") ? obj_controlador.bencaos_jogador : obj_controlador.bencaos_inimigo;
+}
+
+function lista_maldicoes(_dono) {
+    return (_dono == "jogador") ? obj_controlador.maldicoes_jogador : obj_controlador.maldicoes_inimigo;
+}
+
+function adicionar_bencao(_dono, _efeito) {
+    var _lista = lista_bencaos(_dono);
+    if (array_length(_lista) >= obj_controlador.max_bencaos_maldicoes) return false;
+    array_push(_lista, _efeito);
+    return true;
+}
+
+function adicionar_maldicao(_dono, _efeito) {
+    var _lista = lista_maldicoes(_dono);
+    if (array_length(_lista) >= obj_controlador.max_bencaos_maldicoes) return false;
+    array_push(_lista, _efeito);
+    return true;
+}
+
+// chamada toda vez que uma tropa morre, ANTES de ser destruída de verdade
+function aplicar_efeitos_morte(_carta, _por_inimigo) {
+    var _dono = _carta.dono;
+    var _bencaos = lista_bencaos(_dono);
+    
+    for (var i = 0; i < array_length(_bencaos); i++) {
+        if (_bencaos[i] == "cura_ao_morrer") {
+            if (_dono == "jogador") {
+                obj_controlador.vida_jogador += 1;
+            } else {
+                obj_controlador.vida_inimigo += 1;
+            }
+            debug_combate("Bênção da Vida curou 1 ponto!");
+        }
+    }
+    
+    // maldições só valem se a tropa morreu PARA o oponente (regra do manual)
+    if (_por_inimigo) {
+        var _maldicoes = lista_maldicoes(_dono);
+        for (var i = 0; i < array_length(_maldicoes); i++) {
+            if (_maldicoes[i] == "perde_vida_ao_morrer") {
+                if (_dono == "jogador") {
+                    obj_controlador.vida_jogador -= 1;
+                } else {
+                    obj_controlador.vida_inimigo -= 1;
+                }
+                debug_combate("Maldição da Perda causou 1 de dano!");
+            }
+        }
+    }
+}
+#endregion
+
 #region Deck — montar, embaralhar, comprar
 function embaralhar_array(_array) {
     var _n = array_length(_array);
@@ -299,13 +413,15 @@ function comprar_carta_do_deck(_x_inicial, _y_inicial) {
     if (_dados.categoria == "tropa") {
         _carta.vida = _dados.vida;
         _carta.vida_maxima = _dados.vida;
+		_carta.selo_abissal = variable_struct_exists(_dados, "selo_abissal") ? _dados.selo_abissal : false;
+		_carta.funcao_evolucao = variable_struct_exists(_dados, "evolucao") ? _dados.evolucao : noone;
         _carta.custo_sacrificio = _dados.sacrificio;
         _carta.dado_dano = _dados.dado_dano;
         _carta.mod_dano = _dados.mod_dano;
         _carta.defesa_fisica = _dados.defesa_fisica;
         _carta.defesa_magica = _dados.defesa_magica;
         _carta.custo = _dados.custo;
-        _carta.habilidade = _dados.habilidade;
+        _carta.habilidade = variable_struct_exists(_dados, "habilidade") ? _dados.habilidade : noone;
         _carta.tem_habilidade = (_dados.habilidade != noone);
 
     } else if (_dados.categoria == "recurso") {
@@ -335,6 +451,10 @@ function comprar_carta_do_deck(_x_inicial, _y_inicial) {
     } else if (_dados.categoria == "magica") {
         _carta.custo = _dados.custo;
 
+	} else if (_dados.categoria == "bencao" || _dados.categoria == "maldicao") {
+    _carta.custo = _dados.custo;
+    _carta.efeito_passivo = _dados.efeito;
+	}
         // identifica qual magia é pelo nome, pra saber qual efeito aplicar depois
         if (_dados.nome == "Bola de Fogo") {
             _carta.efeito_tipo = "bola_fogo";
@@ -347,7 +467,7 @@ function comprar_carta_do_deck(_x_inicial, _y_inicial) {
         } else if (_dados.nome == "Choque Elétrico") {
             _carta.efeito_tipo = "choque";
         }
-    }
+    
 
     _carta.esta_na_mao = true;
 
@@ -645,7 +765,13 @@ function processar_resultado_acerto(_dado_acerto, _atacante, _defensor) {
     }));
 }
 
-function destruir_tropa(_carta) {
+function destruir_tropa(_carta, _por_inimigo = true) {
+    aplicar_efeitos_morte(_carta, _por_inimigo);
+    
+    if (_carta.selo_abissal) {
+        mandar_para_abismo(_carta.nome_carta);
+    }
+    
     if (_carta.slot_atual != noone) {
         _carta.slot_atual.ocupado = false;
         _carta.slot_atual.carta_atual = noone;
@@ -713,6 +839,8 @@ function passar_turno_jogador() {
 function iniciar_turno_inimigo() {
     obj_controlador.turno = "inimigo";
 
+	reiniciar_acoes_tropas("inimigo");
+
     processar_condicoes("inimigo"); // dano/cura no início do turno dela
     desvirar_recursos("inimigo");
     ia_jogar_recursos();
@@ -733,7 +861,14 @@ function reiniciar_acoes_tropas(_lado) {
             moveu_este_turno = false;
             atacou_este_turno = false;
             habilidade_usada_este_turno = false;
+            turnos_no_campo += 1;
         }
+    }
+    
+    if (_lado == "jogador") {
+        obj_controlador.evolucoes_jogador_este_turno = 0;
+    } else {
+        obj_controlador.evolucoes_inimigo_este_turno = 0;
     }
 }
 #endregion
@@ -752,9 +887,19 @@ function ia_jogar_cartas() {
                 var _funcoes = obj_controlador.baralho;
                 var _funcao_sorteada = _funcoes[irandom(array_length(_funcoes) - 1)];
                 var _dados = _funcao_sorteada();
-
-                if (_dados.categoria != "tropa") continue;
+				
+				if (_dados.categoria != "tropa") continue;
                 if (!pode_pagar_custo(_dados.custo, "inimigo")) continue;
+				if (_dados.categoria == "bencao") {
+				    adicionar_bencao("inimigo", _dados.efeito);
+				    continue;
+				}
+				if (_dados.categoria == "maldicao") {
+				    adicionar_maldicao("inimigo", _dados.efeito);
+				    continue;
+				}
+				
+
 
                 pagar_custo(_dados.custo, "inimigo");
 
@@ -766,12 +911,14 @@ function ia_jogar_cartas() {
                 _carta.categoria = _dados.categoria;
                 _carta.vida = _dados.vida;
                 _carta.vida_maxima = _dados.vida;
+				_carta.selo_abissal = variable_struct_exists(_dados, "selo_abissal") ? _dados.selo_abissal : false;
+				_carta.funcao_evolucao = variable_struct_exists(_dados, "evolucao") ? _dados.evolucao : noone;
                 _carta.custo_sacrificio = _dados.sacrificio;
                 _carta.dado_dano = _dados.dado_dano;
                 _carta.mod_dano = _dados.mod_dano;
                 _carta.defesa_fisica = _dados.defesa_fisica;
                 _carta.defesa_magica = _dados.defesa_magica;
-                _carta.habilidade = _dados.habilidade;
+                _carta.habilidade = variable_struct_exists(_dados, "habilidade") ? _dados.habilidade : noone;
                 _carta.tem_habilidade = (_dados.habilidade != noone);
 
                 _carta.esta_na_mao = false;
@@ -1035,9 +1182,9 @@ function processar_condicoes(_dono) {
         }
 
         if (vida <= 0) {
-            destruir_tropa(id);
-            continue;
-        }
+		    destruir_tropa(id, false); // morreu por condição, não foi o oponente que causou diretamente
+		    continue;
+		}
 
         if (condicao == "corrosao" && condicao_dano_por_turno > 1) {
             condicao_dano_por_turno -= 1;
@@ -1133,12 +1280,88 @@ function criar_poeira(_x, _y, _largura) {
 }
 #endregion
 
+#region Evolução - Controlar turnos para evolução
+
+function evoluir_tropa(_carta) {
+    if (_carta.funcao_evolucao == noone) return;
+    if (_carta.turnos_no_campo < 1) {
+        debug_combate("Ainda não pode evoluir, precisa sobreviver 1 turno completo.");
+        return;
+    }
+    if (!evolucoes_disponiveis(_carta.dono)) {
+        debug_combate("Já evoluiu uma tropa esse turno.");
+        return;
+    }
+    
+    var _dados_evo = _carta.funcao_evolucao();
+    
+    if (!pode_pagar_custo(_dados_evo.custo, _carta.dono)) {
+        debug_combate("Sem recurso suficiente pra evoluir.");
+        return;
+    }
+    pagar_custo(_dados_evo.custo, _carta.dono);
+    
+    // transfere o dano já sofrido, não reseta a vida
+    var _dano_sofrido = _carta.vida_maxima - _carta.vida;
+    
+    _carta.nome_carta = _dados_evo.nome;
+    _carta.sprite_index = (_dados_evo.sprite_carta != noone) ? _dados_evo.sprite_carta : spr_carta_placeholder;
+    _carta.escala_base = global.CARTA_LARGURA / sprite_get_width(_carta.sprite_index);
+    _carta.tem_arte_propria = (_dados_evo.sprite_carta != noone);
+    
+    _carta.vida_maxima = _dados_evo.vida;
+    _carta.vida = max(1, _dados_evo.vida - _dano_sofrido);
+    _carta.dado_dano = _dados_evo.dado_dano;
+    _carta.mod_dano = _dados_evo.mod_dano;
+    _carta.defesa_fisica = _dados_evo.defesa_fisica;
+    _carta.defesa_magica = _dados_evo.defesa_magica;
+    _carta.habilidade = _dados_evo.habilidade;
+    _carta.tem_habilidade = (_dados_evo.habilidade != noone);
+    _carta.funcao_evolucao = variable_struct_exists(_dados_evo, "evolucao") ? _dados_evo.evolucao : noone;
+    
+    registrar_evolucao(_carta.dono);
+    
+    debug_combate(_carta.nome_carta + " EVOLUIU!");
+    
+    var _texto_flutuante = instance_create_layer(_carta.x, _carta.y - _carta.sprite_height/2, "Instances", obj_texto_flutuante);
+    _texto_flutuante.texto = "EVOLUIU!";
+    _texto_flutuante.cor_texto = c_lime;
+}
+
+function evolucoes_disponiveis(_dono) {
+    var _usadas = (_dono == "jogador") ? obj_controlador.evolucoes_jogador_este_turno : obj_controlador.evolucoes_inimigo_este_turno;
+    return (obj_controlador.max_evolucoes_por_turno - _usadas) > 0;
+}
+
+function registrar_evolucao(_dono) {
+    if (_dono == "jogador") {
+        obj_controlador.evolucoes_jogador_este_turno += 1;
+    } else {
+        obj_controlador.evolucoes_inimigo_este_turno += 1;
+    }
+}
+#endregion
+
+#region Abismo - Cartas especiais
+function mandar_para_abismo(_nome_carta) {
+    array_push(obj_controlador.abismo, _nome_carta);
+    debug_combate(_nome_carta + " foi engolida pelo ABISMO. Nunca mais volta.");
+}
+
+function esta_no_abismo(_nome_carta) {
+    return array_get_index(obj_controlador.abismo, _nome_carta) != -1;
+}
+#endregion
+
 #region Menu de ação (clicar na tropa → Atacar/Mover/Habilidade)
 function obter_opcoes_menu(_carta) {
     var _opcoes = [];
     if (!_carta.atacou_este_turno) array_push(_opcoes, "Atacar");
     if (!_carta.moveu_este_turno) array_push(_opcoes, "Mover");
     if (_carta.tem_habilidade && !_carta.habilidade_usada_este_turno) array_push(_opcoes, "Habilidade");
+    if (_carta.funcao_evolucao != noone && _carta.turnos_no_campo >= 1 && evolucoes_disponiveis(_carta.dono)) {
+        array_push(_opcoes, "Evoluir");
+    }
     return _opcoes;
 }
 
@@ -1156,6 +1379,9 @@ function executar_opcao_menu(_carta, _opcao) {
             break;
         case "Habilidade":
             usar_habilidade(_carta);
+            break;
+        case "Evoluir":
+            evoluir_tropa(_carta);
             break;
     }
 }

@@ -38,6 +38,10 @@ bonus_defesa_global = 0;
 tem_arte_propria = false;
 escala_base = 1; // recalculado sempre que o sprite for atribuído
 escala_no_campo = 0.55; // ajuste esse valor até a carta caber certinho no slot
+turnos_no_campo = 0;
+funcao_evolucao = noone; // função que gera os dados da forma evoluída, ou noone se não evolui
+efeito_passivo = "";
+selo_abissal = false;
 
 // --- efeitos visuais ---
 pulando = false;

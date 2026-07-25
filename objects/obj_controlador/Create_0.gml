@@ -11,7 +11,7 @@ global.MOEDA_LARGURA = 50;
 
 // true = mostra no console cada rolagem de dado/moeda e resultado de combate.
 // Mude pra false quando quiser jogar sem poluir o console.
-global.DEBUG_COMBATE = false;
+global.DEBUG_COMBATE = true;
 
 randomize(); // garante que os números aleatórios mudam a cada execução do jogo
 #endregion
@@ -24,7 +24,8 @@ baralho = [
     criar_dados_magica_bola_fogo, criar_dados_magica_veneno, criar_dados_magica_gelo, criar_dados_magica_choque,
     criar_dados_item_espada, criar_dados_item_escudo, criar_dados_item_pocao,
     criar_dados_armadilha_urso,
-    criar_dados_terreno_pantano
+    criar_dados_terreno_pantano,
+	criar_dados_bencao_vida, criar_dados_maldicao_perda
 ];
 
 monte = montar_deck();
@@ -76,5 +77,23 @@ menu_escala = 0;
 opcao_hover_index = -1;
 tooltip_escala = 0;
 #endregion
+
+#region Evolução
+evolucoes_jogador_este_turno = 0;
+evolucoes_inimigo_este_turno = 0;
+max_evolucoes_por_turno = 1;
+#endregion
+
+#region Bençãos e maldições
+bencaos_jogador = [];
+maldicoes_jogador = [];
+bencaos_inimigo = [];
+maldicoes_inimigo = [];
+max_bencaos_maldicoes = 2;
+#endregion
+
+#region Abismo
+abismo = []; // guarda os nomes das cartas que foram parar lá, pra sempre
+#endregion	
 
 depth = -10000; // desenha o menu de ação por cima de absolutamente tudo
