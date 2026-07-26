@@ -91,6 +91,8 @@ if (mouse_check_button_pressed(mb_left)) {
             rotacao_atual = 0;
             escala_atual = 1;
             y_offset_atual = 0;
+			arrastar_inicio_x = x; // <-- guarda de onde a carta começou a ser arrastada de verdade
+			arrastar_inicio_y = y;
 
             if (slot_atual != noone) {
                 slot_atual.ocupado = false;

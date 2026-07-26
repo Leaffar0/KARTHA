@@ -42,6 +42,8 @@ turnos_no_campo = 0;
 funcao_evolucao = noone; // função que gera os dados da forma evoluída, ou noone se não evolui
 efeito_passivo = "";
 selo_abissal = false;
+arrastar_inicio_x = 0;
+arrastar_inicio_y = 0;
 
 // --- efeitos visuais ---
 pulando = false;

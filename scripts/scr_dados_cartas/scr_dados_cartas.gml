@@ -800,7 +800,7 @@ function rolar_dado_visual(_x, _y, _destino_x, _destino_y, _tamanho_dado, _resul
 #region Moeda visual (cara ou coroa)
 // Mesmo princípio do dado: desliza, gira, para num resultado já sorteado, e chama o callback.
 function jogar_moeda_visual(_origem_x, _origem_y, _destino_x, _destino_y, _funcao_callback) {
-    var _resultado = irandom(1); // 0 = coroa, 1 = cara
+    var _resultado = irandom(1);
 
     var _moeda = instance_create_layer(_origem_x, _origem_y, "Instances", obj_moeda);
     _moeda.resultado_final = _resultado;
@@ -814,6 +814,7 @@ function jogar_moeda_visual(_origem_x, _origem_y, _destino_x, _destino_y, _funca
     _moeda.callback = _funcao_callback;
 
     obj_controlador.rolagens_pendentes += 1;
+    debug_combate("+1 pendente (moeda id=" + string(_moeda.id) + "). Total: " + string(obj_controlador.rolagens_pendentes));
 }
 #endregion
 

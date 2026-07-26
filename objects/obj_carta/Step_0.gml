@@ -274,31 +274,32 @@ if (arrastando && mouse_check_button_released(mb_left)) {
 	        x = origem_x; y = origem_y;
 	        esta_na_mao = true;
 	    }
-} else if (categoria == "terreno") {
-    if (pode_pagar_custo(custo, "jogador")) {
-        pagar_custo(custo, "jogador");
+	} else if (categoria == "terreno") {
+	    var _distancia_arrastada = point_distance(x, y, arrastar_inicio_x, arrastar_inicio_y);
+    
+	    if (_distancia_arrastada > 80 && pode_pagar_custo(custo, "jogador")) {
+	        pagar_custo(custo, "jogador");
         
-        // remove o terreno antigo, se tiver
-        with (obj_slot_terreno) {
-            if (ocupado && terreno_atual != noone) {
-                instance_destroy(terreno_atual);
-            }
-        }
+	        with (obj_slot_terreno) {
+	            if (ocupado && terreno_atual != noone) {
+	                instance_destroy(terreno_atual);
+	            }
+	        }
         
-        obj_controlador.terreno_bonus_defesa = bonus_defesa_global;
+	        obj_controlador.terreno_bonus_defesa = bonus_defesa_global;
         
-        var _index = array_get_index(obj_controlador.mao, id);
-        if (_index != -1) {
-            array_delete(obj_controlador.mao, _index, 1);
-            organizar_mao();
-        }
-        instance_destroy(id);
-    } else {
-        x = origem_x; y = origem_y;
-        esta_na_mao = true;
-    }
+	        var _index = array_get_index(obj_controlador.mao, id);
+	        if (_index != -1) {
+	            array_delete(obj_controlador.mao, _index, 1);
+	            organizar_mao();
+	        }
+	        instance_destroy(id);
+	    } else {
+	        x = origem_x; y = origem_y;
+	        esta_na_mao = true;
+	    }
 	} else if (categoria == "bencao" || categoria == "maldicao") {
-    var _distancia_arrastada = point_distance(x, y, mao_base_x, mao_base_y);
+    var _distancia_arrastada = point_distance(x, y, arrastar_inicio_x, arrastar_inicio_y);
     
     if (_distancia_arrastada > 80 && pode_pagar_custo(custo, "jogador")) {
         var _sucesso = (categoria == "bencao") ? adicionar_bencao("jogador", efeito_passivo) : adicionar_maldicao("jogador", efeito_passivo);
