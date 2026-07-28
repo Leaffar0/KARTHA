@@ -8,17 +8,26 @@ global.CARTA_LARGURA = 80;
 global.CARTA_ALTURA = 107;
 global.RECURSO_LARGURA = 50;
 global.MOEDA_LARGURA = 50;
+global.ESCALA_TEXTO_CARTA = 0.60; // baixa esse número pra diminuir TODO texto das cartas sem arte
+global.ESCALA_TEXTO_ATK = 0.75; // diminui esse número pra encolher só o texto de ATK/ATK mágico
 
 // true = mostra no console cada rolagem de dado/moeda e resultado de combate.
 // Mude pra false quando quiser jogar sem poluir o console.
 global.DEBUG_COMBATE = true;
+
+
+depth = -10000; // desenha o menu de ação por cima de absolutamente tudo
+vida_pos_x = 0.11; // pode ser sobrescrito por carta específica
+vida_pos_y = 0.07;
 
 randomize(); // garante que os números aleatórios mudam a cada execução do jogo
 #endregion
 
 #region Baralho e deck
 baralho = [
-    criar_dados_esquilo, criar_dados_lobo, criar_dados_urso,
+    criar_dados_esquilo, criar_dados_lobo, criar_dados_urso, criar_dados_slime, criar_dados_mimic, 
+	criar_dados_olho_demonio, criar_dados_mago_da_sombra, criar_dados_gato_mago, criar_dados_goblin, criar_dados_hollow_jack, 
+	criar_dados_esqueleto, criar_dados_shroomilin,
     criar_dados_recurso_sangue, criar_dados_recurso_ossos, criar_dados_recurso_sucata, criar_dados_recurso_mana,
     criar_dados_construcao_torre,
     criar_dados_magica_bola_fogo, criar_dados_magica_veneno, criar_dados_magica_gelo, criar_dados_magica_choque,
@@ -48,8 +57,8 @@ mao_largura_visivel = 400; // ajuste esse valor pro espaço disponível pra mão
 
 #region Turno e vida
 turno = "jogador";
-vida_jogador = 20;
-vida_inimigo = 20;
+vida_jogador = 100;
+vida_inimigo = 100;
 cartas_jogadas_no_turno = 0;
 max_cartas_por_turno = 1;
 #endregion
@@ -95,5 +104,3 @@ max_bencaos_maldicoes = 2;
 #region Abismo
 abismo = []; // guarda os nomes das cartas que foram parar lá, pra sempre
 #endregion	
-
-depth = -10000; // desenha o menu de ação por cima de absolutamente tudo

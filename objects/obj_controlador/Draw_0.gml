@@ -33,7 +33,7 @@ if (carta_menu_aberto != noone && instance_exists(carta_menu_aberto) && menu_esc
         
 		// tooltip com o nome da habilidade, mostrado só quando o mouse está exatamente nesta opção
 		if (i == opcao_hover_index && tooltip_escala > 0.01 && _opcoes[i] == "Habilidade") {
-	    var _nome_habilidade = obter_nome_exibicao_habilidade(_carta.habilidade);
+	    var _nome_habilidade = obter_nome_exibicao_habilidade(tem_habilidade_ativa(_carta))
     
 	    var _tooltip_x_base = _base_x + _largura_opcao + 10;
 	    var _tooltip_y_centro = _base_y + opcao_hover_index * (_altura_opcao + _espaco_opcao) + _altura_opcao/2;

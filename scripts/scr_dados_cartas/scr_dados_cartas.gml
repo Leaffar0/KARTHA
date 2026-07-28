@@ -88,14 +88,18 @@ function criar_dados_esquilo() {
         categoria: "tropa",
         nome: "Esquilo",
         sprite_carta: noone,
-        vida: 1,
-        sacrificio: 0,
-        dado_dano: 4,
+		vida: 5, 
+        sacrificio: 0, 
+        dado_dano: 6, 
         mod_dano: 0,
-        defesa_fisica: 0,
+        dado_dano_magico: 0,
+        mod_dano_magico: 0,
+        inteligencia: 1,
+		mochila: 2,
+        defesa_fisica: 0, 
         defesa_magica: 0,
         custo: noone,
-        habilidade: "ferida_exposta",
+        habilidades: [],
 		evolucao: criar_dados_esquilo_evoluido
     };
 }
@@ -105,14 +109,18 @@ function criar_dados_lobo() {
         categoria: "tropa",
         nome: "Lobo",
         sprite_carta: noone,
-        vida: 6,
-        sacrificio: 1,
-        dado_dano: 6,
+		vida: 12, 
+        sacrificio: 1, 
+        dado_dano: 8, 
         mod_dano: 1,
-        defesa_fisica: 1,
+        dado_dano_magico: 0,
+        mod_dano_magico: 0,
+        inteligencia: 2,
+		mochila: 2,
+        defesa_fisica: 1, 
         defesa_magica: 0,
         custo: { tipo: "sangue", quantidade: 1 },
-        habilidade: "golpe_duplo",
+        habilidades: [],
 		evolucao: criar_dados_lobo_evoluido
     };
 }
@@ -122,15 +130,18 @@ function criar_dados_urso() {
         categoria: "tropa",
         nome: "Urso",
         sprite_carta: noone,
-        vida: 10,
-        sacrificio: 2,
-        dado_dano: 8,
+		vida: 14, 
+        sacrificio: 2, 
+        dado_dano: 12, 
         mod_dano: 2,
-        defesa_fisica: 2,
+        dado_dano_magico: 0,
+        mod_dano_magico: 0,
+        inteligencia: 2,
+		mochila: 3,
+        defesa_fisica: 3, 
         defesa_magica: 0,
         custo: { tipo: "ossos", quantidade: 2 },
-		habilidade: noone,
-        selo_abissal: true // <-- adiciona essa linha nas cartas que quiser marcadas
+		habilidades: []
     };
 }
 	
@@ -139,14 +150,18 @@ function criar_dados_esquilo_evoluido() {
         categoria: "tropa",
         nome: "Esquilo Gigante",
         sprite_carta: noone, // troca quando tiver a arte
-        vida: 4,
-        sacrificio: 0,
-        dado_dano: 6,
+		vida: 12, 
+        sacrificio: 0, 
+        dado_dano: 10, 
         mod_dano: 1,
-        defesa_fisica: 1,
+        dado_dano_magico: 0,
+        mod_dano_magico: 0,
+        inteligencia: 1,
+		mochila: 2,
+        defesa_fisica: 1, 
         defesa_magica: 0,
         custo: { tipo: "ossos", quantidade: 1 },
-        habilidade: noone,
+        habilidades: [],
         evolucao: noone // forma final, não evolui mais
     };
 }
@@ -156,18 +171,260 @@ function criar_dados_lobo_evoluido() {
         categoria: "tropa",
         nome: "Lobo Alfa",
         sprite_carta: noone,
-        vida: 5,
-        sacrificio: 1,
-        dado_dano: 8,
+		vida: 20, 
+        sacrificio: 1, 
+        dado_dano: 10, 
         mod_dano: 2,
-        defesa_fisica: 2,
+        dado_dano_magico: 0,
+        mod_dano_magico: 0,
+        inteligencia: 2,
+		mochila: 2,
+        defesa_fisica: 2, 
         defesa_magica: 0,
         custo: { tipo: "sangue", quantidade: 1 },
-        habilidade: "golpe_duplo",
+        habilidades: ["golpe_duplo"],
         evolucao: noone
     };
 }	
+
+function criar_dados_slime() {
+    return { categoria: "tropa", 
+		nome: "Slime", 
+		sprite_carta: spr_carta_slime, 
+		vida: 14, 
+        sacrificio: 0, 
+        dado_dano: 4, 
+		qtd_dados_dano: 2,
+        mod_dano: 2,
+        dado_dano_magico: 0,
+        mod_dano_magico: 0,
+        inteligencia: 0,
+		mochila: 3,
+        defesa_fisica: 0, 
+        defesa_magica: 0,
+		custo: noone, 
+		habilidades: ["mitose"], 
+		mitose: criar_dados_slimet,
+		vida_pos_x: 0.11,
+		vida_pos_y: 0.06
+	};
+}
+
+function criar_dados_slimet() {
+    return { categoria: "tropa", 
+		nome: "Slimet", 
+		sprite_carta: spr_carta_slimet, 
+		vida: 8, 
+        sacrificio: 0, 
+        dado_dano: 4, 
+        mod_dano: 1,
+        dado_dano_magico: 0,
+        mod_dano_magico: 0,
+        inteligencia: 0,
+		mochila: 1,
+        defesa_fisica: 0, 
+        defesa_magica: 0,
+		custo: noone, 
+		habilidades: [] };
+}
 	
+function criar_dados_mimic() {
+    return { categoria: "tropa", 
+		nome: "Mimic", 
+		sprite_carta: spr_carta_mimic, 
+		vida: 16, 
+        sacrificio: 0, 
+        dado_dano: 10, 
+        mod_dano: 0,
+        dado_dano_magico: 4,
+        mod_dano_magico: 1,
+        inteligencia: 1,
+		mochila: 3,
+        defesa_fisica: 3, 
+        defesa_magica: 0,
+		custo: [{ tipo: "sucata", quantidade: 1 },
+				{ tipo: "sangue", quantidade: 1}],
+		habilidades: ["imitacao"],
+		vida_pos_x: 0.11,
+		vida_pos_y: 0.06
+	};
+}
+	
+function criar_dados_olho_demonio() {
+    return { categoria: "tropa", 
+		nome: "Olho Demônio", 
+		sprite_carta: spr_carta_olho_demonio, 
+		vida: 8, 
+        sacrificio: 0, 
+        dado_dano: 6, 
+        mod_dano: 0,
+        dado_dano_magico: 6,
+        mod_dano_magico: 0,
+        inteligencia: 1,
+		mochila: 1,
+        defesa_fisica: 0, 
+        defesa_magica: 0,
+		custo: [{ tipo: "mana", quantidade: 1 }, 
+				{ tipo: "sangue", quantidade: 1}],
+		habilidades: ["alcance_magico", "voar"] };
+}
+	
+function criar_dados_mago_da_sombra() {
+    return { categoria: "tropa", 
+		nome: "Mago da Sombra", 
+		sprite_carta: spr_carta_mago_da_sombra, 
+		vida: 20, 
+        sacrificio: 0, 
+        dado_dano: 12, 
+        mod_dano: 0,
+        dado_dano_magico: 0,
+        mod_dano_magico: 0,
+        inteligencia: 2,
+		mochila: 2,
+        defesa_fisica: 0, 
+        defesa_magica: 2,
+		custo: { tipo: "mana", quantidade: 2 }, 
+		habilidades: ["sombra_translucida"] };
+}
+	
+function criar_dados_gato_mago() {
+    return { categoria: "tropa", 
+		nome: "Gato Mago", 
+		sprite_carta: spr_carta_gato_mago, 
+		vida: 15, 
+        sacrificio: 0, 
+        dado_dano: 4, 
+        mod_dano: 1,
+        dado_dano_magico: 4,
+        mod_dano_magico: 1,
+        inteligencia: 3,
+		mochila: 2,
+        defesa_fisica: 0, 
+        defesa_magica: 2,
+		custo: [{ tipo: "mana", quantidade: 2 },
+				{ tipo: "sangue", quantidade: 1 }],
+		habilidades: ["visao_do_veu"],
+		def_magico_pos_x: 0.62, 
+		def_magico_pos_y: 0.92 };
+}
+	
+function criar_dados_goblin() {
+    return { categoria: "tropa", 
+		nome: "Goblin", 
+		sprite_carta: spr_carta_goblin, 
+		vida: 10, 
+        sacrificio: 0, 
+        dado_dano: 8, 
+        mod_dano: 0,
+        dado_dano_magico: 0,
+        mod_dano_magico: 0,
+        inteligencia: 1,
+		mochila: 2,
+        defesa_fisica: 2, 
+        defesa_magica: 0, 
+		custo: { tipo: "sangue", quantidade: 2 }, 
+		habilidades: ["golpe_duplo"],
+		def_pos_x: 0.37, 
+		def_pos_y: 0.92 
+	};
+}
+	
+function criar_dados_hollow_jack() {
+    return { categoria: "tropa", 
+        nome: "Hollow Jack", 
+        sprite_carta: spr_carta_hollow_jack, 
+        vida: 31, 
+        sacrificio: 1, 
+        dado_dano: 12, 
+        mod_dano: 2,
+        dado_dano_magico: 8,
+        mod_dano_magico: 1,
+        inteligencia: 1,
+		mochila: 2,
+        defesa_fisica: 1, 
+        defesa_magica: 2, 
+        custo: [{ tipo: "mana", quantidade: 3 }, 
+				{ tipo: "osso", quantidade: 1 }],
+        habilidades: ["alcance_magico", "olhar_vazio"]
+    };
+}
+	
+function criar_dados_esqueleto() {
+    return { categoria: "tropa", 
+		nome: "Esqueleto", 
+		sprite_carta: spr_carta_esqueleto, 
+		vida: 14, 
+        sacrificio: 0, 
+        dado_dano: 8, 
+        mod_dano: 0,
+        dado_dano_magico: 0,
+        mod_dano_magico: 0,
+        inteligencia: 1,
+		mochila: 2,
+        defesa_fisica: 0, 
+        defesa_magica: 0, 
+		custo: { tipo: "ossos", quantidade: 1 }, 
+		habilidades: [] };
+}
+	
+function criar_dados_shroomilin() {
+    return { categoria: "tropa", 
+		nome: "Shroomilin", 
+		sprite_carta: spr_carta_shroomilin, 
+		vida: 10, 
+        sacrificio: 0, 
+        dado_dano: 4,
+		qtd_dados_dano: 2,
+        mod_dano: 2,
+        dado_dano_magico: 0,
+        mod_dano_magico: 0,
+        inteligencia: 0,
+		mochila: 1,
+        defesa_fisica: 2, 
+        defesa_magica: 0,
+		custo: noone, 
+		habilidades: ["tiro_burro"],
+		vida_pos_x: 0.11,
+		vida_pos_y: 0.06,
+		def_pos_x: 0.87, 
+		def_pos_y: 0.92
+	};
+}
+	
+function desenhar_stat(_carta, _valor, _pos_x, _pos_y, _x, _y_desenho, _rotacao_total, _escala_final, _escala_fallback, _ja_e_texto = false) {
+    if (!_ja_e_texto && _valor == 0) return;
+
+    var _texto = _ja_e_texto ? _valor : string(_valor);
+    var _offset_x = -_carta.sprite_width/2 + (_carta.sprite_width * _pos_x);
+    var _offset_y = -_carta.sprite_height/2 + (_carta.sprite_height * _pos_y);
+
+    var _dist = point_distance(0, 0, _offset_x, _offset_y);
+    var _dir = point_direction(0, 0, _offset_x, _offset_y);
+    var _stat_x = _x + lengthdir_x(_dist, _dir + _rotacao_total);
+    var _stat_y = _y_desenho + lengthdir_y(_dist, _dir + _rotacao_total);
+
+    var _escala_usada = _carta.tem_arte_propria ? _escala_final : _escala_fallback;
+
+    draw_set_halign(fa_center);
+    draw_set_valign(fa_middle);
+    draw_set_color(_carta.tem_arte_propria ? c_black : c_white);
+    draw_text_transformed(_stat_x, _stat_y, _texto, _escala_usada, _escala_usada, _rotacao_total);
+    draw_set_color(c_white);
+}
+	
+function desenhar_stat_preview(_carta, _valor, _pos_x, _pos_y, _centro_x, _centro_y, _largura_real, _altura_real, _escala_preview, _escala_stats_preview, _ja_e_texto = false) {
+    if (!_ja_e_texto && _valor == 0) return;
+
+    var _texto = _ja_e_texto ? _valor : string(_valor);
+    var _offset_x = (-_largura_real/2 + (_largura_real * _pos_x)) * _escala_preview;
+    var _offset_y = (-_altura_real/2 + (_altura_real * _pos_y)) * _escala_preview;
+
+    draw_set_halign(fa_center);
+    draw_set_valign(fa_middle);
+    draw_set_color(_carta.tem_arte_propria ? c_black : c_white);
+    draw_text_transformed(_centro_x + _offset_x, _centro_y + _offset_y, _texto, _escala_stats_preview, _escala_stats_preview, 0);
+    draw_set_color(c_white);
+}
 #endregion
 
 #region Dados das cartas — Recursos
@@ -413,17 +670,39 @@ function comprar_carta_do_deck(_x_inicial, _y_inicial) {
     if (_dados.categoria == "tropa") {
         _carta.vida = _dados.vida;
         _carta.vida_maxima = _dados.vida;
+		_carta.vida_pos_x = variable_struct_exists(_dados, "vida_pos_x") ? _dados.vida_pos_x : 0.11;
+		_carta.vida_pos_y = variable_struct_exists(_dados, "vida_pos_y") ? _dados.vida_pos_y : 0.07;
 		_carta.selo_abissal = variable_struct_exists(_dados, "selo_abissal") ? _dados.selo_abissal : false;
 		_carta.funcao_evolucao = variable_struct_exists(_dados, "evolucao") ? _dados.evolucao : noone;
         _carta.custo_sacrificio = _dados.sacrificio;
         _carta.dado_dano = _dados.dado_dano;
+		_carta.qtd_dados_dano = variable_struct_exists(_dados, "qtd_dados_dano") ? _dados.qtd_dados_dano : 1;
         _carta.mod_dano = _dados.mod_dano;
         _carta.defesa_fisica = _dados.defesa_fisica;
         _carta.defesa_magica = _dados.defesa_magica;
         _carta.custo = _dados.custo;
-        _carta.habilidade = variable_struct_exists(_dados, "habilidade") ? _dados.habilidade : noone;
-        _carta.tem_habilidade = (_dados.habilidade != noone);
+        _carta.habilidades = variable_struct_exists(_dados, "habilidades") ? _dados.habilidades : [];
+		_carta.funcao_mitose = variable_struct_exists(_dados, "mitose") ? _dados.mitose : noone;
+		_carta.nivel_inteligencia = variable_struct_exists(_dados, "inteligencia") ? _dados.inteligencia : 1;
+		_carta.dado_dano_magico = variable_struct_exists(_dados, "dado_dano_magico") ? _dados.dado_dano_magico : 0;
+		_carta.mod_dano_magico = variable_struct_exists(_dados, "mod_dano_magico") ? _dados.mod_dano_magico : 0;
+		_carta.mochila = variable_struct_exists(_dados, "mochila") ? _dados.mochila : 1;
 
+		_carta.vida_pos_x = variable_struct_exists(_dados, "vida_pos_x") ? _dados.vida_pos_x : 0.10;
+		_carta.vida_pos_y = variable_struct_exists(_dados, "vida_pos_y") ? _dados.vida_pos_y : 0.07;
+		_carta.int_pos_x = variable_struct_exists(_dados, "int_pos_x") ? _dados.int_pos_x : 0.91;
+		_carta.int_pos_y = variable_struct_exists(_dados, "int_pos_y") ? _dados.int_pos_y : 0.073;
+		_carta.mochila_pos_x = variable_struct_exists(_dados, "mochila_pos_x") ? _dados.mochila_pos_x : 0.91;
+		_carta.mochila_pos_y = variable_struct_exists(_dados, "mochila_pos_y") ? _dados.mochila_pos_y : 0.185;
+		_carta.atk_pos_x = variable_struct_exists(_dados, "atk_pos_x") ? _dados.atk_pos_x : 0.12;
+		_carta.atk_pos_y = variable_struct_exists(_dados, "atk_pos_y") ? _dados.atk_pos_y : 0.92;
+		_carta.atk_magico_pos_x = variable_struct_exists(_dados, "atk_magico_pos_x") ? _dados.atk_magico_pos_x : 0.37;
+		_carta.atk_magico_pos_y = variable_struct_exists(_dados, "atk_magico_pos_y") ? _dados.atk_magico_pos_y : 0.92;
+		_carta.def_pos_x = variable_struct_exists(_dados, "def_pos_x") ? _dados.def_pos_x : 0.62;
+		_carta.def_pos_y = variable_struct_exists(_dados, "def_pos_y") ? _dados.def_pos_y : 0.92;
+		_carta.def_magico_pos_x = variable_struct_exists(_dados, "def_magico_pos_x") ? _dados.def_magico_pos_x : 0.87;
+		_carta.def_magico_pos_y = variable_struct_exists(_dados, "def_magico_pos_y") ? _dados.def_magico_pos_y : 0.92;
+		
     } else if (_dados.categoria == "recurso") {
         _carta.tipo_recurso = _dados.tipo_recurso;
 
@@ -564,6 +843,8 @@ function mover_tropa(_carta, _direcao) {
 
     iniciar_pulo_tropa(_carta, _slot_destino.x, _slot_destino.y);
 
+	verificar_olhar_vazio(_carta);
+
     return "movido";
 }
 
@@ -607,10 +888,27 @@ function processar_combate(_lado_atacante) {
     with (obj_slot_batalha) {
         if (ocupado && carta_atual.dono == _lado_atacante && tropa_pode_agir(carta_atual)) {
             var _atacante = carta_atual;
-            var _proxima_posicao = posicao + _sentido;
-            var _slot_alvo = buscar_slot(lane, _proxima_posicao);
+            var _tem_alcance = tem_habilidade(_atacante, "alcance") || tem_habilidade(_atacante, "alcance_magico");
+			var _proxima_posicao = posicao + _sentido;
+			var _slot_alvo = buscar_slot(lane, _proxima_posicao);
 
-            if (_slot_alvo != noone && _slot_alvo.ocupado && _slot_alvo.carta_atual.dono == _lado_defensor && !_slot_alvo.carta_atual.sombra_ativa) {
+			if (_atacante.iludido_por_imitacao) {
+			    _atacante.iludido_por_imitacao = false;
+			    debug_combate(_atacante.nome_carta + " está iludida e não atacou.");
+			    continue; 
+			}
+
+
+			if ((_slot_alvo == noone || !_slot_alvo.ocupado) && _tem_alcance) {
+			    var _slot_longe = buscar_slot(lane, posicao + _sentido * 2);
+			    if (_slot_longe != noone && _slot_longe.ocupado) _slot_alvo = _slot_longe;
+			}
+
+			var _pode_mirar_alvo = _slot_alvo != noone && _slot_alvo.ocupado && _slot_alvo.carta_atual.dono == _lado_defensor 
+			    && !_slot_alvo.carta_atual.sombra_ativa
+			    && (!tem_habilidade(_slot_alvo.carta_atual, "voar") || tem_habilidade(_atacante, "voar") || _tem_alcance);
+
+			if (_pode_mirar_alvo) {
                 rolar_combate(_atacante, _slot_alvo.carta_atual);
 
             } else if (posicao == posicao_ataque()) {
@@ -650,10 +948,26 @@ function processar_combate_tropa(_carta) {
     var _lado_defensor = (_lado_atacante == "jogador") ? "inimigo" : "jogador";
     var _sentido = direcao_avanco(_lado_atacante);
 
+    if (_carta.iludido_por_imitacao) {
+        _carta.iludido_por_imitacao = false;
+        debug_combate(_carta.nome_carta + " está iludida e não atacou.");
+        return;
+    }
+
+    var _tem_alcance = tem_habilidade(_carta, "alcance") || tem_habilidade(_carta, "alcance_magico");
     var _proxima_posicao = _slot.posicao + _sentido;
     var _slot_alvo = buscar_slot(_slot.lane, _proxima_posicao);
 
-    if (_slot_alvo != noone && _slot_alvo.ocupado && _slot_alvo.carta_atual.dono == _lado_defensor && !_slot_alvo.carta_atual.sombra_ativa) {
+    if ((_slot_alvo == noone || !_slot_alvo.ocupado) && _tem_alcance) {
+        var _slot_longe = buscar_slot(_slot.lane, _slot.posicao + _sentido * 2);
+        if (_slot_longe != noone && _slot_longe.ocupado) _slot_alvo = _slot_longe;
+    }
+
+    var _pode_mirar_alvo = _slot_alvo != noone && _slot_alvo.ocupado && _slot_alvo.carta_atual.dono == _lado_defensor
+        && !_slot_alvo.carta_atual.sombra_ativa
+        && (!tem_habilidade(_slot_alvo.carta_atual, "voar") || tem_habilidade(_carta, "voar") || _tem_alcance);
+
+    if (_pode_mirar_alvo) {
         rolar_combate(_carta, _slot_alvo.carta_atual);
     } else if (_slot.posicao == posicao_ataque()) {
         var _construcao_alvo = buscar_construcao(_slot.lane, _lado_defensor);
@@ -697,6 +1011,14 @@ function rolar_combate(_atacante, _defensor) {
     }));
 }
 
+function rolar_varios_dados(_quantidade, _tamanho_dado) {
+    var _total = 0;
+    for (var i = 0; i < _quantidade; i++) {
+        _total += irandom_range(1, _tamanho_dado);
+    }
+    return _total;
+}
+	
 // Regras do D20: 1-10 erra, 1 natural = contra-ataque do defensor, 11-19 acerta,
 // 20 natural = crítico (rola 2 dados de dano e soma).
 function processar_resultado_acerto(_dado_acerto, _atacante, _defensor) {
@@ -709,7 +1031,7 @@ function processar_resultado_acerto(_dado_acerto, _atacante, _defensor) {
     if (_dado_acerto == 1) {
         debug_combate("Erro crítico! Defensor vai contra-atacar.");
 
-        var _dano_contra_dado = irandom_range(1, _defensor.dado_dano);
+        var _dano_contra_dado = rolar_varios_dados(_defensor.qtd_dados_dano, _defensor.dado_dano);
 
         var _dados_contra = {
             atacante: _atacante,
@@ -739,44 +1061,131 @@ function processar_resultado_acerto(_dado_acerto, _atacante, _defensor) {
 
     debug_combate("Acertou! Vai rolar dano...");
 
-    var _num_dados = (_dado_acerto == 20) ? 2 : 1;
-    var _dano_dado = irandom_range(1, _atacante.dado_dano);
-    if (_num_dados == 2) {
-        _dano_dado += irandom_range(1, _atacante.dado_dano);
-    }
+	var _alvo_real = _defensor;
+	if (_dado_acerto == 20 && tem_habilidade(_atacante, "tiro_burro")) {
+	    var _todas_tropas = [];
+	    with (obj_carta) {
+	        if (travada) array_push(_todas_tropas, id);
+	    }
+	    if (array_length(_todas_tropas) > 0) {
+	        _alvo_real = _todas_tropas[irandom(array_length(_todas_tropas) - 1)];
+	        debug_combate("TIRO BURRO! A bala perdida atinge " + _alvo_real.nome_carta + " ao invés do alvo original!");
+	    }
+	}
+
+    // crítico dobra a quantidade de dados originais da carta (regra do manual)
+	var _num_dados = (_dado_acerto == 20) ? (_atacante.qtd_dados_dano * 2) : _atacante.qtd_dados_dano;
+	var _dano_dado = rolar_varios_dados(_num_dados, _atacante.dado_dano);
 
     var _dados_dano = {
         atacante: _atacante,
-        defensor: _defensor
+        defensor: _alvo_real
     };
 
-    rolar_dado_visual(_atacante.x, _atacante.y, _defensor.x, _defensor.y, _atacante.dado_dano, _dano_dado, method(_dados_dano, function(_resultado) {
-        if (!instance_exists(atacante) || !instance_exists(defensor)) return;
+    rolar_dado_visual(_atacante.x, _atacante.y, _alvo_real.x, _alvo_real.y, _atacante.dado_dano, _dano_dado, method(_dados_dano, function(_resultado) {
+	    if (!instance_exists(atacante) || !instance_exists(defensor)) return;
 
-        var _dano_final = _resultado + atacante.mod_dano;
-        _dano_final = max(0, _dano_final - defensor.defesa_fisica - obj_controlador.terreno_bonus_defesa);
-        defensor.vida -= _dano_final;
+	    var _dano_final = _resultado + atacante.mod_dano;
+	    _dano_final = max(0, _dano_final - defensor.defesa_fisica - obj_controlador.terreno_bonus_defesa);
+	    defensor.vida -= _dano_final;
 
-        debug_combate(defensor.nome_carta + " tomou " + string(_dano_final) + " de dano! Vida agora: " + string(defensor.vida));
+	    debug_combate(defensor.nome_carta + " tomou " + string(_dano_final) + " de dano! Vida agora: " + string(defensor.vida));
 
-        if (defensor.vida <= 0) {
-            destruir_tropa(defensor);
-        }
-    }));
+	    if (defensor.vida <= 0) {
+	        destruir_tropa(defensor);
+	    }
+	}));
 }
 
 function destruir_tropa(_carta, _por_inimigo = true) {
     aplicar_efeitos_morte(_carta, _por_inimigo);
-    
+
     if (_carta.selo_abissal) {
         mandar_para_abismo(_carta.nome_carta);
     }
-    
+
+    if (tem_habilidade(_carta, "mitose") && _carta.funcao_mitose != noone) {
+        executar_mitose(_carta);
+    }
+
     if (_carta.slot_atual != noone) {
         _carta.slot_atual.ocupado = false;
         _carta.slot_atual.carta_atual = noone;
     }
     instance_destroy(_carta);
+}
+
+function executar_mitose(_carta) {
+    var _slot_morte = _carta.slot_atual;
+    if (_slot_morte == noone) return;
+
+    var _dados_filhote = _carta.funcao_mitose();
+
+    criar_tropa_no_slot(_dados_filhote, _slot_morte, _carta.dono);
+
+    var _slot_adjacente = buscar_slot(_slot_morte.lane, _slot_morte.posicao + direcao_avanco(_carta.dono));
+    if (_slot_adjacente == noone || _slot_adjacente.ocupado) {
+        _slot_adjacente = buscar_slot(_slot_morte.lane, _slot_morte.posicao - direcao_avanco(_carta.dono));
+    }
+    if (_slot_adjacente != noone && !_slot_adjacente.ocupado) {
+        criar_tropa_no_slot(_dados_filhote, _slot_adjacente, _carta.dono);
+    }
+
+    debug_combate(_carta.nome_carta + " se dividiu em 2 Slimets pela MITOSE!");
+}
+
+// Helper genérico: cria uma tropa direto num slot do campo (usado pela Mitose e pode reaproveitar na IA depois)
+function criar_tropa_no_slot(_dados, _slot, _dono) {
+    var _carta = instance_create_layer(_slot.x, _slot.y, "Instances", obj_carta);
+    _carta.nome_carta = _dados.nome;
+    _carta.sprite_index = (_dados.sprite_carta != noone) ? _dados.sprite_carta : spr_carta_placeholder;
+    _carta.escala_base = global.CARTA_LARGURA / sprite_get_width(_carta.sprite_index);
+    _carta.tem_arte_propria = (_dados.sprite_carta != noone);
+    _carta.categoria = _dados.categoria;
+    _carta.vida = _dados.vida;
+    _carta.vida_maxima = _dados.vida;
+	_carta.vida_pos_x = variable_struct_exists(_dados, "vida_pos_x") ? _dados.vida_pos_x : 0.11;
+	_carta.vida_pos_y = variable_struct_exists(_dados, "vida_pos_y") ? _dados.vida_pos_y : 0.07;
+    _carta.dado_dano = _dados.dado_dano;
+	_carta.qtd_dados_dano = variable_struct_exists(_dados, "qtd_dados_dano") ? _dados.qtd_dados_dano : 1;
+    _carta.mod_dano = _dados.mod_dano;
+    _carta.defesa_fisica = _dados.defesa_fisica;
+    _carta.defesa_magica = _dados.defesa_magica;
+    _carta.habilidades = variable_struct_exists(_dados, "habilidades") ? _dados.habilidades : [];
+    _carta.funcao_mitose = variable_struct_exists(_dados, "mitose") ? _dados.mitose : noone;
+	_carta.nivel_inteligencia = variable_struct_exists(_dados, "inteligencia") ? _dados.inteligencia : 1;
+	_carta.dado_dano_magico = variable_struct_exists(_dados, "dado_dano_magico") ? _dados.dado_dano_magico : 0;
+	_carta.mod_dano_magico = variable_struct_exists(_dados, "mod_dano_magico") ? _dados.mod_dano_magico : 0;
+	_carta.mochila = variable_struct_exists(_dados, "mochila") ? _dados.mochila : 1;
+
+	_carta.vida_pos_x = variable_struct_exists(_dados, "vida_pos_x") ? _dados.vida_pos_x : 0.10;
+	_carta.vida_pos_y = variable_struct_exists(_dados, "vida_pos_y") ? _dados.vida_pos_y : 0.07;
+	_carta.atk_pos_x = variable_struct_exists(_dados, "atk_pos_x") ? _dados.atk_pos_x : 0.12;
+	_carta.atk_pos_y = variable_struct_exists(_dados, "atk_pos_y") ? _dados.atk_pos_y : 0.90;
+	_carta.atk_magico_pos_x = variable_struct_exists(_dados, "atk_magico_pos_x") ? _dados.atk_magico_pos_x : 0.37;
+	_carta.atk_magico_pos_y = variable_struct_exists(_dados, "atk_magico_pos_y") ? _dados.atk_magico_pos_y : 0.90;
+	_carta.def_pos_x = variable_struct_exists(_dados, "def_pos_x") ? _dados.def_pos_x : 0.62;
+	_carta.def_pos_y = variable_struct_exists(_dados, "def_pos_y") ? _dados.def_pos_y : 0.90;
+	_carta.def_magico_pos_x = variable_struct_exists(_dados, "def_magico_pos_x") ? _dados.def_magico_pos_x : 0.87;
+	_carta.def_magico_pos_y = variable_struct_exists(_dados, "def_magico_pos_y") ? _dados.def_magico_pos_y : 0.90;
+	_carta.int_pos_x = variable_struct_exists(_dados, "int_pos_x") ? _dados.int_pos_x : 0.88;
+	_carta.int_pos_y = variable_struct_exists(_dados, "int_pos_y") ? _dados.int_pos_y : 0.07;
+	_carta.mochila_pos_x = variable_struct_exists(_dados, "mochila_pos_x") ? _dados.mochila_pos_x : 0.91;
+	_carta.mochila_pos_y = variable_struct_exists(_dados, "mochila_pos_y") ? _dados.mochila_pos_y : 0.185;	
+
+    _carta.esta_na_mao = false;
+    _carta.travada = true;
+    _carta.depth = 0;
+    _carta.dono = _dono;
+    _carta.lane_atual = _slot.lane;
+    _carta.posicao_atual = _slot.posicao;
+    _carta.destino_x = _slot.x;
+    _carta.destino_y = _slot.y;
+    _carta.slot_atual = _slot;
+
+    _slot.ocupado = true;
+    _slot.carta_atual = _carta.id;
+    return _carta;
 }
 #endregion
 
@@ -912,15 +1321,37 @@ function ia_jogar_cartas() {
                 _carta.categoria = _dados.categoria;
                 _carta.vida = _dados.vida;
                 _carta.vida_maxima = _dados.vida;
+				_carta.vida_pos_x = variable_struct_exists(_dados, "vida_pos_x") ? _dados.vida_pos_x : 0.11;
+				_carta.vida_pos_y = variable_struct_exists(_dados, "vida_pos_y") ? _dados.vida_pos_y : 0.07;
 				_carta.selo_abissal = variable_struct_exists(_dados, "selo_abissal") ? _dados.selo_abissal : false;
 				_carta.funcao_evolucao = variable_struct_exists(_dados, "evolucao") ? _dados.evolucao : noone;
                 _carta.custo_sacrificio = _dados.sacrificio;
                 _carta.dado_dano = _dados.dado_dano;
+				_carta.qtd_dados_dano = variable_struct_exists(_dados, "qtd_dados_dano") ? _dados.qtd_dados_dano : 1;
                 _carta.mod_dano = _dados.mod_dano;
                 _carta.defesa_fisica = _dados.defesa_fisica;
                 _carta.defesa_magica = _dados.defesa_magica;
-                _carta.habilidade = variable_struct_exists(_dados, "habilidade") ? _dados.habilidade : noone;
-                _carta.tem_habilidade = (_dados.habilidade != noone);
+                _carta.habilidades = variable_struct_exists(_dados, "habilidades") ? _dados.habilidades : [];
+				_carta.funcao_mitose = variable_struct_exists(_dados, "mitose") ? _dados.mitose : noone;
+				_carta.nivel_inteligencia = variable_struct_exists(_dados, "inteligencia") ? _dados.inteligencia : 1;
+				_carta.dado_dano_magico = variable_struct_exists(_dados, "dado_dano_magico") ? _dados.dado_dano_magico : 0;
+				_carta.mod_dano_magico = variable_struct_exists(_dados, "mod_dano_magico") ? _dados.mod_dano_magico : 0;
+				_carta.mochila = variable_struct_exists(_dados, "mochila") ? _dados.mochila : 1;
+
+				_carta.vida_pos_x = variable_struct_exists(_dados, "vida_pos_x") ? _dados.vida_pos_x : 0.10;
+				_carta.vida_pos_y = variable_struct_exists(_dados, "vida_pos_y") ? _dados.vida_pos_y : 0.07;
+				_carta.int_pos_x = variable_struct_exists(_dados, "int_pos_x") ? _dados.int_pos_x : 0.91;
+				_carta.int_pos_y = variable_struct_exists(_dados, "int_pos_y") ? _dados.int_pos_y : 0.073;
+				_carta.mochila_pos_x = variable_struct_exists(_dados, "mochila_pos_x") ? _dados.mochila_pos_x : 0.91;
+				_carta.mochila_pos_y = variable_struct_exists(_dados, "mochila_pos_y") ? _dados.mochila_pos_y : 0.185;
+				_carta.atk_pos_x = variable_struct_exists(_dados, "atk_pos_x") ? _dados.atk_pos_x : 0.12;
+				_carta.atk_pos_y = variable_struct_exists(_dados, "atk_pos_y") ? _dados.atk_pos_y : 0.92;
+				_carta.atk_magico_pos_x = variable_struct_exists(_dados, "atk_magico_pos_x") ? _dados.atk_magico_pos_x : 0.37;
+				_carta.atk_magico_pos_y = variable_struct_exists(_dados, "atk_magico_pos_y") ? _dados.atk_magico_pos_y : 0.92;
+				_carta.def_pos_x = variable_struct_exists(_dados, "def_pos_x") ? _dados.def_pos_x : 0.62;
+				_carta.def_pos_y = variable_struct_exists(_dados, "def_pos_y") ? _dados.def_pos_y : 0.92;
+				_carta.def_magico_pos_x = variable_struct_exists(_dados, "def_magico_pos_x") ? _dados.def_magico_pos_x : 0.87;
+				_carta.def_magico_pos_y = variable_struct_exists(_dados, "def_magico_pos_y") ? _dados.def_magico_pos_y : 0.92;
 
                 _carta.esta_na_mao = false;
                 _carta.travada = true;
@@ -1030,35 +1461,52 @@ function other_custo_tipo(_custo) {
 function pode_pagar_custo(_custo, _dono) {
     if (_custo == noone) return true;
 
-    var _disponiveis = 0;
-    with (obj_recurso) {
-        if (!virado && dono == _dono && (tipo == other_custo_tipo(_custo) || _custo.tipo == "qualquer")) {
-            _disponiveis += 1;
+    // aceita tanto o formato antigo (1 struct só) quanto o novo (array de structs)
+    var _lista_custos = is_array(_custo) ? _custo : [_custo];
+
+    for (var i = 0; i < array_length(_lista_custos); i++) {
+        var _item = _lista_custos[i];
+        var _disponiveis = 0;
+
+        with (obj_recurso) {
+            if (!virado && dono == _dono && (tipo == other_custo_tipo(_item) || _item.tipo == "qualquer")) {
+                _disponiveis += 1;
+            }
         }
+
+        if (_disponiveis < _item.quantidade) return false;
     }
-    return _disponiveis >= _custo.quantidade;
+
+    return true;
 }
 
 // paga de verdade, virando os recursos usados
 function pagar_custo(_custo, _dono) {
     if (_custo == noone) return true;
 
-    var _lista = (_dono == "jogador") ? obj_controlador.recursos_jogador : obj_controlador.recursos_inimigo;
-    var _pagos = 0;
+    var _lista_custos = is_array(_custo) ? _custo : [_custo];
+    var _lista_recursos = (_dono == "jogador") ? obj_controlador.recursos_jogador : obj_controlador.recursos_inimigo;
 
-    for (var i = 0; i < array_length(_lista); i++) {
-        if (_pagos >= _custo.quantidade) break;
+    for (var i = 0; i < array_length(_lista_custos); i++) {
+        var _item = _lista_custos[i];
+        var _pagos = 0;
 
-        var _recurso = _lista[i];
-        if (instance_exists(_recurso) && !_recurso.virado) {
-            if (_custo.tipo == "qualquer" || _recurso.tipo == _custo.tipo) {
-                _recurso.virado = true;
-                _pagos += 1;
+        for (var j = 0; j < array_length(_lista_recursos); j++) {
+            if (_pagos >= _item.quantidade) break;
+
+            var _recurso = _lista_recursos[j];
+            if (instance_exists(_recurso) && !_recurso.virado) {
+                if (_item.tipo == "qualquer" || _recurso.tipo == _item.tipo) {
+                    _recurso.virado = true;
+                    _pagos += 1;
+                }
             }
         }
+
+        if (_pagos < _item.quantidade) return false; // não deveria acontecer se pode_pagar_custo já checou antes
     }
 
-    return _pagos >= _custo.quantidade;
+    return true;
 }
 
 // desvira todos os recursos de um lado (chamado no início do turno dele)
@@ -1312,13 +1760,34 @@ function evoluir_tropa(_carta) {
     
     _carta.vida_maxima = _dados_evo.vida;
     _carta.vida = max(1, _dados_evo.vida - _dano_sofrido);
+	_carta.vida_pos_x = variable_struct_exists(_dados_evo, "vida_pos_x") ? _dados.vida_pos_x : 0.11;
+	_carta.vida_pos_y = variable_struct_exists(_dados_evo, "vida_pos_y") ? _dados.vida_pos_y : 0.07;
     _carta.dado_dano = _dados_evo.dado_dano;
+	_carta.qtd_dados_dano = variable_struct_exists(_dados_evo, "qtd_dados_dano") ? _dados_evo.qtd_dados_dano : 1;
     _carta.mod_dano = _dados_evo.mod_dano;
     _carta.defesa_fisica = _dados_evo.defesa_fisica;
     _carta.defesa_magica = _dados_evo.defesa_magica;
-    _carta.habilidade = _dados_evo.habilidade;
-    _carta.tem_habilidade = (_dados_evo.habilidade != noone);
+	_carta.habilidades = variable_struct_exists(_dados_evo, "habilidades") ? _dados_evo.habilidades : [];
     _carta.funcao_evolucao = variable_struct_exists(_dados_evo, "evolucao") ? _dados_evo.evolucao : noone;
+	_carta.nivel_inteligencia = variable_struct_exists(_dados_evo, "inteligencia") ? _dados_evo.inteligencia : 1;
+	_carta.dado_dano_magico = variable_struct_exists(_dados_evo, "dado_dano_magico") ? _dados_evo.dado_dano_magico : 0;
+	_carta.mod_dano_magico = variable_struct_exists(_dados_evo, "mod_dano_magico") ? _dados_evo.mod_dano_magico : 0;
+	_carta.mochila = variable_struct_exists(_dados_evo, "mochila") ? _dados_evo.mochila : 1;
+
+	_carta.vida_pos_x = variable_struct_exists(_dados_evo, "vida_pos_x") ? _dados_evo.vida_pos_x : 0.10;
+	_carta.vida_pos_y = variable_struct_exists(_dados_evo, "vida_pos_y") ? _dados_evo.vida_pos_y : 0.07;
+	_carta.atk_pos_x = variable_struct_exists(_dados_evo, "atk_pos_x") ? _dados_evo.atk_pos_x : 0.12;
+	_carta.atk_pos_y = variable_struct_exists(_dados_evo, "atk_pos_y") ? _dados_evo.atk_pos_y : 0.92;
+	_carta.atk_magico_pos_x = variable_struct_exists(_dados_evo, "atk_magico_pos_x") ? _dados_evo.atk_magico_pos_x : 0.37;
+	_carta.atk_magico_pos_y = variable_struct_exists(_dados_evo, "atk_magico_pos_y") ? _dados_evo.atk_magico_pos_y : 0.92;
+	_carta.def_pos_x = variable_struct_exists(_dados_evo, "def_pos_x") ? _dados_evo.def_pos_x : 0.62;
+	_carta.def_pos_y = variable_struct_exists(_dados_evo, "def_pos_y") ? _dados_evo.def_pos_y : 0.92;
+	_carta.def_magico_pos_x = variable_struct_exists(_dados_evo, "def_magico_pos_x") ? _dados_evo.def_magico_pos_x : 0.87;
+	_carta.def_magico_pos_y = variable_struct_exists(_dados_evo, "def_magico_pos_y") ? _dados_evo.def_magico_pos_y : 0.92;
+	_carta.int_pos_x = variable_struct_exists(_dados_evo, "int_pos_x") ? _dados_evo.int_pos_x : 0.91;
+	_carta.int_pos_y = variable_struct_exists(_dados_evo, "int_pos_y") ? _dados_evo.int_pos_y : 0.07;
+	_carta.mochila_pos_x = variable_struct_exists(_dados_evo, "mochila_pos_x") ? _dados_evo.mochila_pos_x : 0.91;
+	_carta.mochila_pos_y = variable_struct_exists(_dados_evo, "mochila_pos_y") ? _dados_evo.mochila_pos_y : 0.185;
     
     registrar_evolucao(_carta.dono);
     
@@ -1359,7 +1828,7 @@ function obter_opcoes_menu(_carta) {
     var _opcoes = [];
     if (!_carta.atacou_este_turno) array_push(_opcoes, "Atacar");
     if (!_carta.moveu_este_turno) array_push(_opcoes, "Mover");
-    if (_carta.tem_habilidade && !_carta.habilidade_usada_este_turno) array_push(_opcoes, "Habilidade");
+    if (tem_habilidade_ativa(_carta) != noone && !_carta.habilidade_usada_este_turno) array_push(_opcoes, "Habilidade");
     if (_carta.funcao_evolucao != noone && _carta.turnos_no_campo >= 1 && evolucoes_disponiveis(_carta.dono)) {
         array_push(_opcoes, "Evoluir");
     }
@@ -1389,27 +1858,39 @@ function executar_opcao_menu(_carta, _opcao) {
 #endregion
 
 #region Habilidades especiais das tropas
-function obter_nome_exibicao_habilidade(_habilidade) {
-    switch (_habilidade) {
+function obter_nome_exibicao_habilidade(_chave) {
+    switch (_chave) {
         case "golpe_duplo": return "Golpe Duplo";
-        case "sombra_translucida": return "Sombra Translucida";
+        case "sombra_translucida": return "Sombra Translúcida";
         case "ferida_exposta": return "Ferida Exposta";
+        case "imitacao": return "Imitação";
+        case "visao_do_veu": return "Visão do Véu";
     }
     return "Habilidade";
+}
+	
+function tem_habilidade(_carta, _chave) {
+    return array_get_index(_carta.habilidades, _chave) != -1;
+}
+
+// Só essas contam como "usar no menu" -- as outras (alcance, voar, olhar_vazio, tiro_burro)
+// são passivas e são checadas direto no combate/movimento, sem precisar de clique.
+function tem_habilidade_ativa(_carta) {
+    var _ativas = ["golpe_duplo", "sombra_translucida", "ferida_exposta", "imitacao", "visao_do_veu"];
+    for (var i = 0; i < array_length(_carta.habilidades); i++) {
+        if (array_get_index(_ativas, _carta.habilidades[i]) != -1) return _carta.habilidades[i];
+    }
+    return noone;
 }
 
 // Despacha pra função específica de cada habilidade, baseado no código salvo na carta.
 function usar_habilidade(_carta) {
-    switch (_carta.habilidade) {
-        case "golpe_duplo":
-            habilidade_golpe_duplo(_carta);
-            break;
-        case "sombra_translucida":
-            habilidade_sombra_translucida(_carta);
-            break;
-        case "ferida_exposta":
-            habilidade_ferida_exposta(_carta);
-            break;
+    switch (tem_habilidade_ativa(_carta)) {
+        case "golpe_duplo": habilidade_golpe_duplo(_carta); break;
+        case "sombra_translucida": habilidade_sombra_translucida(_carta); break;
+        case "ferida_exposta": habilidade_ferida_exposta(_carta); break;
+        case "imitacao": habilidade_imitacao(_carta); break;
+        case "visao_do_veu": habilidade_visao_do_veu(_carta); break;
     }
 }
 
@@ -1490,6 +1971,79 @@ function habilidade_ferida_exposta(_carta) {
             debug_combate("Ferida Exposta: coroa, nada aconteceu.");
         }
     }));
+}
+	
+function habilidade_imitacao(_carta) {
+    if (!_carta.travada || _carta.slot_atual == noone) return;
+    var _slot = _carta.slot_atual;
+    var _lado_defensor = (_carta.dono == "jogador") ? "inimigo" : "jogador";
+    var _sentido = direcao_avanco(_carta.dono);
+    var _slot_alvo = buscar_slot(_slot.lane, _slot.posicao + _sentido);
+
+    if (_slot_alvo == noone || !_slot_alvo.ocupado || _slot_alvo.carta_atual.dono != _lado_defensor) {
+        debug_combate("Imitação: sem tropa inimiga na frente pra enganar.");
+        return;
+    }
+
+    var _alvo = _slot_alvo.carta_atual;
+    _carta.habilidade_usada_este_turno = true;
+
+    var _rolagem_imitacao = irandom_range(1, 20);
+    var _rolagem_defensor = irandom_range(1, 20);
+
+    debug_combate(_carta.nome_carta + " usa IMITAÇÃO! (" + string(_rolagem_imitacao) + " vs " + string(_rolagem_defensor) + ")");
+
+    if (_rolagem_imitacao > _rolagem_defensor) {
+        _alvo.iludido_por_imitacao = true;
+        debug_combate(_alvo.nome_carta + " foi enganada e não vai atacar no próximo turno dela!");
+    } else {
+        debug_combate("A tropa inimiga não caiu no truque.");
+    }
+}
+
+// Simplificado: mostra a mão do oponente no console e torna a tropa imune a armadilhas
+// (o jogo ainda não tem uma tela de "escolher carta da mão do oponente" nem sistema de armadilha automática).
+function habilidade_visao_do_veu(_carta) {
+    if (_carta.visao_do_veu_usada) {
+        debug_combate("Visão do Véu já foi usada nessa carta.");
+        return;
+    }
+    _carta.visao_do_veu_usada = true;
+    _carta.habilidade_usada_este_turno = true;
+    _carta.imune_armadilha = true;
+
+    var _lado_oponente = (_carta.dono == "jogador") ? "inimigo" : "jogador";
+    var _nomes = [];
+    with (obj_carta) {
+        if (dono == _lado_oponente && esta_na_mao) {
+            array_push(_nomes, nome_carta);
+        }
+    }
+    debug_combate("VISÃO DO VÉU revela a mão do oponente: " + string(_nomes));
+    debug_combate(_carta.nome_carta + " agora é imune a armadilhas.");
+}
+	
+function verificar_olhar_vazio(_carta) {
+    if (_carta.testado_olhar_vazio) return;
+    if (_carta.slot_atual == noone) return;
+
+    var _lado_oponente = (_carta.dono == "jogador") ? "inimigo" : "jogador";
+    var _sentido = direcao_avanco(_carta.dono);
+    var _slot_frente = buscar_slot(_carta.slot_atual.lane, _carta.slot_atual.posicao + _sentido);
+
+    if (_slot_frente == noone || !_slot_frente.ocupado) return;
+    var _oponente = _slot_frente.carta_atual;
+    if (_oponente.dono != _lado_oponente) return;
+    if (!tem_habilidade(_oponente, "olhar_vazio")) return;
+
+    _carta.testado_olhar_vazio = true;
+    var _rolagem = irandom_range(1, 20);
+    debug_combate(_carta.nome_carta + " encara o Olhar Vazio de " + _oponente.nome_carta + "... rolou " + string(_rolagem));
+
+    if (_rolagem <= 10) {
+        aplicar_condicao(_carta, "paralisado", 1, 0);
+        debug_combate(_carta.nome_carta + " ficou PARALISADO pelo Olhar Vazio!");
+    }
 }
 #endregion
 

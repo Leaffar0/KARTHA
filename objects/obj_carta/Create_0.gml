@@ -44,6 +44,8 @@ efeito_passivo = "";
 selo_abissal = false;
 arrastar_inicio_x = 0;
 arrastar_inicio_y = 0;
+qtd_dados_dano = 1; // quantos dados rolar (ex: 2 pra "2D4")
+qtd_dados_dano_magico = 1;
 
 // --- efeitos visuais ---
 pulando = false;
@@ -64,9 +66,26 @@ esta_na_mao = true;     // controla se aplica os efeitos de mão
 mao_base_x = 0;
 mao_base_y = 0;
 atacou_este_turno = false;
-tem_habilidade = false;
-habilidade_nome = "";
+habilidades = [];
+iludido_por_imitacao = false;
+testado_olhar_vazio = false;
+visao_do_veu_usada = false;
+imune_armadilha = false;
+funcao_mitose = noone;
 habilidade_usada_este_turno = false;
 sombra_ativa = false;
 sombra_cooldown = 0; // turnos restantes até poder usar de novo
 habilidade = noone;
+nivel_inteligencia = 1;
+dado_dano_magico = 0;
+mod_dano_magico = 0;
+mochila = 1; // quantos itens a tropa pode carregar
+
+// posições de cada estatística na carta (em % da largura/altura, ajustável por carta)
+vida_pos_x = 0.10; vida_pos_y = 0.07;
+int_pos_x = 0.91; int_pos_y = 0.073;
+mochila_pos_x = 0.91; mochila_pos_y = 0.185;
+atk_pos_x = 0.12; atk_pos_y = 0.92;
+atk_magico_pos_x = 0.37; atk_magico_pos_y = 0.92;
+def_pos_x = 0.62; def_pos_y = 0.92;
+def_magico_pos_x = 0.87; def_magico_pos_y = 0.92;
