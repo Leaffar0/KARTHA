@@ -67,10 +67,10 @@ if (carta_menu_aberto != noone && instance_exists(carta_menu_aberto) && menu_esc
 }
 		
         if (menu_escala > 0.7) {
-            draw_set_halign(fa_center);
-            draw_set_valign(fa_middle);
-            draw_text((_x1 + _x2)/2, (_y1 + _y2)/2, _opcoes[i]);
-        }
+		    draw_set_halign(fa_center);
+		    draw_set_valign(fa_middle);
+		    draw_text_transformed((_x1 + _x2)/2, (_y1 + _y2)/2, _opcoes[i], 0.5, 0.5, 0); // 0.7 = 70% do tamanho normal
+		}
         draw_set_alpha(1);
     }
     

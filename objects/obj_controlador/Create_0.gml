@@ -29,7 +29,7 @@ baralho = [
 	criar_dados_olho_demonio, criar_dados_mago_da_sombra, criar_dados_gato_mago, criar_dados_goblin, criar_dados_hollow_jack, 
 	criar_dados_esqueleto, criar_dados_shroomilin,
     criar_dados_recurso_sangue, criar_dados_recurso_ossos, criar_dados_recurso_sucata, criar_dados_recurso_mana,
-    criar_dados_construcao_torre,
+    criar_dados_construcao_torre,criar_dados_construcao_hemodrenario,
     criar_dados_magica_bola_fogo, criar_dados_magica_veneno, criar_dados_magica_gelo, criar_dados_magica_choque,
     criar_dados_item_espada, criar_dados_item_escudo, criar_dados_item_pocao,
     criar_dados_armadilha_urso,

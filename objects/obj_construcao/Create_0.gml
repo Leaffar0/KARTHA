@@ -4,3 +4,5 @@ vida_maxima = 5;
 dono = "jogador";
 lane_atual = 0;
 slot_atual = noone;
+habilidade_usada_este_turno = false;
+tem_habilidade_construcao = false; // marca se essa construção tem poder ativo

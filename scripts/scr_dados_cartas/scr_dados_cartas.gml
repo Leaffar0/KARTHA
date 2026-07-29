@@ -451,8 +451,19 @@ function criar_dados_construcao_torre() {
         categoria: "construcao",
         nome: "Torre de Vigia",
         sprite_carta: noone,
-        vida: 5,
+        vida: 20,
         custo: { tipo: "sucata", quantidade: 1 }
+    };
+}
+	
+function criar_dados_construcao_hemodrenario() {
+    return {
+        categoria: "construcao",
+        nome: "Hemodrenário",
+        sprite_carta: spr_carta_hemodrenario, // troca quando tiver a arte
+        vida: 12,
+        custo: [{ tipo: "sangue", quantidade: 1 },
+				{ tipo: "sucata", quantidade: 2}]
     };
 }
 
@@ -677,6 +688,7 @@ function comprar_carta_do_deck(_x_inicial, _y_inicial) {
         _carta.custo_sacrificio = _dados.sacrificio;
         _carta.dado_dano = _dados.dado_dano;
 		_carta.qtd_dados_dano = variable_struct_exists(_dados, "qtd_dados_dano") ? _dados.qtd_dados_dano : 1;
+		_carta.qtd_dados_dano_magico = variable_struct_exists(_dados, "qtd_dados_dano_magico") ? _dados.qtd_dados_dano_magico : 1;
         _carta.mod_dano = _dados.mod_dano;
         _carta.defesa_fisica = _dados.defesa_fisica;
         _carta.defesa_magica = _dados.defesa_magica;
@@ -687,6 +699,7 @@ function comprar_carta_do_deck(_x_inicial, _y_inicial) {
 		_carta.dado_dano_magico = variable_struct_exists(_dados, "dado_dano_magico") ? _dados.dado_dano_magico : 0;
 		_carta.mod_dano_magico = variable_struct_exists(_dados, "mod_dano_magico") ? _dados.mod_dano_magico : 0;
 		_carta.mochila = variable_struct_exists(_dados, "mochila") ? _dados.mochila : 1;
+		
 
 		_carta.vida_pos_x = variable_struct_exists(_dados, "vida_pos_x") ? _dados.vida_pos_x : 0.10;
 		_carta.vida_pos_y = variable_struct_exists(_dados, "vida_pos_y") ? _dados.vida_pos_y : 0.07;
@@ -909,7 +922,14 @@ function processar_combate(_lado_atacante) {
 			    && (!tem_habilidade(_slot_alvo.carta_atual, "voar") || tem_habilidade(_atacante, "voar") || _tem_alcance);
 
 			if (_pode_mirar_alvo) {
-                rolar_combate(_atacante, _slot_alvo.carta_atual);
+				var _tipo_escolhido = "fisica";
+				if (_atacante.dado_dano_magico > 0 && _atacante.dado_dano > 0) {
+				    _tipo_escolhido = (irandom(1) == 1) ? "magica" : "fisica"; // tem as duas: sorteia
+				} else if (_atacante.dado_dano_magico > 0) {
+				    _tipo_escolhido = "magica"; // só tem mágica
+				}
+
+				rolar_combate(_atacante, _slot_alvo.carta_atual, _tipo_escolhido);
 
             } else if (posicao == posicao_ataque()) {
                 // só chega aqui se estiver no MEIO e não tiver tropa na frente
@@ -940,7 +960,7 @@ function processar_combate(_lado_atacante) {
 
 // Versão do combate pra UMA tropa só (usada pelo menu de ação do jogador).
 // Mesma cadeia de alvo que processar_combate(), só que pra 1 tropa específica.
-function processar_combate_tropa(_carta) {
+function processar_combate_tropa(_carta, _tipo_ataque) {
     if (!instance_exists(_carta) || !_carta.travada || _carta.slot_atual == noone) return;
 
     var _slot = _carta.slot_atual;
@@ -968,12 +988,14 @@ function processar_combate_tropa(_carta) {
         && (!tem_habilidade(_slot_alvo.carta_atual, "voar") || tem_habilidade(_carta, "voar") || _tem_alcance);
 
     if (_pode_mirar_alvo) {
-        rolar_combate(_carta, _slot_alvo.carta_atual);
+        rolar_combate(_carta, _slot_alvo.carta_atual, _tipo_ataque);
     } else if (_slot.posicao == posicao_ataque()) {
         var _construcao_alvo = buscar_construcao(_slot.lane, _lado_defensor);
+        var _dado_usado = (_tipo_ataque == "magica") ? _carta.dado_dano_magico : _carta.dado_dano;
+        var _mod_usado = (_tipo_ataque == "magica") ? _carta.mod_dano_magico : _carta.mod_dano;
 
         if (_construcao_alvo != noone) {
-            var _dano_construcao = irandom_range(1, _carta.dado_dano) + _carta.mod_dano;
+            var _dano_construcao = irandom_range(1, _dado_usado) + _mod_usado;
             _construcao_alvo.vida -= _dano_construcao;
 
             if (_construcao_alvo.vida <= 0) {
@@ -982,7 +1004,7 @@ function processar_combate_tropa(_carta) {
                 instance_destroy(_construcao_alvo);
             }
         } else {
-            var _dano_direto = irandom_range(1, _carta.dado_dano) + _carta.mod_dano;
+            var _dano_direto = irandom_range(1, _dado_usado) + _mod_usado;
             if (_lado_atacante == "jogador") {
                 obj_controlador.vida_inimigo -= _dano_direto;
             } else {
@@ -996,18 +1018,19 @@ function processar_combate_tropa(_carta) {
 
 // Inicia um combate entre 2 tropas: rola o D20 de acerto (visual) e, quando ele parar,
 // decide o resultado em processar_resultado_acerto().
-function rolar_combate(_atacante, _defensor) {
-    debug_combate("=== ATAQUE: " + _atacante.nome_carta + " (id=" + string(_atacante.id) + ") vs " + _defensor.nome_carta + " (id=" + string(_defensor.id) + ") ===");
+function rolar_combate(_atacante, _defensor, _tipo_ataque) {
+    debug_combate("=== ATAQUE (" + _tipo_ataque + "): " + _atacante.nome_carta + " vs " + _defensor.nome_carta + " ===");
 
     var _dado_acerto = irandom_range(1, 20);
 
     var _dados_combate = {
         atacante: _atacante,
-        defensor: _defensor
+        defensor: _defensor,
+        tipo_ataque: _tipo_ataque
     };
 
     rolar_dado_visual(_atacante.x, _atacante.y, _defensor.x, _defensor.y, 20, _dado_acerto, method(_dados_combate, function(_resultado) {
-        processar_resultado_acerto(_resultado, atacante, defensor);
+        processar_resultado_acerto(_resultado, atacante, defensor, tipo_ataque);
     }));
 }
 
@@ -1021,16 +1044,22 @@ function rolar_varios_dados(_quantidade, _tamanho_dado) {
 	
 // Regras do D20: 1-10 erra, 1 natural = contra-ataque do defensor, 11-19 acerta,
 // 20 natural = crítico (rola 2 dados de dano e soma).
-function processar_resultado_acerto(_dado_acerto, _atacante, _defensor) {
+function processar_resultado_acerto(_dado_acerto, _atacante, _defensor, _tipo_ataque) {
     if (!instance_exists(_atacante) || !instance_exists(_defensor)) {
         debug_combate("--> combate cancelado: atacante ou defensor não existe mais.");
         return;
     }
     debug_combate("D20 rolou: " + string(_dado_acerto));
 
+    // pega o dado/mod/quantidade certos conforme o tipo de ataque
+    var _dado_usado = (_tipo_ataque == "magica") ? _atacante.dado_dano_magico : _atacante.dado_dano;
+    var _mod_usado = (_tipo_ataque == "magica") ? _atacante.mod_dano_magico : _atacante.mod_dano;
+    var _qtd_usada = (_tipo_ataque == "magica") ? _atacante.qtd_dados_dano_magico : _atacante.qtd_dados_dano;
+
     if (_dado_acerto == 1) {
         debug_combate("Erro crítico! Defensor vai contra-atacar.");
 
+        // contra-ataque sempre usa o ataque físico do defensor (padrão)
         var _dano_contra_dado = rolar_varios_dados(_defensor.qtd_dados_dano, _defensor.dado_dano);
 
         var _dados_contra = {
@@ -1061,40 +1090,43 @@ function processar_resultado_acerto(_dado_acerto, _atacante, _defensor) {
 
     debug_combate("Acertou! Vai rolar dano...");
 
-	var _alvo_real = _defensor;
-	if (_dado_acerto == 20 && tem_habilidade(_atacante, "tiro_burro")) {
-	    var _todas_tropas = [];
-	    with (obj_carta) {
-	        if (travada) array_push(_todas_tropas, id);
-	    }
-	    if (array_length(_todas_tropas) > 0) {
-	        _alvo_real = _todas_tropas[irandom(array_length(_todas_tropas) - 1)];
-	        debug_combate("TIRO BURRO! A bala perdida atinge " + _alvo_real.nome_carta + " ao invés do alvo original!");
-	    }
-	}
+    var _alvo_real = _defensor;
+    if (_dado_acerto == 20 && tem_habilidade(_atacante, "tiro_burro")) {
+        var _todas_tropas = [];
+        with (obj_carta) {
+            if (travada) array_push(_todas_tropas, id);
+        }
+        if (array_length(_todas_tropas) > 0) {
+            _alvo_real = _todas_tropas[irandom(array_length(_todas_tropas) - 1)];
+            debug_combate("TIRO BURRO! A bala perdida atinge " + _alvo_real.nome_carta + " ao invés do alvo original!");
+        }
+    }
 
-    // crítico dobra a quantidade de dados originais da carta (regra do manual)
-	var _num_dados = (_dado_acerto == 20) ? (_atacante.qtd_dados_dano * 2) : _atacante.qtd_dados_dano;
-	var _dano_dado = rolar_varios_dados(_num_dados, _atacante.dado_dano);
+    var _num_dados = (_dado_acerto == 20) ? (_qtd_usada * 2) : _qtd_usada;
+    var _dano_dado = rolar_varios_dados(_num_dados, _dado_usado);
 
     var _dados_dano = {
         atacante: _atacante,
-        defensor: _alvo_real
+        defensor: _alvo_real,
+        mod_usado: _mod_usado,
+        tipo_ataque: _tipo_ataque
     };
 
-    rolar_dado_visual(_atacante.x, _atacante.y, _alvo_real.x, _alvo_real.y, _atacante.dado_dano, _dano_dado, method(_dados_dano, function(_resultado) {
-	    if (!instance_exists(atacante) || !instance_exists(defensor)) return;
+    rolar_dado_visual(_atacante.x, _atacante.y, _alvo_real.x, _alvo_real.y, _dado_usado, _dano_dado, method(_dados_dano, function(_resultado) {
+        if (!instance_exists(atacante) || !instance_exists(defensor)) return;
 
-	    var _dano_final = _resultado + atacante.mod_dano;
-	    _dano_final = max(0, _dano_final - defensor.defesa_fisica - obj_controlador.terreno_bonus_defesa);
-	    defensor.vida -= _dano_final;
+        var _defesa_usada = (tipo_ataque == "magica") ? defensor.defesa_magica : defensor.defesa_fisica;
 
-	    debug_combate(defensor.nome_carta + " tomou " + string(_dano_final) + " de dano! Vida agora: " + string(defensor.vida));
+        var _dano_final = _resultado + mod_usado;
+        _dano_final = max(0, _dano_final - _defesa_usada - obj_controlador.terreno_bonus_defesa);
+        defensor.vida -= _dano_final;
 
-	    if (defensor.vida <= 0) {
-	        destruir_tropa(defensor);
-	    }
-	}));
+        debug_combate(defensor.nome_carta + " tomou " + string(_dano_final) + " de dano " + tipo_ataque + "! Vida agora: " + string(defensor.vida));
+
+        if (defensor.vida <= 0) {
+            destruir_tropa(defensor);
+        }
+    }));
 }
 
 function destruir_tropa(_carta, _por_inimigo = true) {
@@ -1148,6 +1180,7 @@ function criar_tropa_no_slot(_dados, _slot, _dono) {
 	_carta.vida_pos_y = variable_struct_exists(_dados, "vida_pos_y") ? _dados.vida_pos_y : 0.07;
     _carta.dado_dano = _dados.dado_dano;
 	_carta.qtd_dados_dano = variable_struct_exists(_dados, "qtd_dados_dano") ? _dados.qtd_dados_dano : 1;
+	_carta.qtd_dados_dano_magico = variable_struct_exists(_dados, "qtd_dados_dano_magico") ? _dados.qtd_dados_dano_magico : 1;
     _carta.mod_dano = _dados.mod_dano;
     _carta.defesa_fisica = _dados.defesa_fisica;
     _carta.defesa_magica = _dados.defesa_magica;
@@ -1255,6 +1288,7 @@ function iniciar_turno_inimigo() {
     desvirar_recursos("inimigo");
     ia_jogar_recursos();
     ia_jogar_construcao();
+	ia_usar_construcoes();
 
     mover_tropas_automatico("inimigo"); // aqui ela ainda está bloqueada, se estiver congelada/paralisada
     ia_jogar_cartas();
@@ -1274,7 +1308,13 @@ function reiniciar_acoes_tropas(_lado) {
             turnos_no_campo += 1;
         }
     }
-    
+
+    with (obj_construcao) {
+        if (dono == _lado) {
+            habilidade_usada_este_turno = false;
+        }
+    }
+
     if (_lado == "jogador") {
         obj_controlador.evolucoes_jogador_este_turno = 0;
     } else {
@@ -1328,6 +1368,7 @@ function ia_jogar_cartas() {
                 _carta.custo_sacrificio = _dados.sacrificio;
                 _carta.dado_dano = _dados.dado_dano;
 				_carta.qtd_dados_dano = variable_struct_exists(_dados, "qtd_dados_dano") ? _dados.qtd_dados_dano : 1;
+				_carta.qtd_dados_dano_magico = variable_struct_exists(_dados, "qtd_dados_dano_magico") ? _dados.qtd_dados_dano_magico : 1;
                 _carta.mod_dano = _dados.mod_dano;
                 _carta.defesa_fisica = _dados.defesa_fisica;
                 _carta.defesa_magica = _dados.defesa_magica;
@@ -1403,9 +1444,20 @@ function ia_jogar_construcao() {
     _construcao.dono = "inimigo";
     _construcao.lane_atual = _slot_livre.lane;
     _construcao.slot_atual = _slot_livre;
+	_construcao.tem_habilidade_construcao = (_dados.nome == "Hemodrenário");
 
     _slot_livre.ocupado = true;
     _slot_livre.construcao_atual = _construcao.id;
+}
+	
+function ia_usar_construcoes() {
+    with (obj_construcao) {
+        if (dono == "inimigo" && tem_habilidade_construcao && !habilidade_usada_este_turno) {
+            if (random(1) < 0.6) { // 60% de chance de usar quando disponível
+                usar_habilidade_hemodrenario(id);
+            }
+        }
+    }
 }
 #endregion
 
@@ -1764,6 +1816,7 @@ function evoluir_tropa(_carta) {
 	_carta.vida_pos_y = variable_struct_exists(_dados_evo, "vida_pos_y") ? _dados.vida_pos_y : 0.07;
     _carta.dado_dano = _dados_evo.dado_dano;
 	_carta.qtd_dados_dano = variable_struct_exists(_dados_evo, "qtd_dados_dano") ? _dados_evo.qtd_dados_dano : 1;
+	_carta.qtd_dados_dano_magico = variable_struct_exists(_dados_evo, "qtd_dados_dano_magico") ? _dados_evo.qtd_dados_dano_magico : 1;
     _carta.mod_dano = _dados_evo.mod_dano;
     _carta.defesa_fisica = _dados_evo.defesa_fisica;
     _carta.defesa_magica = _dados_evo.defesa_magica;
@@ -1826,7 +1879,21 @@ function esta_no_abismo(_nome_carta) {
 #region Menu de ação (clicar na tropa → Atacar/Mover/Habilidade)
 function obter_opcoes_menu(_carta) {
     var _opcoes = [];
-    if (!_carta.atacou_este_turno) array_push(_opcoes, "Atacar");
+
+    if (!_carta.atacou_este_turno) {
+        var _tem_fisica = _carta.dado_dano > 0;
+        var _tem_magica = _carta.dado_dano_magico > 0;
+
+        if (_tem_fisica && _tem_magica) {
+            array_push(_opcoes, "Atacar (Física)");
+            array_push(_opcoes, "Atacar (Mágica)");
+        } else if (_tem_magica) {
+            array_push(_opcoes, "Atacar");
+        } else {
+            array_push(_opcoes, "Atacar");
+        }
+    }
+
     if (!_carta.moveu_este_turno) array_push(_opcoes, "Mover");
     if (tem_habilidade_ativa(_carta) != noone && !_carta.habilidade_usada_este_turno) array_push(_opcoes, "Habilidade");
     if (_carta.funcao_evolucao != noone && _carta.turnos_no_campo >= 1 && evolucoes_disponiveis(_carta.dono)) {
@@ -1838,7 +1905,16 @@ function obter_opcoes_menu(_carta) {
 function executar_opcao_menu(_carta, _opcao) {
     switch (_opcao) {
         case "Atacar":
-            processar_combate_tropa(_carta);
+            var _tipo = (_carta.dado_dano_magico > 0 && _carta.dado_dano == 0) ? "magica" : "fisica";
+            processar_combate_tropa(_carta, _tipo);
+            _carta.atacou_este_turno = true;
+            break;
+        case "Atacar (Física)":
+            processar_combate_tropa(_carta, "fisica");
+            _carta.atacou_este_turno = true;
+            break;
+        case "Atacar (Mágica)":
+            processar_combate_tropa(_carta, "magica");
             _carta.atacou_este_turno = true;
             break;
         case "Mover":
@@ -1903,8 +1979,9 @@ function habilidade_golpe_duplo(_carta) {
 
     debug_combate(_carta.nome_carta + " usa GOLPE DUPLO!");
 
-    processar_combate_tropa(_carta);
-    processar_combate_tropa(_carta);
+    var _tipo = (_carta.dado_dano_magico > 0 && _carta.dado_dano == 0) ? "magica" : "fisica";
+    processar_combate_tropa(_carta, _tipo);
+    processar_combate_tropa(_carta, _tipo);
 
     _carta.atacou_este_turno = true;
     _carta.habilidade_usada_este_turno = true;
@@ -2044,6 +2121,47 @@ function verificar_olhar_vazio(_carta) {
         aplicar_condicao(_carta, "paralisado", 1, 0);
         debug_combate(_carta.nome_carta + " ficou PARALISADO pelo Olhar Vazio!");
     }
+}
+#endregion
+
+#region Habilidades especiais das construções
+function usar_habilidade_hemodrenario(_construcao) {
+    var _lado_dono = _construcao.dono;
+    var _lado_inimigo = (_lado_dono == "jogador") ? "inimigo" : "jogador";
+
+    // acha um sangue inimigo ainda não virado
+    var _sangue_inimigo = noone;
+    with (obj_recurso) {
+        if (dono == _lado_inimigo && tipo == "sangue" && !virado) {
+            _sangue_inimigo = id;
+            break;
+        }
+    }
+
+    if (_sangue_inimigo == noone) {
+        debug_combate("Hemodrenário: o inimigo não tem sangue disponível pra drenar.");
+        return;
+    }
+
+    // acha um recurso seu já virado, pra desvirar
+    var _recurso_proprio = noone;
+    with (obj_recurso) {
+        if (dono == _lado_dono && virado) {
+            _recurso_proprio = id;
+            break;
+        }
+    }
+
+    if (_recurso_proprio == noone) {
+        debug_combate("Hemodrenário: você não tem nenhum recurso virado pra desvirar.");
+        return;
+    }
+
+    _sangue_inimigo.virado = true;
+    _recurso_proprio.virado = false;
+    _construcao.habilidade_usada_este_turno = true;
+
+    debug_combate("HEMODRENÁRIO drenou o sangue inimigo e desvirou seu " + _recurso_proprio.tipo + "!");
 }
 #endregion
 

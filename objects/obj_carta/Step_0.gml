@@ -118,6 +118,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         _construcao.dono = "jogador";
         _construcao.lane_atual = _slot_construcao_perto.lane;
         _construcao.slot_atual = _slot_construcao_perto;
+		_construcao.tem_habilidade_construcao = (nome_carta == "Hemodrenário");
         
         _slot_construcao_perto.ocupado = true;
         _slot_construcao_perto.construcao_atual = _construcao.id;
