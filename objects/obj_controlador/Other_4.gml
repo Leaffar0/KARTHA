@@ -50,5 +50,13 @@ function ordenar_lane_por_dono(_obj, _dono_alvo) {
     }
 }
 
+// Compra a mão inicial (regra 6: 7 cartas + 1 extra combinado = 8 aqui)
+if (instance_exists(obj_deck)) {
+    for (var i = 0; i < quantidade_inicial; i++) {
+        if (array_length(monte) == 0) break;
+        comprar_carta_do_deck(obj_deck.x, obj_deck.y);
+    }
+}
+
 ordenar_lane_por_dono(obj_slot_construcao, "jogador");
 ordenar_lane_por_dono(obj_slot_construcao, "inimigo");

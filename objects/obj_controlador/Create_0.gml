@@ -38,7 +38,7 @@ baralho = [
 ];
 
 monte = montar_deck();
-quantidade_inicial = 3;
+quantidade_inicial = 8;
 #endregion
 
 #region Mão do jogador

@@ -344,7 +344,7 @@ function criar_dados_hollow_jack() {
         defesa_fisica: 1, 
         defesa_magica: 2, 
         custo: [{ tipo: "mana", quantidade: 3 }, 
-				{ tipo: "osso", quantidade: 1 }],
+				{ tipo: "ossos", quantidade: 1 }],
         habilidades: ["alcance_magico", "olhar_vazio"]
     };
 }
@@ -646,13 +646,19 @@ function embaralhar_array(_array) {
     return _array;
 }
 
-// Monta o monte de compra: várias cópias de cada carta do baralho, embaralhadas.
+// Monta o monte de compra com exatamente 50 cartas (regra do manual),
+// distribuindo as cópias o mais igual possível entre os tipos do baralho.
 function montar_deck() {
     var _monte = [];
-    var _copias_por_carta = 3; // ajuste esse número -- quantas cópias de cada carta entram no deck
+    var _total_cartas_desejado = 50;
+    var _n_tipos = array_length(baralho);
 
-    for (var i = 0; i < array_length(baralho); i++) {
-        for (var c = 0; c < _copias_por_carta; c++) {
+    var _copias_base = _total_cartas_desejado div _n_tipos;
+    var _sobra = _total_cartas_desejado mod _n_tipos;
+
+    for (var i = 0; i < _n_tipos; i++) {
+        var _copias = _copias_base + (i < _sobra ? 1 : 0);
+        for (var c = 0; c < _copias; c++) {
             array_push(_monte, baralho[i]);
         }
     }
