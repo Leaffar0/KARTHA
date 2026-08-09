@@ -34,11 +34,26 @@ if (keyboard_check_pressed(ord("K"))) {
 if (vida_jogador <= 0) exit; // jogo acabou, para de processar interação
 
 #region Preview ampliado (botão direito numa carta da mão)
+// detecta hover sobre carta travada no campo (pro preview funcionar lá também)
+var _hover_campo = noone;
+with (obj_carta) {
+    if (!travada) continue;
+    var _meia_largura = sprite_width / 2;
+    var _meia_altura = sprite_height / 2;
+    if (point_in_rectangle(mouse_x, mouse_y, x - _meia_largura, y - _meia_altura, x + _meia_largura, y + _meia_altura)) {
+        _hover_campo = id;
+        break;
+    }
+}
+
 if (mouse_check_button_pressed(mb_right)) {
-    if (carta_preview == noone && hover_atual != noone) {
-        carta_preview = hover_atual;
+    if (carta_preview == noone) {
+        var _alvo_preview = (hover_atual != noone) ? hover_atual : _hover_campo;
+        if (_alvo_preview != noone) {
+            carta_preview = _alvo_preview;
+        }
     } else {
-        carta_preview = noone; // clicar de novo com botão direito fecha
+        carta_preview = noone;
     }
 }
 
@@ -104,16 +119,22 @@ if (mouse_check_button_pressed(mb_left)) {
 }
 #endregion
 
-#region Scroll horizontal da mão (perto das bordas da tela)
+#region Scroll horizontal da mão (perto das bordas da tela, só quando o mouse está sobre a mão)
 if (mao_scroll_max > 0) {
     var _mouse_gui_x = device_mouse_x_to_gui(0);
     var _zona_scroll_h = 100;
     var _velocidade_scroll_h = 15;
 
-    if (_mouse_gui_x < _zona_scroll_h) {
-        mao_scroll_offset_alvo += _velocidade_scroll_h;
-    } else if (_mouse_gui_x > (display_get_gui_width() - _zona_scroll_h)) {
-        mao_scroll_offset_alvo -= _velocidade_scroll_h;
+    // só ativa se o mouse estiver na altura da mão (não em qualquer lugar da tela)
+    var _dentro_faixa_mao = (mouse_y >= mao_y - global.CARTA_ALTURA/2 - 40) 
+                          && (mouse_y <= mao_y + global.CARTA_ALTURA/2 + 40);
+
+    if (_dentro_faixa_mao) {
+        if (_mouse_gui_x < _zona_scroll_h) {
+            mao_scroll_offset_alvo += _velocidade_scroll_h;
+        } else if (_mouse_gui_x > (display_get_gui_width() - _zona_scroll_h)) {
+            mao_scroll_offset_alvo -= _velocidade_scroll_h;
+        }
     }
 
     mao_scroll_offset_alvo = clamp(mao_scroll_offset_alvo, -mao_scroll_max, mao_scroll_max);

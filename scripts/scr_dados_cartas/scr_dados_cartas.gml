@@ -1812,8 +1812,8 @@ function evoluir_tropa(_carta) {
     
     _carta.vida_maxima = _dados_evo.vida;
     _carta.vida = max(1, _dados_evo.vida - _dano_sofrido);
-	_carta.vida_pos_x = variable_struct_exists(_dados_evo, "vida_pos_x") ? _dados.vida_pos_x : 0.11;
-	_carta.vida_pos_y = variable_struct_exists(_dados_evo, "vida_pos_y") ? _dados.vida_pos_y : 0.07;
+	_carta.vida_pos_x = variable_struct_exists(_dados_evo, "vida_pos_x") ? _dados_evo.vida_pos_x : 0.11;
+	_carta.vida_pos_y = variable_struct_exists(_dados_evo, "vida_pos_y") ? _dados_evo.vida_pos_y : 0.07;
     _carta.dado_dano = _dados_evo.dado_dano;
 	_carta.qtd_dados_dano = variable_struct_exists(_dados_evo, "qtd_dados_dano") ? _dados_evo.qtd_dados_dano : 1;
 	_carta.qtd_dados_dano_magico = variable_struct_exists(_dados_evo, "qtd_dados_dano_magico") ? _dados_evo.qtd_dados_dano_magico : 1;
@@ -2162,6 +2162,38 @@ function usar_habilidade_hemodrenario(_construcao) {
     _construcao.habilidade_usada_este_turno = true;
 
     debug_combate("HEMODRENÁRIO drenou o sangue inimigo e desvirou seu " + _recurso_proprio.tipo + "!");
+}
+#endregion
+
+#region Livro de Regras
+function carregar_livro_regras() {
+    var _caminho = working_directory + "livro_regras.json";
+
+    if (!file_exists(_caminho)) {
+        show_debug_message("AVISO: livro_regras.json não encontrado em " + _caminho);
+        return [];
+    }
+
+    var _buffer = buffer_load(_caminho);
+    var _conteudo = buffer_read(_buffer, buffer_string);
+    buffer_delete(_buffer);
+
+    var _dados = json_parse(_conteudo);
+    return _dados;
+}
+
+// Reduz a escala do texto aos poucos até a altura final caber no espaço disponível.
+// Precisa que a fonte certa já esteja setada (draw_set_font) antes de chamar.
+function calcular_escala_texto_ajustada(_texto, _largura_alvo, _altura_alvo, _escala_inicial, _escala_minima) {
+    var _escala = _escala_inicial;
+    repeat (30) {
+        var _largura_wrap = _largura_alvo / _escala;
+        var _altura_natural = string_height_ext(_texto, -1, _largura_wrap);
+        var _altura_final = _altura_natural * _escala;
+        if (_altura_final <= _altura_alvo || _escala <= _escala_minima) break;
+        _escala -= 0.01;
+    }
+    return max(_escala, _escala_minima);
 }
 #endregion
 

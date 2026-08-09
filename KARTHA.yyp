@@ -36,7 +36,9 @@
     {"link":"io.gamemaker.gm_effect_windblown_particles-1.0.0","name":"io.gamemaker.gm_effect_windblown_particles-1.0.0","path":"io.gamemaker.gm_effect_windblown_particles-1.0.0.yyp",},
     {"link":"io.gamemaker.gm_filter_old_film-1.0.0","name":"io.gamemaker.gm_filter_old_film-1.0.0","path":"io.gamemaker.gm_filter_old_film-1.0.0.yyp",},
   ],
-  "IncludedFiles":[],
+  "IncludedFiles":[
+    {"$GMIncludedFile":"","%Name":"livro_regras.json","CopyToMask":-1,"filePath":"datafiles","name":"livro_regras.json","resourceType":"GMIncludedFile","resourceVersion":"2.0",},
+  ],
   "isEcma":false,
   "LibraryEmitters":[],
   "MetaData":{
@@ -54,6 +56,7 @@
     {"id":{"name":"obj_controlador","path":"objects/obj_controlador/obj_controlador.yy",},},
     {"id":{"name":"obj_dado","path":"objects/obj_dado/obj_dado.yy",},},
     {"id":{"name":"obj_deck","path":"objects/obj_deck/obj_deck.yy",},},
+    {"id":{"name":"obj_livro","path":"objects/obj_livro/obj_livro.yy",},},
     {"id":{"name":"obj_menu","path":"objects/obj_menu/obj_menu.yy",},},
     {"id":{"name":"obj_moeda","path":"objects/obj_moeda/obj_moeda.yy",},},
     {"id":{"name":"obj_musica_jogo","path":"objects/obj_musica_jogo/obj_musica_jogo.yy",},},
@@ -92,6 +95,8 @@
     {"id":{"name":"spr_deck","path":"sprites/spr_deck/spr_deck.yy",},},
     {"id":{"name":"spr_eletrocutado","path":"sprites/spr_eletrocutado/spr_eletrocutado.yy",},},
     {"id":{"name":"spr_fogo","path":"sprites/spr_fogo/spr_fogo.yy",},},
+    {"id":{"name":"spr_livro_fechado","path":"sprites/spr_livro_fechado/spr_livro_fechado.yy",},},
+    {"id":{"name":"spr_livro_fundo","path":"sprites/spr_livro_fundo/spr_livro_fundo.yy",},},
     {"id":{"name":"spr_menu","path":"sprites/spr_menu/spr_menu.yy",},},
     {"id":{"name":"spr_moeda","path":"sprites/spr_moeda/spr_moeda.yy",},},
     {"id":{"name":"spr_particula_poeira","path":"sprites/spr_particula_poeira/spr_particula_poeira.yy",},},
