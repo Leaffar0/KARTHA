@@ -775,6 +775,19 @@ function comprar_carta_do_deck(_x_inicial, _y_inicial) {
     _carta.x = _x_inicial;
     _carta.y = _y_inicial;
 }
+	
+// Compra a mão inicial do jogador (chamada 1x, no Room Start).
+function comprar_mao_inicial() {
+    if (obj_controlador.mao_inicial_comprada) return; // já comprou, nunca mais roda
+    if (!instance_exists(obj_deck)) return;
+
+    for (var i = 0; i < obj_controlador.quantidade_inicial; i++) {
+        if (array_length(obj_controlador.monte) == 0) break;
+        comprar_carta_do_deck(obj_deck.x, obj_deck.y);
+    }
+
+    obj_controlador.mao_inicial_comprada = true;
+}
 #endregion
 
 #region Mão — leque, arco e scroll horizontal
@@ -1272,6 +1285,7 @@ function passar_turno_jogador() {
     if (obj_controlador.rolagens_pendentes > 0) return;
 
     obj_controlador.carta_menu_aberto = noone;
+    obj_controlador.primeiro_turno_jogador = false; // <-- adicione aqui
 
     iniciar_turno_inimigo();
 
@@ -1290,17 +1304,20 @@ function iniciar_turno_inimigo() {
 
 	reiniciar_acoes_tropas("inimigo");
 
-    processar_condicoes("inimigo"); // dano/cura no início do turno dela
+    processar_condicoes("inimigo");
     desvirar_recursos("inimigo");
     ia_jogar_recursos();
     ia_jogar_construcao();
 	ia_usar_construcoes();
 
-    mover_tropas_automatico("inimigo"); // aqui ela ainda está bloqueada, se estiver congelada/paralisada
+    mover_tropas_automatico("inimigo");
     ia_jogar_cartas();
-    processar_combate("inimigo");
+    if (!obj_controlador.primeiro_turno_inimigo) {
+        processar_combate("inimigo");
+    }
 
-    expirar_condicoes("inimigo"); // só desconta o turno DEPOIS de tudo isso
+    expirar_condicoes("inimigo");
+    obj_controlador.primeiro_turno_inimigo = false;
 
     obj_controlador.turno = "jogador";
 }
@@ -1663,6 +1680,23 @@ function aplicar_eletrocutado(_carta) {
     }
 }
 
+// Corrosão: 3 turnos fixos, dano decrescente (3 → 2 → 1). O decremento já existe em processar_condicoes.
+function aplicar_corrosao(_carta) {
+    aplicar_condicao(_carta, "corrosao", 3, 3);
+}
+
+// Apodrecer: duração sorteada por D4 ao aplicar. O DANO de cada turno é resorteado (D4) a cada turno.
+function aplicar_apodrecer(_carta) {
+    var _turnos = irandom_range(1, 4);
+    aplicar_condicao(_carta, "apodrecer", _turnos, irandom_range(1, 4));
+}
+
+// Regeneração: mesma lógica do Apodrecer, mas curando em vez de causar dano.
+function aplicar_regeneracao(_carta) {
+    var _turnos = irandom_range(1, 4);
+    aplicar_condicao(_carta, "regeneracao", _turnos, irandom_range(1, 4));
+}
+
 // Tropas paralisadas/congeladas não podem agir (mover, atacar, usar habilidade).
 function tropa_pode_agir(_carta) {
     return (_carta.condicao != "paralisado" && _carta.condicao != "congelado");
@@ -1673,6 +1707,11 @@ function processar_condicoes(_dono) {
     with (obj_carta) {
         if (dono != _dono) continue;
         if (condicao == noone) continue;
+
+        // apodrecer/regeneração: o valor deste turno é resorteado (D4) toda vez
+        if (condicao == "apodrecer" || condicao == "regeneracao") {
+            condicao_dano_por_turno = irandom_range(1, 4);
+        }
 
         switch (condicao) {
             case "queimado":
@@ -1689,7 +1728,7 @@ function processar_condicoes(_dono) {
         }
 
         if (vida <= 0) {
-		    destruir_tropa(id, false); // morreu por condição, não foi o oponente que causou diretamente
+		    destruir_tropa(id, false);
 		    continue;
 		}
 
@@ -1698,7 +1737,7 @@ function processar_condicoes(_dono) {
         }
     }
 }
-
+	
 // Desconta 1 turno de duração das condições e da recarga da Sombra Translúcida.
 // Roda DEPOIS das ações daquele lado (senão a tropa nunca chega a ficar bloqueada de verdade).
 function expirar_condicoes(_dono) {
@@ -1885,16 +1924,15 @@ function esta_no_abismo(_nome_carta) {
 #region Menu de ação (clicar na tropa → Atacar/Mover/Habilidade)
 function obter_opcoes_menu(_carta) {
     var _opcoes = [];
+    var _pode_atacar = !(_carta.dono == "jogador" && obj_controlador.primeiro_turno_jogador);
 
-    if (!_carta.atacou_este_turno) {
+    if (!_carta.atacou_este_turno && _pode_atacar) {
         var _tem_fisica = _carta.dado_dano > 0;
         var _tem_magica = _carta.dado_dano_magico > 0;
 
         if (_tem_fisica && _tem_magica) {
             array_push(_opcoes, "Atacar (Física)");
             array_push(_opcoes, "Atacar (Mágica)");
-        } else if (_tem_magica) {
-            array_push(_opcoes, "Atacar");
         } else {
             array_push(_opcoes, "Atacar");
         }
@@ -1906,6 +1944,13 @@ function obter_opcoes_menu(_carta) {
         array_push(_opcoes, "Evoluir");
     }
     return _opcoes;
+}
+
+function categoria_bloqueada_primeiro_turno(_categoria) {
+    return (_categoria == "item_equipavel" 
+         || _categoria == "item_consumivel" 
+         || _categoria == "magica" 
+         || _categoria == "terreno");
 }
 
 function executar_opcao_menu(_carta, _opcao) {

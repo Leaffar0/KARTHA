@@ -1,3 +1,5 @@
+comprar_mao_inicial();
+
 // Room Start: identifica a grade pelos slots vermelhos da room.
 organizar_grade_batalha();
 
@@ -47,14 +49,6 @@ function ordenar_lane_por_dono(_obj, _dono_alvo) {
     
     for (var i = 0; i < _n; i++) {
         _lista[i].lane = i;
-    }
-}
-
-// Compra a mão inicial (regra 6: 7 cartas + 1 extra combinado = 8 aqui)
-if (instance_exists(obj_deck)) {
-    for (var i = 0; i < quantidade_inicial; i++) {
-        if (array_length(monte) == 0) break;
-        comprar_carta_do_deck(obj_deck.x, obj_deck.y);
     }
 }
 

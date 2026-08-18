@@ -38,7 +38,7 @@ baralho = [
 ];
 
 monte = montar_deck();
-quantidade_inicial = 8;
+quantidade_inicial = 7;
 #endregion
 
 #region Mão do jogador
@@ -61,6 +61,9 @@ vida_jogador = 100;
 vida_inimigo = 100;
 cartas_jogadas_no_turno = 0;
 max_cartas_por_turno = 1;
+primeiro_turno_jogador = true;
+primeiro_turno_inimigo = true;
+mao_inicial_comprada = false; // <-- nova trava
 #endregion
 
 #region Recursos

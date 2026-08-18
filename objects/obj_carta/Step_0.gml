@@ -13,6 +13,13 @@ if (arrastando && mouse_check_button_released(mb_left)) {
 	    exit;
 	}
 	
+	if (dono == "jogador" && obj_controlador.primeiro_turno_jogador && categoria_bloqueada_primeiro_turno(categoria)) {
+	    debug_combate("Primeiro turno: não pode usar " + categoria + " ainda.");
+	    x = origem_x; y = origem_y;
+	    esta_na_mao = true;
+    exit;
+}
+	
     if (categoria == "tropa") {
         // --- código de soltar tropa que já existe, sem mudar nada ---
         var _slot_mais_perto = noone;
