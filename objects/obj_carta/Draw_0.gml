@@ -1,3 +1,4 @@
+#region Preparação e desenho base da carta
 draw_set_font(Fontenil)
 
 var _rotacao_extra = (dono == "inimigo") ? 180 : 0;
@@ -28,7 +29,9 @@ draw_sprite_ext(
     c_white,
     _alpha_carta
 );
+#endregion
 
+#region Nome e atributos
 // a partir daqui, sprite_width/sprite_height JÁ refletem o tamanho visual real
 // (o GameMaker calcula isso automaticamente com base no image_xscale/yscale que definimos acima)
 
@@ -76,8 +79,9 @@ if (categoria == "tropa") {
 
 draw_set_halign(fa_left);
 draw_set_valign(fa_top);
+#endregion
 
-// --- efeito visual de condição (fogo/veneno/gelo/etc), já usando a escala certa ---
+#region Efeito visual de condição
 if (condicao != noone && condicao != "imune_queimado") {
     var _config = obter_config_condicao(condicao);
 
@@ -97,3 +101,4 @@ if (condicao != noone && condicao != "imune_queimado") {
 }
 
 draw_set_alpha(1);
+#endregion

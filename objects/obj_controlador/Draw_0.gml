@@ -1,3 +1,4 @@
+#region Menu contextual da carta
 if (carta_menu_aberto != noone && instance_exists(carta_menu_aberto) && menu_escala > 0.01) {
 	
     var _carta = carta_menu_aberto;
@@ -76,5 +77,6 @@ if (carta_menu_aberto != noone && instance_exists(carta_menu_aberto) && menu_esc
     
     draw_set_halign(fa_left);
     draw_set_valign(fa_top);
-	draw_set_font(-1)
+    draw_set_font(-1)
 }
+#endregion

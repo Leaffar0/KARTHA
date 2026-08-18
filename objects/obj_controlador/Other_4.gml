@@ -1,8 +1,11 @@
+#region Inicialização da mão e da grade de batalha
 comprar_mao_inicial();
 
 // Room Start: identifica a grade pelos slots vermelhos da room.
 organizar_grade_batalha();
+#endregion
 
+#region Identificação dos donos dos slots de recurso
 // descobre a divisão vertical (mesma lógica do campo de batalha: metade de cima = inimigo, de baixo = jogador)
 var _todos_y_recurso = [];
 with (obj_slot_recurso) {
@@ -15,7 +18,9 @@ var _meio_recurso = _todos_y_recurso[floor(array_length(_todos_y_recurso) / 2)];
 with (obj_slot_recurso) {
     dono = (y >= _meio_recurso) ? "jogador" : "inimigo";
 }
+#endregion
 
+#region Identificação e ordenação dos slots de construção
 var _todos_y_construcao = [];
 with (obj_slot_construcao) {
     if (array_get_index(_todos_y_construcao, y) == -1) array_push(_todos_y_construcao, y);
@@ -54,3 +59,4 @@ function ordenar_lane_por_dono(_obj, _dono_alvo) {
 
 ordenar_lane_por_dono(obj_slot_construcao, "jogador");
 ordenar_lane_por_dono(obj_slot_construcao, "inimigo");
+#endregion

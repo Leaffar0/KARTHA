@@ -1,9 +1,12 @@
+#region Informações da partida
 draw_set_font(Fontenil);
 
 draw_text(20, 20, "Vida jogador: " + string(vida_jogador));
 draw_text(20, 50, "Vida inimigo: " + string(vida_inimigo));
 draw_text(20, 80, (turno == "jogador") ? "Seu turno" : "Turno do inimigo");
+#endregion
 
+#region Prévia ampliada da carta
 if (carta_preview != noone && instance_exists(carta_preview)) {
     var _carta = carta_preview;
 
@@ -72,7 +75,9 @@ if (carta_preview != noone && instance_exists(carta_preview)) {
     draw_set_color(c_white);
     draw_text(_centro_x - 200, display_get_gui_height() - 40, "Clique com o botão direito pra fechar");
 }
+#endregion
 
+#region Mensagem de fim de partida
 if (vida_jogador <= 0) {
     draw_set_font(fnt_vitoria)
     draw_text(room_width/2 - 150, room_height/2.5, "VOCÊ PERDEU");
@@ -85,3 +90,4 @@ if (vida_inimigo <= 0) {
 	draw_set_font(-1)
 }
 draw_set_font(-1);
+#endregion

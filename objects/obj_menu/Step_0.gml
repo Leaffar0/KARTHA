@@ -1,3 +1,4 @@
+#region Atualização da animação e posição dos botões
 tempo_menu += 0.03;
 
 var offset_x = sin(tempo_menu) * 8;
@@ -8,7 +9,9 @@ var jogar_y = room_height - 120 + offset_y;
 
 var sair_x = room_width/2 + 140 + offset_x;
 var sair_y = room_height - 120 + offset_y;
+#endregion
 
+#region Cliques do menu
 if (mouse_check_button_pressed(mb_left))
 {
     if (point_in_rectangle(
@@ -27,3 +30,4 @@ if (mouse_check_button_pressed(mb_left))
         game_end();
     }
 }
+#endregion

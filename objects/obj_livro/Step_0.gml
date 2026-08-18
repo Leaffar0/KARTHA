@@ -1,3 +1,4 @@
+#region Arrasto do livro fechado
 if (arrastando) {
     x = mouse_x;
     y = mouse_y;
@@ -5,7 +6,9 @@ if (arrastando) {
         arrastando = false;
     }
 }
+#endregion
 
+#region Abrir e fechar a prévia
 // botão direito: abre o preview se clicar no livro fechado; fecha se já estiver aberto
 if (mouse_check_button_pressed(mb_right)) {
     if (preview_ativo) {
@@ -18,7 +21,9 @@ if (mouse_check_button_pressed(mb_right)) {
         }
     }
 }
+#endregion
 
+#region Navegação da prévia
 // navegação só funciona com o preview aberto
 if (preview_ativo) {
     if (mouse_check_button_pressed(mb_left)) {
@@ -46,7 +51,9 @@ if (preview_ativo) {
     if (keyboard_check_pressed(vk_right)) iniciar_flip(1);
     if (keyboard_check_pressed(vk_left)) iniciar_flip(-1);
 }
+#endregion
 
+#region Animação de virada de página
 if (virando) {
     flip_progresso += flip_velocidade;
 
@@ -62,3 +69,4 @@ if (virando) {
         trocou_pagina = false;
     }
 }
+#endregion

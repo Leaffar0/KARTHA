@@ -1,3 +1,4 @@
+#region Arrasto, posição e estado no campo
 arrastando = false;
 offset_x = 0;
 offset_y = 0;
@@ -14,6 +15,9 @@ dono = "jogador"; // ou "inimigo"
 lane_atual = -1;
 posicao_atual = -1;
 moveu_este_turno = false;
+#endregion
+
+#region Atributos e custos da carta
 vida_maxima = 1; // usado pela condição "regeneração" (limite de cura); atualizado quando a tropa é criada
 dado_dano = 4;
 mod_dano = 0;
@@ -46,8 +50,9 @@ arrastar_inicio_x = 0;
 arrastar_inicio_y = 0;
 qtd_dados_dano = 1; // quantos dados rolar (ex: 2 pra "2D4")
 qtd_dados_dano_magico = 1;
+#endregion
 
-// --- efeitos visuais ---
+#region Animação e apresentação na mão
 pulando = false;
 pulo_origem_x = 0;
 pulo_origem_y = 0;
@@ -80,8 +85,9 @@ nivel_inteligencia = 1;
 dado_dano_magico = 0;
 mod_dano_magico = 0;
 mochila = 1; // quantos itens a tropa pode carregar
+#endregion
 
-// posições de cada estatística na carta (em % da largura/altura, ajustável por carta)
+#region Posições dos atributos no layout da carta
 vida_pos_x = 0.10; vida_pos_y = 0.07;
 int_pos_x = 0.91; int_pos_y = 0.073;
 mochila_pos_x = 0.91; mochila_pos_y = 0.185;
@@ -89,3 +95,4 @@ atk_pos_x = 0.12; atk_pos_y = 0.92;
 atk_magico_pos_x = 0.37; atk_magico_pos_y = 0.92;
 def_pos_x = 0.62; def_pos_y = 0.92;
 def_magico_pos_x = 0.87; def_magico_pos_y = 0.92;
+#endregion

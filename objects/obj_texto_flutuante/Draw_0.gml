@@ -1,3 +1,4 @@
+#region Cálculo da transparência
 var _progresso = vida_texto / vida_texto_max;
 var _alpha = 1;
 
@@ -7,7 +8,9 @@ if (_progresso < 0.15) {
 } else if (_progresso > 0.6) {
     _alpha = 1 - ((_progresso - 0.6) / 0.4);
 }
+#endregion
 
+#region Desenho e restauração do estado gráfico
 draw_set_alpha(_alpha);
 draw_set_color(cor_texto);
 draw_set_halign(fa_center);
@@ -17,3 +20,4 @@ draw_set_color(c_white);
 draw_set_alpha(1);
 draw_set_halign(fa_left);
 draw_set_valign(fa_top);
+#endregion

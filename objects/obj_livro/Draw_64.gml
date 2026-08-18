@@ -1,3 +1,4 @@
+#region Validação e fundo da prévia
 if (!preview_ativo) exit;
 if (array_length(paginas) == 0) exit;
 
@@ -12,7 +13,9 @@ draw_set_alpha(0.75);
 draw_set_color(c_black);
 draw_rectangle(0, 0, _gui_largura, _gui_altura, false);
 draw_set_alpha(1);
+#endregion
 
+#region Página e animação de virada
 // achatamento horizontal durante a virada (só existe aqui, no livro aberto)
 var _escala_x = 1;
 if (virando) {
@@ -48,7 +51,9 @@ draw_set_valign(fa_top);
 draw_set_font(-1);
 
 matrix_set(matrix_world, _matriz_antiga);
+#endregion
 
+#region Sombra e controles de navegação
 // sombra da dobra durante a virada
 var _sombra_alpha = (1 - _escala_x) * 0.35;
 if (_sombra_alpha > 0) {
@@ -81,3 +86,4 @@ draw_set_valign(fa_top);
 
 draw_text(_cx - 30, _btn_y + 40, string(pagina_atual + 1) + " / " + string(array_length(paginas)));
 draw_text(20, _gui_altura - 40, "Clique com o botão direito pra fechar");
+#endregion

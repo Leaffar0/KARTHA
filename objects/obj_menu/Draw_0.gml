@@ -1,3 +1,4 @@
+#region Movimento do fundo e posicionamento dos botões
 var offset_x = sin(tempo_menu) * 8;
 var offset_y = cos(tempo_menu * 0.7) * 4;
 
@@ -20,7 +21,9 @@ var sair_y = room_height - 120 + offset_y;
 
 draw_set_halign(fa_center);
 draw_set_valign(fa_middle);
+#endregion
 
+#region Botão Jogar
 // Hover JOGAR
 if (point_in_rectangle(
     mouse_x, mouse_y,
@@ -33,7 +36,9 @@ else
 {
     draw_text(jogar_x, jogar_y, "JOGAR");
 }
+#endregion
 
+#region Botão Sair
 // Hover SAIR
 if (point_in_rectangle(
     mouse_x, mouse_y,
@@ -46,3 +51,4 @@ else
 {
     draw_text(sair_x, sair_y, "SAIR");
 }
+#endregion

@@ -1,3 +1,4 @@
+#region Soltar carta e aplicar efeito por categoria
 if (arrastando && mouse_check_button_released(mb_left)) {
     arrastando = false;
     
@@ -332,7 +333,9 @@ if (arrastando && mouse_check_button_released(mb_left)) {
     }
 }
 }
+#endregion
 
+#region Animação de salto e deslocamento no campo
 if (pulando) {
     pulo_progresso += 1 / pulo_duracao;
     
@@ -354,7 +357,9 @@ if (pulando) {
     x += (destino_x - x) * velocidade_movimento;
     y += (destino_y - y) * velocidade_movimento;
 }
+#endregion
 
+#region Organização visual da mão e hover
 if (esta_na_mao && !arrastando && !travada) {
     
     // recalcula o destino toda vez, somando o scroll horizontal atual
@@ -383,8 +388,11 @@ if (esta_na_mao && !arrastando && !travada) {
     escala_atual += (escala_alvo - escala_atual) * 0.2;
     y_offset_atual += (y_offset_alvo - y_offset_atual) * 0.2;
 }
+#endregion
 
+#region Arrasto ativo
 if (arrastando) {
     x = mouse_x;
     y = mouse_y;
 }
+#endregion
