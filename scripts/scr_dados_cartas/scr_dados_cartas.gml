@@ -789,6 +789,18 @@ function comprar_carta_do_deck_ia() {
     array_push(obj_controlador.mao_inimigo, _funcao_sorteada);
 }
 
+// Compra a mão inicial do jogador (chamada 1x, no Room Start).
+function comprar_mao_inicial() {
+    if (obj_controlador.mao_inicial_comprada) return;
+
+    for (var i = 0; i < obj_controlador.quantidade_inicial; i++) {
+        if (array_length(obj_controlador.monte) == 0) break;
+        comprar_carta_do_deck(obj_deck.x, obj_deck.y);
+    }
+
+    obj_controlador.mao_inicial_comprada = true;
+}
+
 // Compra a mão inicial da IA (chamada 1x, no Room Start).
 function comprar_mao_inicial_ia() {
     if (obj_controlador.mao_inimigo_inicial_comprada) return;

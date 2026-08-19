@@ -1,3 +1,6 @@
+comprar_mao_inicial();
+comprar_mao_inicial_ia();
+
 #region Inicialização da mão e da grade de batalha
 comprar_mao_inicial();
 comprar_mao_inicial_ia();
