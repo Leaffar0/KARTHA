@@ -38,7 +38,8 @@ baralho = [
 ];
 
 monte = montar_deck();
-quantidade_inicial = 7;
+monte_inimigo = montar_deck();
+quantidade_inicial = 7;;
 #endregion
 
 #region Mão do jogador
@@ -53,6 +54,11 @@ mao_scroll_offset = 0;
 mao_scroll_offset_alvo = 0;
 mao_scroll_max = 0;
 mao_largura_visivel = 400; // ajuste esse valor pro espaço disponível pra mão na sua tela
+#endregion
+
+#region Mão do inimigo
+mao_inimigo = [];
+mao_inimigo_inicial_comprada = false;
 #endregion
 
 #region Turno e vida

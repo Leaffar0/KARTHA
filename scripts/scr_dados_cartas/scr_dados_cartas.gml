@@ -776,17 +776,29 @@ function comprar_carta_do_deck(_x_inicial, _y_inicial) {
     _carta.y = _y_inicial;
 }
 	
-// Compra a mão inicial do jogador (chamada 1x, no Room Start).
-function comprar_mao_inicial() {
-    if (obj_controlador.mao_inicial_comprada) return; // já comprou, nunca mais roda
-    if (!instance_exists(obj_deck)) return;
-
-    for (var i = 0; i < obj_controlador.quantidade_inicial; i++) {
-        if (array_length(obj_controlador.monte) == 0) break;
-        comprar_carta_do_deck(obj_deck.x, obj_deck.y);
+// Compra 1 carta do monte da IA (consumindo ele) e guarda na mão dela.
+// A mão da IA fica só como dados (structs), sem cartas visuais na tela.
+function comprar_carta_do_deck_ia() {
+    if (array_length(obj_controlador.monte_inimigo) == 0) {
+        debug_combate("Monte inimigo vazio! IA sem cartas pra comprar.");
+        return;
     }
 
-    obj_controlador.mao_inicial_comprada = true;
+    var _funcao_sorteada = obj_controlador.monte_inimigo[0];
+    array_delete(obj_controlador.monte_inimigo, 0, 1);
+    array_push(obj_controlador.mao_inimigo, _funcao_sorteada);
+}
+
+// Compra a mão inicial da IA (chamada 1x, no Room Start).
+function comprar_mao_inicial_ia() {
+    if (obj_controlador.mao_inimigo_inicial_comprada) return;
+
+    for (var i = 0; i < obj_controlador.quantidade_inicial; i++) {
+        if (array_length(obj_controlador.monte_inimigo) == 0) break;
+        comprar_carta_do_deck_ia();
+    }
+
+    obj_controlador.mao_inimigo_inicial_comprada = true;
 }
 #endregion
 
@@ -1301,6 +1313,8 @@ function iniciar_turno_inimigo() {
 
     processar_condicoes("inimigo");
     desvirar_recursos("inimigo");
+    comprar_carta_do_deck_ia();
+
     obj_controlador.ia_ativa = true;
     obj_controlador.ia_etapa = 0;
     obj_controlador.ia_tempo_espera = 45;
@@ -1412,25 +1426,30 @@ function ia_jogar_cartas() {
         if (_cartas_jogadas >= _max_cartas) continue;
 
         if (posicao == posicao_entrada("inimigo") && !ocupado) {
-            if (random(1) < _chance_jogar) {
-                var _funcoes = obj_controlador.baralho;
-                var _funcao_sorteada = _funcoes[irandom(array_length(_funcoes) - 1)];
+            if (random(1) < _chance_jogar && array_length(obj_controlador.mao_inimigo) > 0) {
+
+                // sorteia uma carta da MÃO da IA (finita), não mais do baralho inteiro
+                var _indice_mao = irandom(array_length(obj_controlador.mao_inimigo) - 1);
+                var _funcao_sorteada = obj_controlador.mao_inimigo[_indice_mao];
                 var _dados = _funcao_sorteada();
-				
+
 				if (_dados.categoria == "bencao") {
-				    adicionar_bencao("inimigo", _dados.efeito);
+				    if (adicionar_bencao("inimigo", _dados.efeito)) {
+				        array_delete(obj_controlador.mao_inimigo, _indice_mao, 1);
+				    }
 				    continue;
 				}
 				if (_dados.categoria == "maldicao") {
-				    adicionar_maldicao("inimigo", _dados.efeito);
+				    if (adicionar_maldicao("inimigo", _dados.efeito)) {
+				        array_delete(obj_controlador.mao_inimigo, _indice_mao, 1);
+				    }
 				    continue;
 				}
 				if (_dados.categoria != "tropa") continue;
 				if (!pode_pagar_custo(_dados.custo, "inimigo")) continue;
-				
-
 
                 pagar_custo(_dados.custo, "inimigo");
+                array_delete(obj_controlador.mao_inimigo, _indice_mao, 1);
 
                 var _carta = instance_create_layer(x, y, "Instances", obj_carta);
                 _carta.nome_carta = _dados.nome;
@@ -1486,8 +1505,6 @@ function ia_jogar_cartas() {
                 ocupado = true;
                 carta_atual = _carta.id;
 
-                // A carta vem de uma área fora da tela: o jogador vê a jogada,
-                // mas não tem acesso à mão da IA nem à escolha antes do campo.
                 _carta.x = room_width / 2;
                 _carta.y = -global.CARTA_ALTURA;
                 iniciar_pulo_tropa(_carta, x, y, true);
@@ -1499,11 +1516,24 @@ function ia_jogar_cartas() {
 }
 
 function ia_jogar_recursos() {
+    // filtra na mão da IA só as cartas de recurso disponíveis
+    var _indices_recurso = [];
+    for (var i = 0; i < array_length(obj_controlador.mao_inimigo); i++) {
+        var _dados_teste = obj_controlador.mao_inimigo[i]();
+        if (_dados_teste.categoria == "recurso") {
+            array_push(_indices_recurso, i);
+        }
+    }
+
+    if (array_length(_indices_recurso) == 0) {
+        debug_combate("IA não tem carta de recurso na mão pra jogar.");
+        return;
+    }
+
+    // Prefere, entre as opções que ela TEM na mão, o tipo que está em menor quantidade em campo.
     var _tipos = ["sangue", "ossos", "sucata", "mana"];
     var _contagens = [0, 0, 0, 0];
 
-    // Prefere o recurso que tem em menor quantidade, evitando uma IA que parece
-    // jogar sempre ao acaso e nunca consegue pagar custos variados.
     var _recursos = obj_controlador.recursos_inimigo;
     for (var i = 0; i < array_length(_recursos); i++) {
         var _recurso = _recursos[i];
@@ -1516,20 +1546,43 @@ function ia_jogar_recursos() {
         }
     }
 
-    var _indice_escolhido = 0;
-    for (var i = 1; i < array_length(_tipos); i++) {
-        if (_contagens[i] < _contagens[_indice_escolhido]) {
-            _indice_escolhido = i;
+    var _melhor_indice_mao = _indices_recurso[0];
+    var _melhor_contagem = 9999;
+
+    for (var i = 0; i < array_length(_indices_recurso); i++) {
+        var _indice_mao = _indices_recurso[i];
+        var _dados = obj_controlador.mao_inimigo[_indice_mao]();
+        var _tipo_idx = array_get_index(_tipos, _dados.tipo_recurso);
+        var _contagem_tipo = (_tipo_idx != -1) ? _contagens[_tipo_idx] : 0;
+
+        if (_contagem_tipo < _melhor_contagem) {
+            _melhor_contagem = _contagem_tipo;
+            _melhor_indice_mao = _indice_mao;
         }
     }
-    // Recurso também vem da área oculta da mão inimiga, para a ação ficar legível.
-    colocar_recurso(_tipos[_indice_escolhido], "inimigo", room_width / 2, -global.CARTA_ALTURA);
+
+    var _dados_escolhidos = obj_controlador.mao_inimigo[_melhor_indice_mao]();
+    // Recurso vem da área oculta da mão inimiga, igual antes.
+    var _resultado = colocar_recurso(_dados_escolhidos.tipo_recurso, "inimigo", room_width / 2, -global.CARTA_ALTURA);
+
+    if (_resultado == "colocado") {
+        array_delete(obj_controlador.mao_inimigo, _melhor_indice_mao, 1);
+    }
 }
 
 function ia_jogar_construcao() {
     if (random(1) > 0.3) return; // 30% de chance de tentar construir por turno
 
-    if (!pode_pagar_custo(criar_dados_construcao_torre().custo, "inimigo")) return;
+    // filtra na mão da IA só as cartas de construção disponíveis
+    var _indices_construcao = [];
+    for (var i = 0; i < array_length(obj_controlador.mao_inimigo); i++) {
+        var _dados_teste = obj_controlador.mao_inimigo[i]();
+        if (_dados_teste.categoria == "construcao") {
+            array_push(_indices_construcao, i);
+        }
+    }
+
+    if (array_length(_indices_construcao) == 0) return;
 
     var _slot_livre = noone;
     with (obj_slot_construcao) {
@@ -1541,20 +1594,29 @@ function ia_jogar_construcao() {
 
     if (_slot_livre == noone) return;
 
-    var _dados = criar_dados_construcao_torre();
-    pagar_custo(_dados.custo, "inimigo");
+    // tenta cada construção que ela tem na mão até achar uma que dê pra pagar
+    for (var i = 0; i < array_length(_indices_construcao); i++) {
+        var _indice_mao = _indices_construcao[i];
+        var _dados = obj_controlador.mao_inimigo[_indice_mao]();
 
-    var _construcao = instance_create_layer(_slot_livre.x, _slot_livre.y, "Instances", obj_construcao);
-    _construcao.nome_construcao = _dados.nome;
-    _construcao.vida = _dados.vida;
-    _construcao.vida_maxima = _dados.vida;
-    _construcao.dono = "inimigo";
-    _construcao.lane_atual = _slot_livre.lane;
-    _construcao.slot_atual = _slot_livre;
-	_construcao.tem_habilidade_construcao = (_dados.nome == "Hemodrenário");
+        if (!pode_pagar_custo(_dados.custo, "inimigo")) continue;
 
-    _slot_livre.ocupado = true;
-    _slot_livre.construcao_atual = _construcao.id;
+        pagar_custo(_dados.custo, "inimigo");
+        array_delete(obj_controlador.mao_inimigo, _indice_mao, 1);
+
+        var _construcao = instance_create_layer(_slot_livre.x, _slot_livre.y, "Instances", obj_construcao);
+        _construcao.nome_construcao = _dados.nome;
+        _construcao.vida = _dados.vida;
+        _construcao.vida_maxima = _dados.vida;
+        _construcao.dono = "inimigo";
+        _construcao.lane_atual = _slot_livre.lane;
+        _construcao.slot_atual = _slot_livre;
+        _construcao.tem_habilidade_construcao = (_dados.nome == "Hemodrenário");
+
+        _slot_livre.ocupado = true;
+        _slot_livre.construcao_atual = _construcao.id;
+        break; // já construiu, para de tentar
+    }
 }
 	
 function ia_usar_construcoes() {
