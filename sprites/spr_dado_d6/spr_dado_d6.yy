@@ -47,7 +47,7 @@
     ],
     "top":0,
   },
-  "origin":7,
+  "origin":4,
   "parent":{
     "name":"Mesa",
     "path":"folders/Sprite/Mesa.yy",
@@ -115,7 +115,7 @@
     "visibleRange":null,
     "volume":1.0,
     "xorigin":8,
-    "yorigin":16,
+    "yorigin":8,
   },
   "swatchColours":null,
   "swfPrecision":0.5,
