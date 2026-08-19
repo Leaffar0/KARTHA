@@ -382,140 +382,25 @@ if (pulando) {
 }
 #endregion
 
-#region Animação de ataque
-
+#region Animação de ataque (cutucada/golpe) e flash de dano
 if (ataque_anim_ativa) {
-
     ataque_anim_progresso += 1;
+    var _t = clamp(ataque_anim_progresso / ataque_anim_duracao, 0, 1);
+    var _curva = sin(_t * pi); // sobe suave (0->1) e desce suave (1->0)
 
-    // Duração total maior = animação mais lenta
-    var _duracao_levantar = 18;
-    var _duracao_espera   = 5;
-    var _duracao_golpe    = 7;
-    var _duracao_volta    = 15;
+    ataque_offset_x = ataque_anim_dir_x * ataque_anim_intensidade * _curva;
+    ataque_offset_y = ataque_anim_dir_y * ataque_anim_intensidade * _curva;
 
-    var _inicio_golpe = _duracao_levantar + _duracao_espera;
-    var _inicio_volta = _inicio_golpe + _duracao_golpe;
-
-    // =========================================================
-    // 1. LEVANTA DEVAGAR
-    // =========================================================
-    if (ataque_anim_progresso <= _duracao_levantar) {
-
-        var _t = ataque_anim_progresso / _duracao_levantar;
-
-        // Movimento bem suave
-        _t = _t * _t * (3 - 2 * _t);
-
-        // Sobe bastante
-        ataque_offset_y = lerp(0, -28, _t);
-
-        // Fica maior
-        escala_animacao = lerp(1, 1.16, _t);
-
-        // Começa a inclinar
-        rotacao_animacao = lerp(0, ataque_anim_dir_x * 9, _t);
-
-        ataque_offset_x = 0;
-    }
-
-    // =========================================================
-    // 2. SEGURA NO AR
-    // =========================================================
-    else if (ataque_anim_progresso <= _inicio_golpe) {
-
-        ataque_offset_y = -28;
-        ataque_offset_x = 0;
-
-        escala_animacao = 1.16;
-
-        rotacao_animacao = ataque_anim_dir_x * 9;
-    }
-
-    // =========================================================
-    // 3. GOLPE - RÁPIDO E FORTE
-    // =========================================================
-    else if (ataque_anim_progresso <= _inicio_volta) {
-
-        var _t = (ataque_anim_progresso - _inicio_golpe) / _duracao_golpe;
-
-        // Curva de aceleração
-        _t = _t * _t * (3 - 2 * _t);
-
-        // Avança bastante
-        ataque_offset_x = lerp(0, ataque_anim_dir_x * 42, _t);
-
-        // Durante o golpe ela dá uma pequena descida
-        ataque_offset_y = lerp(-28, -18, _t);
-
-        // Cresce ainda mais no impacto
-        escala_animacao = lerp(1.16, 1.23, _t);
-
-        // Inclinação forte
-        rotacao_animacao = lerp(
-            ataque_anim_dir_x * 9,
-            ataque_anim_dir_x * 15,
-            _t
-        );
-    }
-
-    // =========================================================
-    // 4. VOLTA DEVAGAR
-    // =========================================================
-    else if (ataque_anim_progresso <= ataque_anim_duracao) {
-
-        var _t = (ataque_anim_progresso - _inicio_volta) / _duracao_volta;
-
-        _t = _t * _t * (3 - 2 * _t);
-
-        // Volta para trás lentamente
-        ataque_offset_x = lerp(
-            ataque_anim_dir_x * 42,
-            0,
-            _t
-        );
-
-        // Desce lentamente
-        ataque_offset_y = lerp(
-            -18,
-            0,
-            _t
-        );
-
-        // Volta ao tamanho normal
-        escala_animacao = lerp(
-            1.23,
-            1,
-            _t
-        );
-
-        // Volta a ficar reta
-        rotacao_animacao = lerp(
-            ataque_anim_dir_x * 15,
-            0,
-            _t
-        );
-    }
-
-    // =========================================================
-    // FINAL
-    // =========================================================
     if (ataque_anim_progresso >= ataque_anim_duracao) {
-
         ataque_anim_ativa = false;
-
         ataque_offset_x = 0;
         ataque_offset_y = 0;
-
-        escala_animacao = 1;
-        rotacao_animacao = 0;
     }
 }
 
 if (dano_flash_timer > 0) {
     dano_flash_timer -= 1;
 }
-
 #endregion
 
 #region Organização visual da mão e hover
