@@ -15,42 +15,62 @@ draw_rectangle(0, 0, _gui_largura, _gui_altura, false);
 draw_set_alpha(1);
 #endregion
 
-#region Página e animação de virada
-// achatamento horizontal durante a virada (só existe aqui, no livro aberto)
+#region Livro aberto, texto e animação de virada
+var _largura_pagina = preview_largura / 2;
+var _escala_pagina_x = _largura_pagina / 90;
+var _escala_pagina_y = preview_altura / 128;
+var _pagina_esquerda_x = _cx - (_largura_pagina / 2);
+var _pagina_direita_x = _cx + (_largura_pagina / 2);
+
+// As duas folhas tornam o preview um livro aberto de verdade.
+draw_sprite_ext(spr_livro_fundo, 0, _pagina_esquerda_x, _cy, _escala_pagina_x, _escala_pagina_y, 0, c_white, 1);
+draw_sprite_ext(spr_livro_fundo, 0, _pagina_direita_x, _cy, _escala_pagina_x, _escala_pagina_y, 0, c_white, 1);
+
+// Lombada e sombra fixa entre as páginas.
+draw_set_color(c_black);
+draw_set_alpha(0.28);
+draw_rectangle(_cx - 5, _cy - preview_altura/2, _cx + 5, _cy + preview_altura/2, false);
+draw_set_alpha(1);
+draw_set_color(c_white);
+
+draw_set_font(Fontenil);
+draw_set_halign(fa_center);
+draw_set_valign(fa_top);
+
+// Página esquerda: mantém o contexto da regra atual sem competir com o texto.
+draw_set_color(c_white);
+draw_text_transformed(_pagina_esquerda_x, _cy - preview_altura * 0.35, "LIVRO DE REGRAS", 0.95, 0.95, 0);
+draw_set_color(c_white);
+draw_text_ext_transformed(_pagina_esquerda_x - _largura_pagina * 0, _cy - preview_altura * 0.15, "CAPÍTULO\n" + _pagina.titulo, -1, _largura_pagina * 0.80, 0.8, 0.8, 0);
+draw_set_color(c_white);
+draw_text_transformed(_pagina_esquerda_x, _cy + preview_altura * 0.29, "Parte " + string(_pagina.parte) + " de " + string(_pagina.partes), 0.92, 0.92, 0);
+
+// A folha direita comprime até a lombada e se abre novamente com o próximo conteúdo.
 var _escala_x = 1;
 if (virando) {
     _escala_x = (flip_progresso < 1) ? (1 - flip_progresso) : (flip_progresso - 1);
 }
 
 var _matriz_antiga = matrix_get(matrix_world);
-var _matriz = matrix_build(_cx, _cy, 0, 0, 0, 0, _escala_x, 1, 1);
+var _matriz = matrix_build(_pagina_direita_x, _cy, 0, 0, 0, 0, _escala_x, 1, 1);
 matrix_set(matrix_world, _matriz);
 
-draw_sprite_ext(spr_livro_fundo, 0, 0, 0, preview_largura / 90, preview_altura / 128, 0, c_white, 1);
-
-draw_set_font(Fontenil);
-
-var _margem = preview_largura * 0.12;
-var _largura_texto = preview_largura - (_margem * 2);
-var _altura_titulo_reservada = preview_altura * 0.16;
-var _altura_disponivel = preview_altura - _altura_titulo_reservada - (preview_altura * 0.10);
-
-var _escala_titulo = 0.9;
-var _escala_texto = calcular_escala_texto_ajustada(_pagina.corpo, _largura_texto, _altura_disponivel, 0.65, 0.3);
+var _margem = _largura_pagina * 0.14;
+var _largura_texto = _largura_pagina - (_margem * 2);
+var _altura_titulo_reservada = preview_altura * 0.15;
+var _altura_disponivel = preview_altura - _altura_titulo_reservada - (preview_altura * 0.14);
+var _escala_titulo = calcular_escala_texto_ajustada(_pagina.titulo, _largura_texto, _altura_titulo_reservada * 0.75, 0.72, 0.48);
+var _escala_texto = calcular_escala_texto_ajustada(_pagina.corpo, _largura_texto, _altura_disponivel, 0.62, 0.46);
 
 draw_set_color(c_white);
-draw_set_halign(fa_center);
-draw_set_valign(fa_top);
+draw_text_transformed(0, -preview_altura/2 + preview_altura * 0.09, _pagina.titulo, _escala_titulo, _escala_titulo, 0);
+draw_set_halign(fa_left);
+draw_text_ext_transformed(-_largura_texto/2, -preview_altura/2 + _altura_titulo_reservada, _pagina.corpo, -1, _largura_texto / _escala_texto, _escala_texto, _escala_texto, 0);
 
-draw_text_transformed(0, -preview_altura/2 + preview_altura * 0.06, _pagina.titulo, _escala_titulo, _escala_titulo, 0);
-draw_text_ext_transformed(0, -preview_altura/2 + _altura_titulo_reservada, _pagina.corpo, -1, _largura_texto / _escala_texto, _escala_texto, _escala_texto, 0);
-
-draw_set_color(c_white);
+matrix_set(matrix_world, _matriz_antiga);
 draw_set_halign(fa_left);
 draw_set_valign(fa_top);
 draw_set_font(-1);
-
-matrix_set(matrix_world, _matriz_antiga);
 #endregion
 
 #region Sombra e controles de navegação
@@ -59,7 +79,8 @@ var _sombra_alpha = (1 - _escala_x) * 0.35;
 if (_sombra_alpha > 0) {
     draw_set_alpha(_sombra_alpha);
     draw_set_color(c_black);
-    draw_rectangle(_cx - preview_largura/2, _cy - preview_altura/2, _cx + preview_largura/2, _cy + preview_altura/2, false);
+    var _sombra_x = _cx + ((direcao_flip < 0) ? -_largura_pagina/2 : _largura_pagina/2);
+    draw_rectangle(_sombra_x - _largura_pagina/2, _cy - preview_altura/2, _sombra_x + _largura_pagina/2, _cy + preview_altura/2, false);
     draw_set_alpha(1);
     draw_set_color(c_white);
 }
@@ -84,6 +105,4 @@ draw_text(_btn_next_x, _btn_y, "Próxima >");
 draw_set_halign(fa_left);
 draw_set_valign(fa_top);
 
-draw_text(_cx - 30, _btn_y + 40, string(pagina_atual + 1) + " / " + string(array_length(paginas)));
-draw_text(20, _gui_altura - 40, "Clique com o botão direito pra fechar");
 #endregion

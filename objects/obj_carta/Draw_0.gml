@@ -2,11 +2,11 @@
 draw_set_font(Fontenil)
 
 var _rotacao_extra = (dono == "inimigo") ? 180 : 0;
-var _rotacao_total = rotacao_atual + _rotacao_extra;
+var _rotacao_total = rotacao_atual + rotacao_animacao + rotacao_evolucao + _rotacao_extra;
 
 var _y_desenho = y + y_offset_atual;
 
-var _escala_final = escala_atual * escala_base;
+var _escala_final = escala_atual * escala_animacao * escala_evolucao * escala_base;
 if (travada) {
     _escala_final *= escala_no_campo;
 }
@@ -26,7 +26,7 @@ draw_sprite_ext(
     _escala_final,
     _escala_final,
     _rotacao_total,
-    c_white,
+    cor_evolucao,
     _alpha_carta
 );
 #endregion

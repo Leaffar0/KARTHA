@@ -36,8 +36,6 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         }
         
         if (_slot_mais_perto != noone && obj_controlador.cartas_jogadas_no_turno < obj_controlador.max_cartas_por_turno && pode_pagar_custo(custo, "jogador")) {
-            x = _slot_mais_perto.x;
-            y = _slot_mais_perto.y;
             _slot_mais_perto.ocupado = true;
             _slot_mais_perto.carta_atual = id;
             slot_atual = _slot_mais_perto;
@@ -46,17 +44,16 @@ if (arrastando && mouse_check_button_released(mb_left)) {
             posicao_atual = _slot_mais_perto.posicao;
             dono = "jogador";
             pagar_custo(custo, "jogador");
-            
-			criar_poeira(x, y + sprite_height/2, sprite_width);
-			
-            origem_x = x; origem_y = y;
-            destino_x = x; destino_y = y;
+
             esta_na_mao = false;
             travada = true;
             depth = 0;
             rotacao_atual = 0;
             escala_atual = 1;
             y_offset_atual = 0;
+
+            // Mantém a carta visível até o slot, em vez de teletransportá-la ao soltar.
+            iniciar_pulo_tropa(id, _slot_mais_perto.x, _slot_mais_perto.y, true);
 			
             
             obj_controlador.cartas_jogadas_no_turno += 1;
@@ -79,14 +76,14 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         
         with (obj_slot_recurso) {
             var _dist = point_distance(x, y, other.x, other.y);
-            if (!ocupado && _dist < _distancia_maxima && _dist < _menor_distancia) {
+            if (dono == "jogador" && !ocupado && _dist < _distancia_maxima && _dist < _menor_distancia) {
                 _menor_distancia = _dist;
                 _slot_recurso_perto = id;
             }
         }
         
         if (_slot_recurso_perto != noone && !obj_controlador.recurso_colocado_no_turno) {
-            var _resultado = colocar_recurso(tipo_recurso, "jogador");
+            var _resultado = colocar_recurso(tipo_recurso, "jogador", x, y, _slot_recurso_perto);
             
             if (_resultado == "colocado") {
                 var _index = array_get_index(obj_controlador.mao, id);
@@ -344,18 +341,44 @@ if (pulando) {
         pulando = false;
     }
     
-    x = lerp(pulo_origem_x, pulo_destino_x, pulo_progresso);
-    var _y_base = lerp(pulo_origem_y, pulo_destino_y, pulo_progresso);
+    // Smoothstep deixa o lerp sair e chegar sem cortes bruscos.
+    var _progresso_suave = pulo_progresso * pulo_progresso * (3 - (2 * pulo_progresso));
+    x = lerp(pulo_origem_x, pulo_destino_x, _progresso_suave);
+    var _y_base = lerp(pulo_origem_y, pulo_destino_y, _progresso_suave);
     
-    var _arco = sin(pulo_progresso * pi) * pulo_altura;
+    var _arco = sin(_progresso_suave * pi) * pulo_altura;
     y = _y_base - _arco;
+
+    // Um pequeno aumento e inclinação deixam a carta mais viva durante o voo.
+    escala_animacao = lerp(pulo_escala_origem, 1, _progresso_suave) * (1 + sin(_progresso_suave * pi) * 0.07);
+    rotacao_animacao = sin(_progresso_suave * pi) * 5 * sign(pulo_destino_x - pulo_origem_x);
     
     destino_x = pulo_destino_x;
     destino_y = pulo_destino_y;
+
+    if (!pulando) {
+        escala_animacao = 1;
+        rotacao_animacao = 0;
+        pulso_pouso_timer = pulso_pouso_duracao;
+        if (pulo_poeira_ao_pousar) {
+            criar_poeira(x, y + sprite_height / 2, sprite_width);
+            pulo_poeira_ao_pousar = false;
+        }
+    }
     
 } else if (travada) {
     x += (destino_x - x) * velocidade_movimento;
     y += (destino_y - y) * velocidade_movimento;
+    rotacao_animacao = lerp(rotacao_animacao, 0, 0.2);
+
+    // Pulso curto no pouso para dar sensação de impacto, sem alterar o estado da carta.
+    if (pulso_pouso_timer > 0) {
+        var _pulso = pulso_pouso_timer / pulso_pouso_duracao;
+        escala_animacao = 1 + sin(_pulso * pi) * 0.06;
+        pulso_pouso_timer--;
+    } else {
+        escala_animacao = lerp(escala_animacao, 1, 0.2);
+    }
 }
 #endregion
 
@@ -394,5 +417,27 @@ if (esta_na_mao && !arrastando && !travada) {
 if (arrastando) {
     x = mouse_x;
     y = mouse_y;
+}
+#endregion
+
+#region Animação de evolução
+if (evoluindo) {
+    evolucao_progresso += 1 / evolucao_duracao;
+    var _progresso_evo = clamp(evolucao_progresso, 0, 1);
+    var _suave_evo = _progresso_evo * _progresso_evo * (3 - (2 * _progresso_evo));
+    var _energia_evo = sin(_progresso_evo * pi);
+
+    // Um giro fechado em 720° termina visualmente alinhado, sem salto na última imagem.
+    rotacao_evolucao = 720 * _suave_evo;
+    escala_evolucao = 1 + (_energia_evo * 0.28);
+    cor_evolucao = merge_color(c_white, c_aqua, _energia_evo * 0.55);
+
+    if (_progresso_evo >= 1) {
+        evoluindo = false;
+        rotacao_evolucao = 0;
+        escala_evolucao = 1;
+        cor_evolucao = c_white;
+        pulso_pouso_timer = pulso_pouso_duracao;
+    }
 }
 #endregion

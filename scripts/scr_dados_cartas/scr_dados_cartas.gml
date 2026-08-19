@@ -831,13 +831,17 @@ function organizar_mao() {
 #endregion
 
 #region Movimento das tropas
-function iniciar_pulo_tropa(_carta, _novo_x, _novo_y) {
+function iniciar_pulo_tropa(_carta, _novo_x, _novo_y, _entrada_no_campo = false) {
     _carta.pulando = true;
     _carta.pulo_origem_x = _carta.x;
     _carta.pulo_origem_y = _carta.y;
     _carta.pulo_destino_x = _novo_x;
     _carta.pulo_destino_y = _novo_y;
     _carta.pulo_progresso = 0;
+	// Na entrada, começa no tamanho da mão e encolhe suavemente até a escala do campo
+	_carta.pulo_escala_origem = _entrada_no_campo ? (1 / _carta.escala_no_campo) : 1;
+	_carta.escala_animacao = _carta.pulo_escala_origem;
+	_carta.pulo_poeira_ao_pousar = true;
 }
 
 // Move uma tropa 1 casa na direção dela. Retorna uma string dizendo o que aconteceu:
@@ -1288,15 +1292,6 @@ function passar_turno_jogador() {
     obj_controlador.primeiro_turno_jogador = false; // <-- adicione aqui
 
     iniciar_turno_inimigo();
-
-    processar_condicoes("jogador");
-    desvirar_recursos("jogador");
-    if (instance_exists(obj_deck) && array_length(obj_controlador.monte) > 0) {
-        comprar_carta_do_deck(obj_deck.x, obj_deck.y);
-    }
-    reiniciar_acoes_tropas("jogador");
-    expirar_condicoes("jogador"); // desconta o turno da tropa só agora, depois dela já ter agido
-    obj_controlador.cartas_jogadas_no_turno = 0;
 }
 
 function iniciar_turno_inimigo() {
@@ -1306,20 +1301,81 @@ function iniciar_turno_inimigo() {
 
     processar_condicoes("inimigo");
     desvirar_recursos("inimigo");
-    ia_jogar_recursos();
-    ia_jogar_construcao();
-	ia_usar_construcoes();
+    obj_controlador.ia_ativa = true;
+    obj_controlador.ia_etapa = 0;
+    obj_controlador.ia_tempo_espera = 45;
+    obj_controlador.ia_texto_acao = "planejando...";
+}
 
-    mover_tropas_automatico("inimigo");
-    ia_jogar_cartas();
-    if (!obj_controlador.primeiro_turno_inimigo) {
-        processar_combate("inimigo");
+// Executa uma ação por vez. As pausas deixam claros os movimentos da IA,
+// mas o texto é genérico para a mão inimiga continuar secreta.
+function processar_turno_ia() {
+    if (!obj_controlador.ia_ativa) return;
+    if (obj_controlador.rolagens_pendentes > 0) {
+        obj_controlador.ia_texto_acao = "resolvendo o ataque...";
+        return;
+    }
+    if (obj_controlador.ia_tempo_espera > 0) {
+        obj_controlador.ia_tempo_espera--;
+        return;
     }
 
-    expirar_condicoes("inimigo");
-    obj_controlador.primeiro_turno_inimigo = false;
+    switch (obj_controlador.ia_etapa) {
+        case 0:
+            obj_controlador.ia_texto_acao = "preparando recursos";
+            ia_jogar_recursos();
+            obj_controlador.ia_etapa = 1;
+            obj_controlador.ia_tempo_espera = 55;
+        break;
 
-    obj_controlador.turno = "jogador";
+        case 1:
+            obj_controlador.ia_texto_acao = "organizando o campo";
+            ia_jogar_construcao();
+            ia_usar_construcoes();
+            obj_controlador.ia_etapa = 2;
+            obj_controlador.ia_tempo_espera = 55;
+        break;
+
+        case 2:
+            obj_controlador.ia_texto_acao = "movendo tropas";
+            mover_tropas_automatico("inimigo");
+            obj_controlador.ia_etapa = 3;
+            obj_controlador.ia_tempo_espera = 70;
+        break;
+
+        case 3:
+            obj_controlador.ia_texto_acao = "escolhendo uma carta";
+            ia_jogar_cartas();
+            obj_controlador.ia_etapa = 4;
+            obj_controlador.ia_tempo_espera = 70;
+        break;
+
+        case 4:
+            obj_controlador.ia_texto_acao = "atacando";
+            if (!obj_controlador.primeiro_turno_inimigo) {
+                processar_combate("inimigo");
+            }
+            obj_controlador.ia_etapa = 5;
+            obj_controlador.ia_tempo_espera = 45;
+        break;
+
+        case 5:
+            expirar_condicoes("inimigo");
+            obj_controlador.primeiro_turno_inimigo = false;
+            obj_controlador.ia_ativa = false;
+            obj_controlador.ia_texto_acao = "";
+            obj_controlador.turno = "jogador";
+
+            processar_condicoes("jogador");
+            desvirar_recursos("jogador");
+            if (instance_exists(obj_deck) && array_length(obj_controlador.monte) > 0) {
+                comprar_carta_do_deck(obj_deck.x, obj_deck.y);
+            }
+            reiniciar_acoes_tropas("jogador");
+            expirar_condicoes("jogador");
+            obj_controlador.cartas_jogadas_no_turno = 0;
+        break;
+    }
 }
 
 function reiniciar_acoes_tropas(_lado) {
@@ -1430,6 +1486,12 @@ function ia_jogar_cartas() {
                 ocupado = true;
                 carta_atual = _carta.id;
 
+                // A carta vem de uma área fora da tela: o jogador vê a jogada,
+                // mas não tem acesso à mão da IA nem à escolha antes do campo.
+                _carta.x = room_width / 2;
+                _carta.y = -global.CARTA_ALTURA;
+                iniciar_pulo_tropa(_carta, x, y, true);
+
                 _cartas_jogadas += 1;
             }
         }
@@ -1438,8 +1500,30 @@ function ia_jogar_cartas() {
 
 function ia_jogar_recursos() {
     var _tipos = ["sangue", "ossos", "sucata", "mana"];
-    var _tipo_sorteado = _tipos[irandom(array_length(_tipos) - 1)];
-    colocar_recurso(_tipo_sorteado, "inimigo");
+    var _contagens = [0, 0, 0, 0];
+
+    // Prefere o recurso que tem em menor quantidade, evitando uma IA que parece
+    // jogar sempre ao acaso e nunca consegue pagar custos variados.
+    var _recursos = obj_controlador.recursos_inimigo;
+    for (var i = 0; i < array_length(_recursos); i++) {
+        var _recurso = _recursos[i];
+        if (!instance_exists(_recurso)) continue;
+        for (var j = 0; j < array_length(_tipos); j++) {
+            if (_recurso.tipo == _tipos[j]) {
+                _contagens[j] += 1;
+                break;
+            }
+        }
+    }
+
+    var _indice_escolhido = 0;
+    for (var i = 1; i < array_length(_tipos); i++) {
+        if (_contagens[i] < _contagens[_indice_escolhido]) {
+            _indice_escolhido = i;
+        }
+    }
+    // Recurso também vem da área oculta da mão inimiga, para a ação ficar legível.
+    colocar_recurso(_tipos[_indice_escolhido], "inimigo", room_width / 2, -global.CARTA_ALTURA);
 }
 
 function ia_jogar_construcao() {
@@ -1485,24 +1569,35 @@ function ia_usar_construcoes() {
 #endregion
 
 #region Recursos — colocar, pagar custo, desvirar
-function colocar_recurso(_tipo, _dono) {
+function colocar_recurso(_tipo, _dono, _origem_x = noone, _origem_y = noone, _slot_preferido = noone) {
     var _ja_colocou = (_dono == "jogador") ? obj_controlador.recurso_colocado_no_turno : obj_controlador.recurso_colocado_no_turno_inimigo;
     if (_ja_colocou) return "ja_colocou_no_turno";
 
-    var _slot_livre = noone;
-    with (obj_slot_recurso) {
-        if (!ocupado && dono == _dono) {
-            _slot_livre = id;
-            break;
+    var _slot_livre = _slot_preferido;
+    if (_slot_livre == noone || _slot_livre.ocupado || _slot_livre.dono != _dono) {
+        _slot_livre = noone;
+        with (obj_slot_recurso) {
+            if (!ocupado && dono == _dono) {
+                _slot_livre = id;
+                break;
+            }
         }
     }
 
     if (_slot_livre == noone) return "campo_cheio";
 
-    var _recurso = instance_create_layer(_slot_livre.x, _slot_livre.y, "Instances", obj_recurso);
+    var _x_criacao = (_origem_x == noone) ? _slot_livre.x : _origem_x;
+    var _y_criacao = (_origem_y == noone) ? _slot_livre.y : _origem_y;
+    var _recurso = instance_create_layer(_x_criacao, _y_criacao, "Instances", obj_recurso);
     _recurso.tipo = _tipo;
     _recurso.virado = false;
     _recurso.dono = _dono;
+    _recurso.destino_x = _slot_livre.x;
+    _recurso.destino_y = _slot_livre.y;
+    _recurso.entrada_origem_x = _x_criacao;
+    _recurso.entrada_origem_y = _y_criacao;
+    _recurso.entrando_no_campo = (_origem_x != noone && _origem_y != noone);
+    _recurso.entrada_progresso = 0;
 
     switch (_tipo) {
         case "sangue": _recurso.sprite_index = spr_recurso_sangue; break;
@@ -1854,6 +1949,11 @@ function evoluir_tropa(_carta) {
     _carta.sprite_index = (_dados_evo.sprite_carta != noone) ? _dados_evo.sprite_carta : spr_carta_placeholder;
     _carta.escala_base = global.CARTA_LARGURA / sprite_get_width(_carta.sprite_index);
     _carta.tem_arte_propria = (_dados_evo.sprite_carta != noone);
+    _carta.evoluindo = true;
+    _carta.evolucao_progresso = 0;
+    _carta.escala_evolucao = 1;
+    _carta.rotacao_evolucao = 0;
+    _carta.cor_evolucao = c_white;
     
     _carta.vida_maxima = _dados_evo.vida;
     _carta.vida = max(1, _dados_evo.vida - _dano_sofrido);
@@ -2255,5 +2355,41 @@ function tocar_musica(_musica) {
     if (!audio_is_playing(_musica)) {
         audio_play_sound(_musica, 0, true);
     }
+}
+
+// Divide capítulos longos em partes legíveis. Assim o livro não reduz o texto
+// até ficar minúsculo só para caber em uma página.
+function paginar_livro_regras(_capitulos, _limite_caracteres) {
+    var _resultado = [];
+
+    for (var i = 0; i < array_length(_capitulos); i++) {
+        var _capitulo = _capitulos[i];
+        var _palavras = string_split(_capitulo.corpo, " ");
+        var _partes = [];
+        var _texto_atual = "";
+
+        for (var j = 0; j < array_length(_palavras); j++) {
+            var _palavra = _palavras[j];
+            var _candidato = (_texto_atual == "") ? _palavra : (_texto_atual + " " + _palavra);
+            if (string_length(_candidato) > _limite_caracteres && _texto_atual != "") {
+                array_push(_partes, _texto_atual);
+                _texto_atual = _palavra;
+            } else {
+                _texto_atual = _candidato;
+            }
+        }
+        if (_texto_atual != "") array_push(_partes, _texto_atual);
+        if (array_length(_partes) == 0) array_push(_partes, "");
+
+        for (var j = 0; j < array_length(_partes); j++) {
+            array_push(_resultado, {
+                titulo: _capitulo.titulo,
+                corpo: _partes[j],
+                parte: j + 1,
+                partes: array_length(_partes)
+            });
+        }
+    }
+    return _resultado;
 }
 #endregion

@@ -4,6 +4,18 @@ draw_set_font(Fontenil);
 draw_text(20, 20, "Vida jogador: " + string(vida_jogador));
 draw_text(20, 50, "Vida inimigo: " + string(vida_inimigo));
 draw_text(20, 80, (turno == "jogador") ? "Seu turno" : "Turno do inimigo");
+
+if (turno == "inimigo" && ia_ativa) {
+    var _gui_largura = display_get_gui_width();
+    draw_set_alpha(0.82);
+    draw_set_color(c_black);
+    draw_roundrect(_gui_largura / 2 - 145, 18, _gui_largura / 2 + 145, 58, false);
+    draw_set_alpha(1);
+    draw_set_color(c_white);
+    draw_set_halign(fa_center);
+    draw_text(_gui_largura / 2, 28, "INIMIGO: " + ia_texto_acao);
+    draw_set_halign(fa_left);
+}
 #endregion
 
 #region Prévia ampliada da carta

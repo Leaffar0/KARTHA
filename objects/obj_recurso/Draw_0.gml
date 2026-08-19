@@ -1,6 +1,4 @@
-var _rotacao = virado ? 90 : 0;
-
-draw_sprite_ext(sprite_index, image_index, x, y, escala_recurso, escala_recurso, _rotacao, c_white, 1);
+draw_sprite_ext(sprite_index, image_index, x, y, escala_recurso * escala_animacao, escala_recurso * escala_animacao, rotacao_atual, c_white, alpha_animacao);
 
 var _texto = string_upper(tipo);
 var _largura_maxima = sprite_width * 0.6;

@@ -64,6 +64,12 @@ max_cartas_por_turno = 1;
 primeiro_turno_jogador = true;
 primeiro_turno_inimigo = true;
 mao_inicial_comprada = false; // <-- nova trava
+
+// A IA executa o turno em etapas visíveis, sem revelar a mão do oponente.
+ia_ativa = false;
+ia_etapa = 0;
+ia_tempo_espera = 0;
+ia_texto_acao = "";
 #endregion
 
 #region Recursos

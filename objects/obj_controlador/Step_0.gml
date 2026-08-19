@@ -17,6 +17,12 @@ if (rolagens_pendentes > 0) {
 }
 #endregion
 
+// Enquanto a IA joga, o turno é processado em etapas e o jogador não pode interagir.
+if (turno == "inimigo" && ia_ativa) {
+    processar_turno_ia();
+    exit;
+}
+
 #region Atalhos de teclado (debug/teste)
 if (keyboard_check_pressed(vk_escape)) {
     game_end();
