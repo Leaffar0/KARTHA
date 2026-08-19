@@ -4,29 +4,37 @@ draw_set_font(Fontenil)
 var _rotacao_extra = (dono == "inimigo") ? 180 : 0;
 var _rotacao_total = rotacao_atual + rotacao_animacao + rotacao_evolucao + _rotacao_extra;
 
-var _y_desenho = y + y_offset_atual;
+var _x_desenho = x + ataque_offset_x;
+var _y_desenho = y + y_offset_atual + ataque_offset_y;
 
 var _escala_final = escala_atual * escala_animacao * escala_evolucao * escala_base;
 if (travada) {
     _escala_final *= escala_no_campo;
 }
 
-// isso ajusta a MÁSCARA DE CLIQUE de verdade, não só o desenho
 image_xscale = _escala_final;
 image_yscale = _escala_final;
 
 var _alpha_carta = sombra_ativa ? 0.4 : 1;
 draw_set_alpha(_alpha_carta);
 
+// Pisca vermelho quando toma dano (mistura a cor normal com vermelho, oscilando)
+var _cor_final = cor_evolucao;
+if (dano_flash_timer > 0) {
+    var _flash_progresso = dano_flash_timer / dano_flash_duracao;
+    var _piscar = (sin(dano_flash_timer * 1.4) + 1) / 2; // 0 a 1, oscila rápido
+    _cor_final = merge_color(cor_evolucao, c_red, _piscar * _flash_progresso);
+}
+
 draw_sprite_ext(
     sprite_index,
     image_index,
-    x,
+    _x_desenho,
     _y_desenho,
     _escala_final,
     _escala_final,
     _rotacao_total,
-    cor_evolucao,
+    _cor_final,
     _alpha_carta
 );
 #endregion
@@ -39,7 +47,7 @@ if (!tem_arte_propria) {
     // --- posição do nome (só pra cartas sem arte, usando texto) ---
     var _dist_nome = point_distance(0, 0, 0, -sprite_height/2 + 4);
     var _dir_nome = point_direction(0, 0, 0, -sprite_height/2 + 4);
-    var _nome_x = x + lengthdir_x(_dist_nome, _dir_nome + _rotacao_total);
+    var _nome_x = _x_desenho + lengthdir_x(_dist_nome, _dir_nome + _rotacao_total);
     var _nome_y = _y_desenho + lengthdir_y(_dist_nome, _dir_nome + _rotacao_total);
 
     var _largura_maxima = sprite_width * 0.85;
@@ -60,11 +68,11 @@ if (!tem_arte_propria) {
 if (categoria == "tropa") {
     var _escala_texto_fallback = escala_atual * (travada ? escala_no_campo : 1) * global.ESCALA_TEXTO_CARTA;
 
-	desenhar_stat(self, vida, vida_pos_x, vida_pos_y, x, _y_desenho, _rotacao_total, _escala_final, _escala_texto_fallback);
-	desenhar_stat(self, string(nivel_inteligencia), int_pos_x, int_pos_y, x, _y_desenho, _rotacao_total, _escala_final, _escala_texto_fallback, true);
-	desenhar_stat(self, mochila, mochila_pos_x, mochila_pos_y, x, _y_desenho, _rotacao_total, _escala_final, _escala_texto_fallback);
-	desenhar_stat(self, defesa_fisica, def_pos_x, def_pos_y, x, _y_desenho, _rotacao_total, _escala_final, _escala_texto_fallback);
-	desenhar_stat(self, defesa_magica, def_magico_pos_x, def_magico_pos_y, x, _y_desenho, _rotacao_total, _escala_final, _escala_texto_fallback);
+	desenhar_stat(self, vida, vida_pos_x, vida_pos_y, _x_desenho, _y_desenho, _rotacao_total, _escala_final, _escala_texto_fallback);
+	desenhar_stat(self, string(nivel_inteligencia), int_pos_x, int_pos_y, _x_desenho, _y_desenho, _rotacao_total, _escala_final, _escala_texto_fallback, true);
+	desenhar_stat(self, mochila, mochila_pos_x, mochila_pos_y, _x_desenho, _y_desenho, _rotacao_total, _escala_final, _escala_texto_fallback);
+	desenhar_stat(self, defesa_fisica, def_pos_x, def_pos_y, _x_desenho, _y_desenho, _rotacao_total, _escala_final, _escala_texto_fallback);
+	desenhar_stat(self, defesa_magica, def_magico_pos_x, def_magico_pos_y, _x_desenho, _y_desenho, _rotacao_total, _escala_final, _escala_texto_fallback);
 
 	// ATK e ATK mágico são especiais: têm 2 números juntos ("dado+mod"), então tratamos separado
 	if (dado_dano != 0) {

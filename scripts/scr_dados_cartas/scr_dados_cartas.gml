@@ -919,6 +919,38 @@ function mover_tropas_automatico(_dono) {
 #endregion
 
 #region Combate — dados, dano e resolução
+// Inicia uma animação de cutucada/golpe: a carta se desloca na direção do alvo
+// (ou pra cima, se não houver alvo) e volta suavemente ao lugar original.
+function iniciar_animacao_ataque(_carta, _alvo = noone, _intensidade = 10, _duracao = 15) {
+    if (!instance_exists(_carta)) return;
+
+    var _dir_x = 0;
+    var _dir_y = -1;
+
+    if (_alvo != noone && instance_exists(_alvo)) {
+        _dir_x = _alvo.x - _carta.x;
+        _dir_y = _alvo.y - _carta.y;
+        var _dist = point_distance(0, 0, _dir_x, _dir_y);
+        if (_dist > 0) {
+            _dir_x /= _dist;
+            _dir_y /= _dist;
+        }
+    }
+
+    _carta.ataque_anim_ativa = true;
+    _carta.ataque_anim_progresso = 0;
+    _carta.ataque_anim_duracao = _duracao;
+    _carta.ataque_anim_intensidade = _intensidade;
+    _carta.ataque_anim_dir_x = _dir_x;
+    _carta.ataque_anim_dir_y = _dir_y;
+}
+
+// Faz a carta piscar vermelho por um instante (feedback de dano recebido).
+function aplicar_flash_dano(_carta, _duracao = 18) {
+    if (!instance_exists(_carta)) return;
+    _carta.dano_flash_timer = _duracao;
+}
+
 function buscar_slot(_lane, _posicao) {
     var _resultado = noone;
     with (obj_slot_batalha) {
@@ -1068,6 +1100,8 @@ function processar_combate_tropa(_carta, _tipo_ataque) {
 function rolar_combate(_atacante, _defensor, _tipo_ataque) {
     debug_combate("=== ATAQUE (" + _tipo_ataque + "): " + _atacante.nome_carta + " vs " + _defensor.nome_carta + " ===");
 
+	iniciar_animacao_ataque(_atacante, _defensor, 8, 14); // cutucada leve no início do ataque
+
     var _dado_acerto = irandom_range(1, 20);
 
     var _dados_combate = {
@@ -1117,6 +1151,9 @@ function processar_resultado_acerto(_dado_acerto, _atacante, _defensor, _tipo_at
         rolar_dado_visual(_defensor.x, _defensor.y, _atacante.x, _atacante.y, _defensor.dado_dano, _dano_contra_dado, method(_dados_contra, function(_resultado) {
             if (!instance_exists(atacante) || !instance_exists(defensor)) return;
 
+			iniciar_animacao_ataque(defensor, atacante, 18, 18);
+			aplicar_flash_dano(atacante);
+
             var _dano_contra = _resultado + defensor.mod_dano;
             _dano_contra = max(0, _dano_contra - atacante.defesa_fisica - obj_controlador.terreno_bonus_defesa);
             atacante.vida -= _dano_contra;
@@ -1161,6 +1198,10 @@ function processar_resultado_acerto(_dado_acerto, _atacante, _defensor, _tipo_at
 
     rolar_dado_visual(_atacante.x, _atacante.y, _alvo_real.x, _alvo_real.y, _dado_usado, _dano_dado, method(_dados_dano, function(_resultado) {
         if (!instance_exists(atacante) || !instance_exists(defensor)) return;
+
+		// golpe forte + flash vermelho na hora que o dano é revelado
+		iniciar_animacao_ataque(atacante, defensor, 18, 18);
+		aplicar_flash_dano(defensor);
 
         var _defesa_usada = (tipo_ataque == "magica") ? defensor.defesa_magica : defensor.defesa_fisica;
 
