@@ -112,13 +112,13 @@ def_magico_pos_x = 0.87; def_magico_pos_y = 0.92;
 #region Animação de ataque (cutucada / golpe) e flash de dano
 ataque_anim_ativa = false;
 ataque_anim_progresso = 0;
-ataque_anim_duracao = 15;
-ataque_anim_intensidade = 10;
+ataque_anim_duracao = 18;
+ataque_anim_intensidade = 25;
 ataque_anim_dir_x = 0;
 ataque_anim_dir_y = 0;
 ataque_offset_x = 0;
 ataque_offset_y = 0;
 
 dano_flash_timer = 0;
-dano_flash_duracao = 18;
+dano_flash_duracao = 25;
 #endregion
