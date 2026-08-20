@@ -919,8 +919,6 @@ function mover_tropas_automatico(_dono) {
 #endregion
 
 #region Combate — dados, dano e resolução
-// Inicia uma animação de cutucada/golpe: a carta se desloca na direção do alvo
-// (ou pra cima, se não houver alvo) e volta suavemente ao lugar original.
 function iniciar_animacao_ataque(_carta, _alvo = noone, _intensidade = 10, _duracao = 15) {
     if (!instance_exists(_carta)) return;
 
@@ -937,12 +935,53 @@ function iniciar_animacao_ataque(_carta, _alvo = noone, _intensidade = 10, _dura
         }
     }
 
-    _carta.ataque_anim_ativa = true;
-    _carta.ataque_anim_progresso = 0;
-    _carta.ataque_anim_duracao = _duracao;
-    _carta.ataque_anim_intensidade = _intensidade;
-    _carta.ataque_anim_dir_x = _dir_x;
-    _carta.ataque_anim_dir_y = _dir_y;
+    // reseta pra não ficar "grudado" caso um ataque anterior tenha sido interrompido
+    _carta.ataque_offset_x = 0;
+    _carta.ataque_offset_y = 0;
+    _carta.ataque_elevacao = 0;
+    _carta.ataque_escala_extra = 0;
+
+    var _tempo_impulso  = max(4, round(_duracao * 0.4));
+    var _tempo_golpe    = max(3, round(_duracao * 0.3));
+    var _tempo_retorno  = max(8, round(_duracao * 1.1));
+
+    var _elevacao_impulso = _intensidade * 0.55;
+    var _escala_impulso = clamp(_intensidade * 0.012, 0.05, 0.22);
+
+    // guarda os parâmetros NA CARTA (não em locais/struct), porque o callback
+    // precisa rodar com self = carta (o tween() usa x/y/depth implícitos do self)
+    _carta.ataque_calc_dir_x = _dir_x;
+    _carta.ataque_calc_dir_y = _dir_y;
+    _carta.ataque_calc_intensidade = _intensidade;
+    _carta.ataque_calc_tempo_golpe = _tempo_golpe;
+    _carta.ataque_calc_tempo_retorno = _tempo_retorno;
+
+    // FASE 1 — Impulso: sobe e incha um pouco, se preparando pro golpe
+    tween(_carta, "ataque_elevacao", _elevacao_impulso, tween_animation.quad_out, _tempo_impulso,
+        method(_carta, function() {
+            if (!instance_exists(self)) return;
+
+            // FASE 2 — Golpe: dispara rápido na direção do alvo
+            tween(self, "ataque_offset_x", ataque_calc_dir_x * ataque_calc_intensidade, tween_animation.circ_out, ataque_calc_tempo_golpe);
+            tween(self, "ataque_offset_y", ataque_calc_dir_y * ataque_calc_intensidade, tween_animation.circ_out, ataque_calc_tempo_golpe,
+                method(self, function() {
+                    if (!instance_exists(self)) return;
+
+                    // FASE 3 — Retorno: volta com uma leve quicada
+                    tween(self, "ataque_offset_x", 0, tween_animation.back_out, ataque_calc_tempo_retorno);
+                    tween(self, "ataque_offset_y", 0, tween_animation.back_out, ataque_calc_tempo_retorno);
+                    tween(self, "ataque_elevacao", 0, tween_animation.back_out, ataque_calc_tempo_retorno);
+                })
+            );
+        })
+    );
+
+    tween(_carta, "ataque_escala_extra", _escala_impulso, tween_animation.quad_out, _tempo_impulso,
+        method(_carta, function() {
+            if (!instance_exists(self)) return;
+            tween(self, "ataque_escala_extra", 0, tween_animation.back_out, ataque_calc_tempo_retorno);
+        })
+    );
 }
 
 // Faz a carta piscar vermelho por um instante (feedback de dano recebido).
