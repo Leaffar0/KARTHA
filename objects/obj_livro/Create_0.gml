@@ -2,6 +2,16 @@
 paginas = paginar_livro_regras(carregar_livro_regras(), 520);
 pagina_atual = 0;
 
+// Sumário: 1 entrada por capítulo (parte == 1 marca onde ele começa em "paginas")
+sumario = [];
+for (var i = 0; i < array_length(paginas); i++) {
+    if (paginas[i].parte == 1) {
+        array_push(sumario, { titulo: paginas[i].titulo, indice_pagina: i });
+    }
+}
+mostrando_sumario = true;
+sumario_hover_index = -1;
+
 virando = false;
 flip_progresso = 0;
 direcao_flip = 1;
@@ -29,15 +39,27 @@ image_xscale = livro_escala;
 image_yscale = livro_escala;
 #endregion
 
-#region Função local de virada de página
+#region Funções locais de navegação
 function iniciar_flip(_direcao) {
     if (virando) return;
-    var _novo_index = pagina_atual + _direcao;
+    if (mostrando_sumario) return;
+
+    var _novo_index = pagina_atual + (_direcao * 2); // agora move de 2 em 2 (um par de páginas)
     if (_novo_index < 0 || _novo_index >= array_length(paginas)) return;
 
     virando = true;
     flip_progresso = 0;
     trocou_pagina = false;
     direcao_flip = _direcao;
+}
+
+// Clique num item do sumário: pula direto pra página do capítulo escolhido.
+function abrir_pagina_do_sumario(_indice_pagina) {
+    var _indice_alinhado = _indice_pagina - (_indice_pagina mod 2); // mantém a paginação em pares
+    pagina_atual = clamp(_indice_alinhado, 0, max(0, array_length(paginas) - 1));
+    mostrando_sumario = false;
+    virando = false;
+    flip_progresso = 0;
+    trocou_pagina = false;
 }
 #endregion

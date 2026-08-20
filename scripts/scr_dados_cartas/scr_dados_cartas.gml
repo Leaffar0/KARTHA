@@ -2507,6 +2507,40 @@ function calcular_escala_texto_ajustada(_texto, _largura_alvo, _altura_alvo, _es
     }
     return max(_escala, _escala_minima);
 }
+	
+// Desenha o conteúdo de UMA página (título + corpo + rodapé de parte) numa área retangular.
+// Serve tanto pra folha esquerda (estática) quanto pra direita (dentro da matriz de virada),
+// já que as duas mostram o mesmo tipo de conteúdo agora.
+function desenhar_pagina_do_livro(_pagina, _centro_x, _centro_y, _largura_disponivel, _altura_disponivel) {
+    var _margem = _largura_disponivel * 0.1;
+    var _largura_texto = _largura_disponivel - (_margem * 2);
+
+    var _altura_titulo_reservada = _altura_disponivel * 0.16;
+    var _altura_rodape_reservada = (_pagina.partes > 1) ? (_altura_disponivel * 0.08) : 0;
+    var _altura_corpo_disponivel = _altura_disponivel - _altura_titulo_reservada - _altura_rodape_reservada;
+
+    var _escala_titulo = calcular_escala_texto_ajustada(_pagina.titulo, _largura_texto, _altura_titulo_reservada * 0.8, 0.72, 0.42);
+    var _escala_corpo = calcular_escala_texto_ajustada(_pagina.corpo, _largura_texto, _altura_corpo_disponivel, 0.58, 0.40);
+
+    var _topo_y = _centro_y - _altura_disponivel/2;
+
+    draw_set_color(c_white);
+    draw_set_halign(fa_center);
+    draw_set_valign(fa_top);
+    draw_text_transformed(_centro_x, _topo_y + (_altura_titulo_reservada * 0.15), _pagina.titulo, _escala_titulo, _escala_titulo, 0);
+
+    draw_set_halign(fa_left);
+    draw_text_ext_transformed(_centro_x - _largura_texto/2, _topo_y + _altura_titulo_reservada, _pagina.corpo, -1, _largura_texto / _escala_corpo, _escala_corpo, _escala_corpo, 0);
+
+    if (_pagina.partes > 1) {
+        draw_set_halign(fa_center);
+        draw_set_valign(fa_bottom);
+        draw_text_transformed(_centro_x, _centro_y + _altura_disponivel/2, "Parte " + string(_pagina.parte) + " de " + string(_pagina.partes), 0.62, 0.62, 0);
+    }
+
+    draw_set_halign(fa_left);
+    draw_set_valign(fa_top);
+}
 #endregion
 
 #region Áudio
