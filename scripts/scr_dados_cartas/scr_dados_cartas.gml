@@ -1603,9 +1603,11 @@ function ia_jogar_cartas() {
                 iniciar_pulo_tropa(_carta, x, y, true);
 
                 _cartas_jogadas += 1;
+				
+				audio_play_sound(snd_colocar,1,0,.5,0,random_range(.5,2))
             }
         }
-			audio_play_sound(snd_colocar,1,0,.5,0,random_range(.5,2))
+			
     }
 }
 
