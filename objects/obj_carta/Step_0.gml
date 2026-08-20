@@ -382,22 +382,7 @@ if (pulando) {
 }
 #endregion
 
-#region Animação de ataque (cutucada/golpe) e flash de dano
-if (ataque_anim_ativa) {
-    ataque_anim_progresso += 1;
-    var _t = clamp(ataque_anim_progresso / ataque_anim_duracao, 0, 1);
-    var _curva = sin(_t * pi); // sobe suave (0->1) e desce suave (1->0)
-
-    ataque_offset_x = ataque_anim_dir_x * ataque_anim_intensidade * _curva;
-    ataque_offset_y = ataque_anim_dir_y * ataque_anim_intensidade * _curva;
-
-    if (ataque_anim_progresso >= ataque_anim_duracao) {
-        ataque_anim_ativa = false;
-        ataque_offset_x = 0;
-        ataque_offset_y = 0;
-    }
-}
-
+#region Flash de dano
 if (dano_flash_timer > 0) {
     dano_flash_timer -= 1;
 }

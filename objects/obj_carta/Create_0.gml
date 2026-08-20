@@ -109,15 +109,18 @@ def_pos_x = 0.62; def_pos_y = 0.92;
 def_magico_pos_x = 0.87; def_magico_pos_y = 0.92;
 #endregion
 
-#region Animação de ataque (cutucada / golpe) e flash de dano
-ataque_anim_ativa = false;
-ataque_anim_progresso = 0;
-ataque_anim_duracao = 18;
-ataque_anim_intensidade = 25;
-ataque_anim_dir_x = 0;
-ataque_anim_dir_y = 0;
+#region Animação de ataque (golpe estilo Inscryption) e flash de dano
 ataque_offset_x = 0;
 ataque_offset_y = 0;
+ataque_elevacao = 0;
+ataque_escala_extra = 0;
+
+// guarda temporário dos parâmetros do golpe em andamento (evita bug de closure com method())
+ataque_calc_dir_x = 0;
+ataque_calc_dir_y = 0;
+ataque_calc_intensidade = 0;
+ataque_calc_tempo_golpe = 0;
+ataque_calc_tempo_retorno = 0;
 
 dano_flash_timer = 0;
 dano_flash_duracao = 25;
