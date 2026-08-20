@@ -1378,6 +1378,7 @@ function jogar_moeda_visual(_origem_x, _origem_y, _destino_x, _destino_y, _funca
     _moeda.destino_x = _destino_x;
     _moeda.destino_y = _destino_y;
     _moeda.escala_moeda = global.MOEDA_LARGURA / sprite_get_width(_moeda.sprite_index);
+    _moeda.desvio_lateral_moeda = choose(-1, 1) * irandom_range(6, 14); // <-- novo
     _moeda.girando = true;
     _moeda.tempo_girando = 0;
     _moeda.callback = _funcao_callback;

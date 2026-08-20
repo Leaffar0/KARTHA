@@ -1,4 +1,4 @@
-draw_sprite_ext(sprite_index, image_index, x, y, escala_moeda, escala_moeda, 0, c_white, 1);
+draw_sprite_ext(sprite_index, image_index, x, y, escala_moeda * moeda_escala_x, escala_moeda * moeda_escala_y, angulo_moeda, c_white, 1);
 
 if (!girando) {
     draw_set_halign(fa_center);
