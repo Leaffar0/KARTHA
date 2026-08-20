@@ -11,6 +11,8 @@
     {"name":"Particula","order":6,"path":"folders/Sprite/Particula.yy",},
     {"name":"Recursos","order":1,"path":"folders/Sprite/Recursos.yy",},
     {"name":"Slots","order":2,"path":"folders/Sprite/Slots.yy",},
+    {"name":"Tween","order":2,"path":"folders/Tween.yy",},
+    {"name":"Tween","order":1,"path":"folders/Tween/Tween.yy",},
   ],
   "ResourceOrderSettings":[
     {"name":"fnt_vitoria","order":1,"path":"fonts/fnt_vitoria/fnt_vitoria.yy",},
@@ -25,7 +27,9 @@
     {"name":"obj_recurso","order":2,"path":"objects/obj_recurso/obj_recurso.yy",},
     {"name":"obj_slot_terreno","order":1,"path":"objects/obj_slot_terreno/obj_slot_terreno.yy",},
     {"name":"obj_texto_flutuante","order":3,"path":"objects/obj_texto_flutuante/obj_texto_flutuante.yy",},
+    {"name":"obj_tween","order":2,"path":"objects/obj_tween/obj_tween.yy",},
     {"name":"rm_menu","order":1,"path":"rooms/rm_menu/rm_menu.yy",},
+    {"name":"scr_tween","order":1,"path":"scripts/scr_tween/scr_tween.yy",},
     {"name":"snd_jogo","order":1,"path":"sounds/snd_jogo/snd_jogo.yy",},
     {"name":"snd_menu","order":2,"path":"sounds/snd_menu/snd_menu.yy",},
     {"name":"spr_armadilha_de_urso","order":2,"path":"sprites/spr_armadilha_de_urso/spr_armadilha_de_urso.yy",},
