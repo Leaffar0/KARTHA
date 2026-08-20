@@ -5,9 +5,9 @@ var _rotacao_extra = (dono == "inimigo") ? 180 : 0;
 var _rotacao_total = rotacao_atual + rotacao_animacao + rotacao_evolucao + _rotacao_extra;
 
 var _x_desenho = x + ataque_offset_x;
-var _y_desenho = y + y_offset_atual + ataque_offset_y - ataque_elevacao;
+var _y_desenho = y + y_offset_atual + ataque_offset_y;
 
-var _escala_final = escala_atual * escala_animacao * escala_evolucao * escala_base * (1 + ataque_escala_extra);
+var _escala_final = escala_atual * escala_animacao * escala_evolucao * escala_base;
 if (travada) {
     _escala_final *= escala_no_campo;
 }

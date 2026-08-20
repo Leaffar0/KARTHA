@@ -919,6 +919,8 @@ function mover_tropas_automatico(_dono) {
 #endregion
 
 #region Combate — dados, dano e resolução
+// Inicia uma animação de cutucada/golpe: a carta se desloca na direção do alvo
+// (ou pra cima, se não houver alvo) e volta suavemente ao lugar original.
 function iniciar_animacao_ataque(_carta, _alvo = noone, _intensidade = 10, _duracao = 15) {
     if (!instance_exists(_carta)) return;
 
@@ -935,53 +937,12 @@ function iniciar_animacao_ataque(_carta, _alvo = noone, _intensidade = 10, _dura
         }
     }
 
-    // reseta pra não ficar "grudado" caso um ataque anterior tenha sido interrompido
-    _carta.ataque_offset_x = 0;
-    _carta.ataque_offset_y = 0;
-    _carta.ataque_elevacao = 0;
-    _carta.ataque_escala_extra = 0;
-
-    var _tempo_impulso  = max(4, round(_duracao * 0.4));
-    var _tempo_golpe    = max(3, round(_duracao * 0.3));
-    var _tempo_retorno  = max(8, round(_duracao * 1.1));
-
-    var _elevacao_impulso = _intensidade * 0.55;
-    var _escala_impulso = clamp(_intensidade * 0.012, 0.05, 0.22);
-
-    // guarda os parâmetros NA CARTA (não em locais/struct), porque o callback
-    // precisa rodar com self = carta (o tween() usa x/y/depth implícitos do self)
-    _carta.ataque_calc_dir_x = _dir_x;
-    _carta.ataque_calc_dir_y = _dir_y;
-    _carta.ataque_calc_intensidade = _intensidade;
-    _carta.ataque_calc_tempo_golpe = _tempo_golpe;
-    _carta.ataque_calc_tempo_retorno = _tempo_retorno;
-
-    // FASE 1 — Impulso: sobe e incha um pouco, se preparando pro golpe
-    tween(_carta, "ataque_elevacao", _elevacao_impulso, tween_animation.quad_out, _tempo_impulso,
-        method(_carta, function() {
-            if (!instance_exists(self)) return;
-
-            // FASE 2 — Golpe: dispara rápido na direção do alvo
-            tween(self, "ataque_offset_x", ataque_calc_dir_x * ataque_calc_intensidade, tween_animation.circ_out, ataque_calc_tempo_golpe);
-            tween(self, "ataque_offset_y", ataque_calc_dir_y * ataque_calc_intensidade, tween_animation.circ_out, ataque_calc_tempo_golpe,
-                method(self, function() {
-                    if (!instance_exists(self)) return;
-
-                    // FASE 3 — Retorno: volta com uma leve quicada
-                    tween(self, "ataque_offset_x", 0, tween_animation.back_out, ataque_calc_tempo_retorno);
-                    tween(self, "ataque_offset_y", 0, tween_animation.back_out, ataque_calc_tempo_retorno);
-                    tween(self, "ataque_elevacao", 0, tween_animation.back_out, ataque_calc_tempo_retorno);
-                })
-            );
-        })
-    );
-
-    tween(_carta, "ataque_escala_extra", _escala_impulso, tween_animation.quad_out, _tempo_impulso,
-        method(_carta, function() {
-            if (!instance_exists(self)) return;
-            tween(self, "ataque_escala_extra", 0, tween_animation.back_out, ataque_calc_tempo_retorno);
-        })
-    );
+    _carta.ataque_anim_ativa = true;
+    _carta.ataque_anim_progresso = 0;
+    _carta.ataque_anim_duracao = _duracao;
+    _carta.ataque_anim_intensidade = _intensidade;
+    _carta.ataque_anim_dir_x = _dir_x;
+    _carta.ataque_anim_dir_y = _dir_y;
 }
 
 // Faz a carta piscar vermelho por um instante (feedback de dano recebido).
@@ -1513,7 +1474,7 @@ function ia_jogar_cartas() {
     var _chance_jogar = 0.7;
     var _cartas_jogadas = 0;
     var _max_cartas = 1;
-
+	 audio_play_sound(snd_colocar,1,0,.5,0,random_range(.5,2))
     with (obj_slot_batalha) {
         if (_cartas_jogadas >= _max_cartas) continue;
 
@@ -1726,7 +1687,7 @@ function ia_usar_construcoes() {
 function colocar_recurso(_tipo, _dono, _origem_x = noone, _origem_y = noone, _slot_preferido = noone) {
     var _ja_colocou = (_dono == "jogador") ? obj_controlador.recurso_colocado_no_turno : obj_controlador.recurso_colocado_no_turno_inimigo;
     if (_ja_colocou) return "ja_colocou_no_turno";
-
+	 audio_play_sound(snd_colocar,1,0,.5,0,random_range(.5,2))
     var _slot_livre = _slot_preferido;
     if (_slot_livre == noone || _slot_livre.ocupado || _slot_livre.dono != _dono) {
         _slot_livre = noone;

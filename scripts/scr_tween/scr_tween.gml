@@ -20,6 +20,7 @@ enum tween_animation {
 }
 
 function tween(_object, _variable_name, _value, _animation = tween_animation.back, _time = room_speed, _callback = -1){
+	//Mesma ordem do que foi criado em cima
 	static _anim_names = [
 		"back", "flat", "elastic", "bounce", "ease",
 		"linear",
@@ -35,17 +36,20 @@ function tween(_object, _variable_name, _value, _animation = tween_animation.bac
 		"bounce_in",  "bounce_out",  "bounce_inout"
 	];
 
+	// Aceita tanto um valor do enum quanto o nome do canal direto (string).
 	var _anim = is_string(_animation) ? _animation : _anim_names[_animation];
 
+	// Já existe um tween rodando nessa mesma variável desse mesmo objeto?
 	with (obj_tween) {
 		if (object == _object && variable_name == _variable_name) {
 			if (value == _value) return id;
 			instance_destroy();
 		}
 	}
+	// Nenhum tween ativo e a variável já está no destino só morre
 	if (_object[$ _variable_name] == _value) return noone;
 
-	var _tween = instance_create_depth(_object.x, _object.y, _object.depth, obj_tween, {
+	var _tween = instance_create_depth(x, y, depth, obj_tween, {
 			object: _object,
 			variable_name: _variable_name,
 			value: _value,

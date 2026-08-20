@@ -44,7 +44,7 @@
   "isEcma":false,
   "LibraryEmitters":[],
   "MetaData":{
-    "IDEVersion":"2026.0.0.16",
+    "IDEVersion":"2024.14.4.222",
   },
   "name":"KARTHA",
   "resources":[
@@ -75,6 +75,7 @@
     {"id":{"name":"rm_menu","path":"rooms/rm_menu/rm_menu.yy",},},
     {"id":{"name":"scr_dados_cartas","path":"scripts/scr_dados_cartas/scr_dados_cartas.yy",},},
     {"id":{"name":"scr_tween","path":"scripts/scr_tween/scr_tween.yy",},},
+    {"id":{"name":"snd_colocar","path":"sounds/snd_colocar/snd_colocar.yy",},},
     {"id":{"name":"snd_jogo","path":"sounds/snd_jogo/snd_jogo.yy",},},
     {"id":{"name":"snd_menu","path":"sounds/snd_menu/snd_menu.yy",},},
     {"id":{"name":"spr_armadilha_de_urso","path":"sprites/spr_armadilha_de_urso/spr_armadilha_de_urso.yy",},},

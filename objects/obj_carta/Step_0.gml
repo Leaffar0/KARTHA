@@ -39,7 +39,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
             _slot_mais_perto.ocupado = true;
             _slot_mais_perto.carta_atual = id;
             slot_atual = _slot_mais_perto;
-            
+            audio_play_sound(snd_colocar,1,0,.5,0,random_range(.5,2))
             lane_atual = _slot_mais_perto.lane;
             posicao_atual = _slot_mais_perto.posicao;
             dono = "jogador";
@@ -382,7 +382,22 @@ if (pulando) {
 }
 #endregion
 
-#region Flash de dano
+#region Animação de ataque (cutucada/golpe) e flash de dano
+if (ataque_anim_ativa) {
+    ataque_anim_progresso += 1;
+    var _t = clamp(ataque_anim_progresso / ataque_anim_duracao, 0, 1);
+    var _curva = sin(_t * pi); // sobe suave (0->1) e desce suave (1->0)
+
+    ataque_offset_x = ataque_anim_dir_x * ataque_anim_intensidade * _curva;
+    ataque_offset_y = ataque_anim_dir_y * ataque_anim_intensidade * _curva;
+
+    if (ataque_anim_progresso >= ataque_anim_duracao) {
+        ataque_anim_ativa = false;
+        ataque_offset_x = 0;
+        ataque_offset_y = 0;
+    }
+}
+
 if (dano_flash_timer > 0) {
     dano_flash_timer -= 1;
 }
