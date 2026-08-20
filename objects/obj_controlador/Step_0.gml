@@ -33,11 +33,19 @@ if (keyboard_check_pressed(ord("R"))) {
 }
 
 if (keyboard_check_pressed(ord("K"))) {
-    vida_inimigo = 0; // mata o inimigo na hora -- atalho de teste
+    vida_inimigo = 0;
+}
+
+if (keyboard_check_pressed(ord("C"))) {
+    var _quantidade_debug = 10;
+    for (var i = 0; i < _quantidade_debug; i++) {
+        if (array_length(monte) == 0) break;
+        comprar_carta_do_deck(obj_deck.x, obj_deck.y);
+    }
+    debug_combate("DEBUG: comprou " + string(_quantidade_debug) + " cartas pro jogador.");
 }
 
 if (keyboard_check_pressed(ord("M"))) {
-    // testa a animação da moeda: joga do centro da mão até o meio da tela
     jogar_moeda_visual(mao_x_centro, mao_y, room_width / 2, room_height / 2, noone);
 }
 #endregion

@@ -332,6 +332,30 @@ if (arrastando && mouse_check_button_released(mb_left)) {
 }
 #endregion
 
+#region Efeito de voo (só tropas com Voar, e só enquanto estão travadas em campo)
+if (travada && categoria == "tropa" && tem_habilidade(id, "voar")) {
+    voo_timer += 0.008; // velocidade geral do ciclo completo -- ajuste pra mais rápido/lento
+
+    var _duracao_subida = 0.10; // fração do ciclo gasta subindo -- menor = batida mais seca e rápida
+    var _progresso_ciclo = frac(voo_timer); // sempre entre 0 e 1, reinicia a cada volta
+
+    var _onda_voo;
+    if (_progresso_ciclo < _duracao_subida) {
+        // SOBE RÁPIDO: dispara do chão e desacelera perto do topo, como o impulso de uma batida
+        var _p = _progresso_ciclo / _duracao_subida;
+        _onda_voo = 1 - power(1 - _p, 2);
+	} else {
+	    // DESCE DEVAGAR: sai devagar do topo e vai ganhando velocidade aos poucos
+	    var _p = (_progresso_ciclo - _duracao_subida) / (1 - _duracao_subida);
+	    _onda_voo = 1 - (_p * _p); // agora começa lento (perto do topo) e acelera no fim
+	}
+
+    escala_voo = 1 + _onda_voo * 0.10; // intensidade do efeito -- ajuste esse 0.06
+} else {
+    escala_voo = 1;
+}
+#endregion
+
 #region Animação de salto e deslocamento no campo
 if (pulando) {
     pulo_progresso += 1 / pulo_duracao;

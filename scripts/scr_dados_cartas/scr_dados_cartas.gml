@@ -1263,14 +1263,17 @@ function destruir_tropa(_carta, _por_inimigo = true) {
         mandar_para_abismo(_carta.nome_carta);
     }
 
+    // limpa o slot do morto ANTES da mitose, pra ela poder reocupá-lo depois
+    var _slot_da_carta = _carta.slot_atual;
+    if (_slot_da_carta != noone) {
+        _slot_da_carta.ocupado = false;
+        _slot_da_carta.carta_atual = noone;
+    }
+
     if (tem_habilidade(_carta, "mitose") && _carta.funcao_mitose != noone) {
         executar_mitose(_carta);
     }
 
-    if (_carta.slot_atual != noone) {
-        _carta.slot_atual.ocupado = false;
-        _carta.slot_atual.carta_atual = noone;
-    }
     instance_destroy(_carta);
 }
 

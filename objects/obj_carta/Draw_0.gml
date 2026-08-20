@@ -7,7 +7,7 @@ var _rotacao_total = rotacao_atual + rotacao_animacao + rotacao_evolucao + _rota
 var _x_desenho = x + ataque_offset_x;
 var _y_desenho = y + y_offset_atual + ataque_offset_y - ataque_elevacao;
 
-var _escala_final = escala_atual * escala_animacao * escala_evolucao * escala_base * (1 + ataque_escala_extra);
+var _escala_final = escala_atual * escala_animacao * escala_evolucao * escala_base * escala_voo * (1 + ataque_escala_extra);
 if (travada) {
     _escala_final *= escala_no_campo;
 }
@@ -37,6 +37,7 @@ draw_sprite_ext(
     _cor_final,
     _alpha_carta
 );
+
 #endregion
 
 #region Nome e atributos
@@ -98,8 +99,10 @@ if (condicao != noone && condicao != "imune_queimado") {
         var _num_frames = sprite_get_number(_config.sprite);
         var _frame = floor(efeito_timer / 4) mod _num_frames;
 
-        if (_config.modo == "meio") {
-            draw_sprite_ext(_config.sprite, _frame, x, y, _escala_final, _escala_final, 0, c_white, 0.85);
+		if (_config.modo == "meio") {
+			var _escala_efeito_x = (sprite_width * 0.8) / sprite_get_width(_config.sprite);
+			var _escala_efeito_y = (sprite_height * 0.8) / sprite_get_height(_config.sprite);
+			draw_sprite_ext(_config.sprite, _frame, x, y, _escala_efeito_x, _escala_efeito_y, 0, c_white, 0.85);
         } else if (_config.modo == "envolta") {
             var _escala_envolta_x = (sprite_width * 1.3) / sprite_get_width(_config.sprite);
             var _escala_envolta_y = (sprite_height * 1.3) / sprite_get_height(_config.sprite);
