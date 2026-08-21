@@ -1,6 +1,14 @@
 if (girando) {
     tempo_girando += 1;
 
+	// Fade do som de arremesso
+	if (som_arremesso != noone && audio_is_playing(som_arremesso)) {
+	    som_volume -= 0.015;
+	    som_volume = max(som_volume, 0);
+
+	    audio_sound_gain(som_arremesso, som_volume, 0);
+	}
+
     var _progresso = clamp(tempo_girando / tempo_total_giro, 0, 1);
     var _restante = 1 - _progresso;
     var _progresso_suave = 1 - (_restante * _restante); // ease-out: chega suave no destino
@@ -21,13 +29,15 @@ if (girando) {
         image_index = irandom_range(0, sprite_get_number(sprite_index) - 1);
     }
 
-    if (tempo_girando >= tempo_total_giro) {
+	if (tempo_girando >= tempo_total_giro) {
         girando = false;
         altura_voo = 0;
         angulo_moeda = 0;
         image_index = (resultado_final == 1) ? 0 : 4;
         x = destino_x;
         y = destino_y;
+
+        audio_play_sound(snd_moeda_impacto, 1, 0, .3, 0, random_range(.9, 1.1));
 
         // Impacto elástico: achata (squash) rápido e depois estica de volta (stretch),
         // quicando levemente até assentar -- efeito de moeda batendo na mesa.

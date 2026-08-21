@@ -99,32 +99,12 @@ if (preview_ativo) {
                 iniciar_flip(1);
             } else if (point_in_rectangle(_mx, _my, _btn_sumario_x - _btn_largura/2, _btn_y - _btn_altura/2, _btn_sumario_x + _btn_largura/2, _btn_y + _btn_altura/2)) {
                 mostrando_sumario = true;
-                virando = false;
-                flip_progresso = 0;
             }
         }
 
         if (keyboard_check_pressed(vk_right)) iniciar_flip(1);
         if (keyboard_check_pressed(vk_left)) iniciar_flip(-1);
         #endregion
-    }
-}
-#endregion
-
-#region Animação de virada de página
-if (virando) {
-    flip_progresso += flip_velocidade;
-
-    if (flip_progresso >= 1 && !trocou_pagina) {
-        pagina_atual += direcao_flip * 2; // avança/recua um PAR de páginas
-        pagina_atual = clamp(pagina_atual, 0, max(0, array_length(paginas) - 1));
-        trocou_pagina = true;
-    }
-
-    if (flip_progresso >= 2) {
-        virando = false;
-        flip_progresso = 0;
-        trocou_pagina = false;
     }
 }
 #endregion

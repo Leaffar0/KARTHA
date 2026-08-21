@@ -23,3 +23,7 @@ velocidade_rotacao = 0;
 // Escala elástica (squash/stretch) pro impacto no chão
 moeda_escala_x = 1;
 moeda_escala_y = 1;
+
+// Som da moeda
+som_arremesso = noone;
+som_volume = 0;

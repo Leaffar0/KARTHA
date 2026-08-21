@@ -1381,10 +1381,21 @@ function jogar_moeda_visual(_origem_x, _origem_y, _destino_x, _destino_y, _funca
     _moeda.destino_x = _destino_x;
     _moeda.destino_y = _destino_y;
     _moeda.escala_moeda = global.MOEDA_LARGURA / sprite_get_width(_moeda.sprite_index);
-    _moeda.desvio_lateral_moeda = choose(-1, 1) * irandom_range(6, 14); // <-- novo
+    _moeda.desvio_lateral_moeda = choose(-1, 1) * irandom_range(6, 14);
     _moeda.girando = true;
     _moeda.tempo_girando = 0;
     _moeda.callback = _funcao_callback;
+
+    _moeda.som_volume = 0.6;
+
+	_moeda.som_arremesso = audio_play_sound(
+	    snd_moeda_arremesso,
+	    1,
+	    0,
+	    _moeda.som_volume,
+	    0,
+	    random_range(.95, 1.05)
+	);
 
     obj_controlador.rolagens_pendentes += 1;
     debug_combate("+1 pendente (moeda id=" + string(_moeda.id) + "). Total: " + string(obj_controlador.rolagens_pendentes));

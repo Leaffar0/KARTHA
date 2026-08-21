@@ -21,7 +21,7 @@ var _pagina_esquerda_x = _cx - (_largura_pagina / 2);
 var _pagina_direita_x = _cx + (_largura_pagina / 2);
 
 draw_sprite_ext(spr_livro_fundo, 0, _pagina_esquerda_x, _cy, _escala_pagina_x, _escala_pagina_y, 0, c_white, 1);
-draw_sprite_ext(spr_livro_fundo, 0, _pagina_direita_x, _cy, _escala_pagina_x, _escala_pagina_y, 0, c_white, 1);
+draw_sprite_ext(spr_livro_fundo, 0, _pagina_direita_x, _cy, -_escala_pagina_x, _escala_pagina_y, 0, c_white, 1);
 
 draw_set_color(c_black);
 draw_set_alpha(0.28);
@@ -78,58 +78,20 @@ if (mostrando_sumario) {
     #endregion
 } else {
 	
-    #region Página esquerda (estática)
+#region Página esquerda (estática)
     if (pagina_atual < array_length(paginas)) {
         desenhar_pagina_do_livro(paginas[pagina_atual], _pagina_esquerda_x, _cy, _largura_pagina * 0.86, preview_altura * 0.86);
     }
     #endregion
 
-    #region Página direita (a que vira)
-    var _indice_direita = pagina_atual + 1;
-    if (_indice_direita < array_length(paginas)) {
-        var _escala_x = 1;
-        if (virando) {
-            _escala_x = (flip_progresso < 1) ? (1 - flip_progresso) : (flip_progresso - 1);
-        }
+#region Página direita
+var _indice_direita = pagina_atual + 1;
+if (_indice_direita < array_length(paginas)) {
+    desenhar_pagina_do_livro(paginas[_indice_direita], _pagina_direita_x, _cy, _largura_pagina * 0.86, preview_altura * 0.86);
+}
+#endregion
 
-        var _bulge = 1;
-        if (virando) {
-            var _fase_normalizada = flip_progresso / 2;
-            _bulge = 1 + sin(_fase_normalizada * pi) * 0.035; // "incha" no meio da virada, simulando a curva elástica do papel
-        }
-
-        var _matriz_antiga = matrix_get(matrix_world);
-        var _matriz = matrix_build(_pagina_direita_x, _cy, 0, 0, 0, 0, _escala_x, _bulge, 1);
-        matrix_set(matrix_world, _matriz);
-
-        desenhar_pagina_do_livro(paginas[_indice_direita], 0, 0, _largura_pagina * 0.86, preview_altura * 0.86);
-
-        matrix_set(matrix_world, _matriz_antiga);
-
-        var _sombra_alpha = (1 - abs(_escala_x)) * 0.35;
-        if (_sombra_alpha > 0) {
-            draw_set_alpha(_sombra_alpha);
-            draw_set_color(c_black);
-            var _sombra_x = _cx + ((direcao_flip < 0) ? -_largura_pagina/2 : _largura_pagina/2);
-            draw_rectangle(_sombra_x - _largura_pagina/2, _cy - preview_altura/2, _sombra_x + _largura_pagina/2, _cy + preview_altura/2, false);
-            draw_set_alpha(1);
-            draw_set_color(c_white);
-        }
-
-        // realce de luz onde o papel curva mais (perto do meio da virada)
-        var _realce_alpha = (1 - abs(_escala_x)) * 0.16;
-        if (_realce_alpha > 0) {
-            draw_set_alpha(_realce_alpha);
-            draw_set_color(c_white);
-            var _realce_x = _cx + ((direcao_flip < 0) ? -_largura_pagina/2 : _largura_pagina/2);
-            draw_rectangle(_realce_x - _largura_pagina/4, _cy - preview_altura/2, _realce_x + _largura_pagina/4, _cy + preview_altura/2, false);
-            draw_set_alpha(1);
-            draw_set_color(c_white);
-        }
-    }
-    #endregion
-
-    #region Controles de navegação
+#region Controles de navegação
     var _btn_largura = 110;
     var _btn_altura = 40;
     var _btn_y = _cy + preview_altura/2 + 30;

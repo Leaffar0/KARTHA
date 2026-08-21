@@ -12,11 +12,6 @@ for (var i = 0; i < array_length(paginas); i++) {
 mostrando_sumario = true;
 sumario_hover_index = -1;
 
-virando = false;
-flip_progresso = 0;
-direcao_flip = 1;
-trocou_pagina = false;
-flip_velocidade = 0.04;
 #endregion
 
 #region Estado de interação e dimensões
@@ -41,25 +36,18 @@ image_yscale = livro_escala;
 
 #region Funções locais de navegação
 function iniciar_flip(_direcao) {
-    if (virando) return;
     if (mostrando_sumario) return;
 
-    var _novo_index = pagina_atual + (_direcao * 2); // agora move de 2 em 2 (um par de páginas)
+    var _novo_index = pagina_atual + (_direcao * 2);
     if (_novo_index < 0 || _novo_index >= array_length(paginas)) return;
 
-    virando = true;
-    flip_progresso = 0;
-    trocou_pagina = false;
-    direcao_flip = _direcao;
+    pagina_atual = _novo_index;
 }
 
 // Clique num item do sumário: pula direto pra página do capítulo escolhido.
 function abrir_pagina_do_sumario(_indice_pagina) {
-    var _indice_alinhado = _indice_pagina - (_indice_pagina mod 2); // mantém a paginação em pares
+    var _indice_alinhado = _indice_pagina - (_indice_pagina mod 2);
     pagina_atual = clamp(_indice_alinhado, 0, max(0, array_length(paginas) - 1));
     mostrando_sumario = false;
-    virando = false;
-    flip_progresso = 0;
-    trocou_pagina = false;
 }
 #endregion

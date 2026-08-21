@@ -25,9 +25,25 @@ if (turno == "inimigo" && ia_ativa) {
 
 #region Atalhos de teclado (debug/teste)
 if (keyboard_check_pressed(vk_escape)) {
-    game_end();
-}
+    var _fechou_algum_preview = false;
 
+    // Preview de carta ampliada (botão direito numa carta)
+    if (carta_preview != noone) {
+        carta_preview = noone;
+        _fechou_algum_preview = true;
+    }
+
+    // Preview do livro de regras
+    if (instance_exists(obj_livro) && obj_livro.preview_ativo) {
+        obj_livro.preview_ativo = false;
+        _fechou_algum_preview = true;
+    }
+
+    // Se nenhum preview estava aberto, ESC fecha o jogo normalmente
+    if (!_fechou_algum_preview) {
+        game_end();
+    }
+}
 if (keyboard_check_pressed(ord("R"))) {
     room_restart();
 }
