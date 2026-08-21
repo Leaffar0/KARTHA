@@ -536,6 +536,79 @@ function criar_dados_item_pocao() {
         cura: 5
     };
 }
+	
+function criar_dados_item_bau() {
+    return {
+        categoria: "item_consumivel",
+        nome: "Baú",
+        sprite_carta: spr_carta_bau,          // importe carta_baú.png com esse nome
+        custo: noone,
+        efeito_tipo: "comprar_cartas",
+        quantidade_efeito: 3
+    };
+}
+
+function criar_dados_item_frasco_sangue() {
+    return {
+        categoria: "item_consumivel",
+        nome: "Frasco de Sangue",
+        sprite_carta: spr_carta_frasco_sangue, // importe carta_frasco_de_sangue.png
+        custo: noone,
+        efeito_tipo: "revirar_sangue"
+    };
+}	
+
+function criar_dados_item_sangue_suga() {
+    return {
+        categoria: "item_consumivel",
+        nome: "Sangue Suga",
+        sprite_carta: spr_carta_sangue_suga, // troque quando importar a arte
+        custo: noone,
+        efeito_tipo: "buscar_sangue"
+    };
+}
+
+function criar_dados_item_pocao_mana() {
+    return {
+        categoria: "item_consumivel",
+        nome: "Poção de Mãna",
+        sprite_carta: spr_carta_pocao_mana,
+        custo: noone,
+        efeito_tipo: "buscar_mana"
+    };
+}
+	
+function criar_dados_item_elmo_ferro() {
+    return {
+        categoria: "item_equipavel",
+        nome: "Elmo de Ferro",
+        sprite_carta: spr_carta_elmo_ferro,   // importe carta_ielmo_de_ferro.png
+        custo: { tipo: "sucata", quantidade: 1 },
+        bonus_mod_dano: 0,
+        bonus_defesa: 1
+    };
+}
+	
+function criar_dados_item_frasco_acido() {
+    return {
+        categoria: "item_consumivel",
+        nome: "Frasco de Ácido",
+        sprite_carta: spr_carta_frasco_acido,   // importe carta_frasco_de_ácido.png
+        custo: noone,
+        efeito_tipo: "aplicar_corrosao"
+    };
+}
+	
+function criar_dados_item_vitamina_cerebro() {
+    return {
+        categoria: "item_consumivel",
+        nome: "Vitamina de Cérebro",
+        sprite_carta: spr_carta_vitamina_cerebro,  // importe carta_vitamina_de_cerebro.png
+        custo: noone,
+        efeito_tipo: "aumentar_intelig",
+        quantidade_efeito: 1
+    };
+}
 
 function criar_dados_armadilha_urso() {
     return {
@@ -556,6 +629,18 @@ function criar_dados_terreno_pantano() {
         bonus_defesa_global: -1 // reduz a defesa de todo mundo (terreno traiçoeiro)
     };
 }
+	
+function criar_dados_terreno_cemiterio() {
+    return {
+        categoria: "terreno",
+        nome: "Cemitério",
+        sprite_carta: spr_carta_cemiterio,   // importe cemiterio_carta.png
+        custo: { tipo: "ossos", quantidade: 3 },
+        bonus_defesa_global: 0,   // esse terreno não usa o bônus genérico, é condicional
+        efeito_terreno: "cemiterio"
+    };
+}
+
 #endregion
 
 #region Dados das cartas - Bençãos e Maldições
@@ -576,6 +661,26 @@ function criar_dados_maldicao_perda() {
         sprite_carta: noone,
         custo: noone,
         efeito: "perde_vida_ao_morrer"
+    };
+}
+
+function criar_dados_bencao_decomposicao() {
+    return {
+        categoria: "bencao",
+        nome: "Decomposição",
+        sprite_carta: spr_carta_decomposicao,   // importe a arte com esse nome
+        custo: noone,
+        efeito: "cura_ao_morrer"   // mesmo efeito da Bênção da Vida
+    };
+}
+
+function criar_dados_maldicao_sangue_por_sangue() {
+    return {
+        categoria: "maldicao",
+        nome: "Sangue por Sangue",
+        sprite_carta: spr_carta_sangue_por_sangue,   // importe a arte com esse nome
+        custo: noone,
+        efeito: "perde_vida_ao_morrer"   // mesmo efeito da Maldição da Perda
     };
 }
 
@@ -634,6 +739,38 @@ function aplicar_efeitos_morte(_carta, _por_inimigo) {
 }
 #endregion
 
+#region Terreno — efeitos condicionais por categoria de nome
+// Lista de palavras-chave que classificam uma tropa como "morto-vivo",
+// seguindo a convenção descrita no livro de regras (seção 11).
+function eh_morto_vivo(_carta) {
+    var _categorias_morto_vivo = ["zumbi", "esqueleto", "fantasma", "espirito", "espírito"];
+    var _nome_lower = string_lower(_carta.nome_carta);
+
+    for (var i = 0; i < array_length(_categorias_morto_vivo); i++) {
+        if (string_pos(_categorias_morto_vivo[i], _nome_lower) > 0) return true;
+    }
+    return false;
+}
+
+// Bônus de defesa que o Cemitério concede a essa carta especificamente (0 se não for morto-vivo ou terreno não ativo).
+function bonus_cemiterio_defesa(_carta) {
+    if (obj_controlador.terreno_ativo != "cemiterio") return 0;
+    return eh_morto_vivo(_carta) ? 1 : 0;
+}
+
+// Bônus de dano (físico/mágico) que o Cemitério concede.
+function bonus_cemiterio_dano(_carta) {
+    if (obj_controlador.terreno_ativo != "cemiterio") return 0;
+    return eh_morto_vivo(_carta) ? 1 : 0;
+}
+
+// Bônus no D20 de acerto que o Cemitério concede.
+function bonus_cemiterio_acerto(_carta) {
+    if (obj_controlador.terreno_ativo != "cemiterio") return 0;
+    return eh_morto_vivo(_carta) ? 1 : 0;
+}
+#endregion
+
 #region Deck — montar, embaralhar, comprar
 function embaralhar_array(_array) {
     var _n = array_length(_array);
@@ -675,6 +812,44 @@ function comprar_carta_do_deck(_x_inicial, _y_inicial) {
 
     var _funcao_sorteada = obj_controlador.monte[0];
     array_delete(obj_controlador.monte, 0, 1);
+    comprar_carta_do_deck_por_funcao(_funcao_sorteada, _x_inicial, _y_inicial);
+}
+
+// Procura no monte (baralho de compra) um recurso do tipo pedido, manda pra mão e embaralha o resto.
+// Retorna true se achou, false se o deck não tinha esse recurso.
+function buscar_recurso_no_deck(_tipo_recurso, _dono) {
+    var _monte = (_dono == "jogador") ? obj_controlador.monte : obj_controlador.monte_inimigo;
+
+    var _funcao_alvo = noone;
+    switch (_tipo_recurso) {
+        case "sangue": _funcao_alvo = criar_dados_recurso_sangue; break;
+        case "ossos":  _funcao_alvo = criar_dados_recurso_ossos;  break;
+        case "sucata": _funcao_alvo = criar_dados_recurso_sucata; break;
+        case "mana":   _funcao_alvo = criar_dados_recurso_mana;   break;
+    }
+    if (_funcao_alvo == noone) return false;
+
+    var _indice = array_get_index(_monte, _funcao_alvo);
+    if (_indice == -1) {
+        debug_combate("Busca: nenhum recurso de " + _tipo_recurso + " restou no deck.");
+        return false;
+    }
+
+    array_delete(_monte, _indice, 1);
+
+    if (_dono == "jogador") {
+        comprar_carta_do_deck_por_funcao(_funcao_alvo, obj_deck.x, obj_deck.y);
+    } else {
+        array_push(obj_controlador.mao_inimigo, _funcao_alvo);
+    }
+
+    embaralhar_array(_monte);
+    return true;
+}
+
+// Mesma lógica de sempre, mas recebe a função da carta já escolhida
+// (compra normal E efeitos de busca tipo Sangue Suga usam essa mesma função).
+function comprar_carta_do_deck_por_funcao(_funcao_sorteada, _x_inicial, _y_inicial) {
     var _dados = _funcao_sorteada();
 
     var _carta = instance_create_layer(_x_inicial, _y_inicial, "Instances", obj_carta);
@@ -687,41 +862,40 @@ function comprar_carta_do_deck(_x_inicial, _y_inicial) {
     if (_dados.categoria == "tropa") {
         _carta.vida = _dados.vida;
         _carta.vida_maxima = _dados.vida;
-		_carta.vida_pos_x = variable_struct_exists(_dados, "vida_pos_x") ? _dados.vida_pos_x : 0.11;
-		_carta.vida_pos_y = variable_struct_exists(_dados, "vida_pos_y") ? _dados.vida_pos_y : 0.07;
-		_carta.selo_abissal = variable_struct_exists(_dados, "selo_abissal") ? _dados.selo_abissal : false;
-		_carta.funcao_evolucao = variable_struct_exists(_dados, "evolucao") ? _dados.evolucao : noone;
+        _carta.vida_pos_x = variable_struct_exists(_dados, "vida_pos_x") ? _dados.vida_pos_x : 0.11;
+        _carta.vida_pos_y = variable_struct_exists(_dados, "vida_pos_y") ? _dados.vida_pos_y : 0.07;
+        _carta.selo_abissal = variable_struct_exists(_dados, "selo_abissal") ? _dados.selo_abissal : false;
+        _carta.funcao_evolucao = variable_struct_exists(_dados, "evolucao") ? _dados.evolucao : noone;
         _carta.custo_sacrificio = _dados.sacrificio;
         _carta.dado_dano = _dados.dado_dano;
-		_carta.qtd_dados_dano = variable_struct_exists(_dados, "qtd_dados_dano") ? _dados.qtd_dados_dano : 1;
-		_carta.qtd_dados_dano_magico = variable_struct_exists(_dados, "qtd_dados_dano_magico") ? _dados.qtd_dados_dano_magico : 1;
+        _carta.qtd_dados_dano = variable_struct_exists(_dados, "qtd_dados_dano") ? _dados.qtd_dados_dano : 1;
+        _carta.qtd_dados_dano_magico = variable_struct_exists(_dados, "qtd_dados_dano_magico") ? _dados.qtd_dados_dano_magico : 1;
         _carta.mod_dano = _dados.mod_dano;
         _carta.defesa_fisica = _dados.defesa_fisica;
         _carta.defesa_magica = _dados.defesa_magica;
         _carta.custo = _dados.custo;
         _carta.habilidades = variable_struct_exists(_dados, "habilidades") ? _dados.habilidades : [];
-		_carta.funcao_mitose = variable_struct_exists(_dados, "mitose") ? _dados.mitose : noone;
-		_carta.nivel_inteligencia = variable_struct_exists(_dados, "inteligencia") ? _dados.inteligencia : 1;
-		_carta.dado_dano_magico = variable_struct_exists(_dados, "dado_dano_magico") ? _dados.dado_dano_magico : 0;
-		_carta.mod_dano_magico = variable_struct_exists(_dados, "mod_dano_magico") ? _dados.mod_dano_magico : 0;
-		_carta.mochila = variable_struct_exists(_dados, "mochila") ? _dados.mochila : 1;
-		
+        _carta.funcao_mitose = variable_struct_exists(_dados, "mitose") ? _dados.mitose : noone;
+        _carta.nivel_inteligencia = variable_struct_exists(_dados, "inteligencia") ? _dados.inteligencia : 1;
+        _carta.dado_dano_magico = variable_struct_exists(_dados, "dado_dano_magico") ? _dados.dado_dano_magico : 0;
+        _carta.mod_dano_magico = variable_struct_exists(_dados, "mod_dano_magico") ? _dados.mod_dano_magico : 0;
+        _carta.mochila = variable_struct_exists(_dados, "mochila") ? _dados.mochila : 1;
 
-		_carta.vida_pos_x = variable_struct_exists(_dados, "vida_pos_x") ? _dados.vida_pos_x : 0.10;
-		_carta.vida_pos_y = variable_struct_exists(_dados, "vida_pos_y") ? _dados.vida_pos_y : 0.07;
-		_carta.int_pos_x = variable_struct_exists(_dados, "int_pos_x") ? _dados.int_pos_x : 0.91;
-		_carta.int_pos_y = variable_struct_exists(_dados, "int_pos_y") ? _dados.int_pos_y : 0.073;
-		_carta.mochila_pos_x = variable_struct_exists(_dados, "mochila_pos_x") ? _dados.mochila_pos_x : 0.91;
-		_carta.mochila_pos_y = variable_struct_exists(_dados, "mochila_pos_y") ? _dados.mochila_pos_y : 0.185;
-		_carta.atk_pos_x = variable_struct_exists(_dados, "atk_pos_x") ? _dados.atk_pos_x : 0.12;
-		_carta.atk_pos_y = variable_struct_exists(_dados, "atk_pos_y") ? _dados.atk_pos_y : 0.92;
-		_carta.atk_magico_pos_x = variable_struct_exists(_dados, "atk_magico_pos_x") ? _dados.atk_magico_pos_x : 0.37;
-		_carta.atk_magico_pos_y = variable_struct_exists(_dados, "atk_magico_pos_y") ? _dados.atk_magico_pos_y : 0.92;
-		_carta.def_pos_x = variable_struct_exists(_dados, "def_pos_x") ? _dados.def_pos_x : 0.62;
-		_carta.def_pos_y = variable_struct_exists(_dados, "def_pos_y") ? _dados.def_pos_y : 0.92;
-		_carta.def_magico_pos_x = variable_struct_exists(_dados, "def_magico_pos_x") ? _dados.def_magico_pos_x : 0.87;
-		_carta.def_magico_pos_y = variable_struct_exists(_dados, "def_magico_pos_y") ? _dados.def_magico_pos_y : 0.92;
-		
+        _carta.vida_pos_x = variable_struct_exists(_dados, "vida_pos_x") ? _dados.vida_pos_x : 0.10;
+        _carta.vida_pos_y = variable_struct_exists(_dados, "vida_pos_y") ? _dados.vida_pos_y : 0.07;
+        _carta.int_pos_x = variable_struct_exists(_dados, "int_pos_x") ? _dados.int_pos_x : 0.91;
+        _carta.int_pos_y = variable_struct_exists(_dados, "int_pos_y") ? _dados.int_pos_y : 0.073;
+        _carta.mochila_pos_x = variable_struct_exists(_dados, "mochila_pos_x") ? _dados.mochila_pos_x : 0.91;
+        _carta.mochila_pos_y = variable_struct_exists(_dados, "mochila_pos_y") ? _dados.mochila_pos_y : 0.185;
+        _carta.atk_pos_x = variable_struct_exists(_dados, "atk_pos_x") ? _dados.atk_pos_x : 0.12;
+        _carta.atk_pos_y = variable_struct_exists(_dados, "atk_pos_y") ? _dados.atk_pos_y : 0.92;
+        _carta.atk_magico_pos_x = variable_struct_exists(_dados, "atk_magico_pos_x") ? _dados.atk_magico_pos_x : 0.37;
+        _carta.atk_magico_pos_y = variable_struct_exists(_dados, "atk_magico_pos_y") ? _dados.atk_magico_pos_y : 0.92;
+        _carta.def_pos_x = variable_struct_exists(_dados, "def_pos_x") ? _dados.def_pos_x : 0.62;
+        _carta.def_pos_y = variable_struct_exists(_dados, "def_pos_y") ? _dados.def_pos_y : 0.92;
+        _carta.def_magico_pos_x = variable_struct_exists(_dados, "def_magico_pos_x") ? _dados.def_magico_pos_x : 0.87;
+        _carta.def_magico_pos_y = variable_struct_exists(_dados, "def_magico_pos_y") ? _dados.def_magico_pos_y : 0.92;
+
     } else if (_dados.categoria == "recurso") {
         _carta.tipo_recurso = _dados.tipo_recurso;
 
@@ -735,37 +909,40 @@ function comprar_carta_do_deck(_x_inicial, _y_inicial) {
         _carta.bonus_defesa_item = _dados.bonus_defesa;
 
     } else if (_dados.categoria == "item_consumivel") {
-        _carta.custo = _dados.custo;
-        _carta.cura_item = _dados.cura;
+	    _carta.custo = _dados.custo;
+	    _carta.cura_item = variable_struct_exists(_dados, "cura") ? _dados.cura : 0;
+	    _carta.efeito_tipo = variable_struct_exists(_dados, "efeito_tipo") ? _dados.efeito_tipo : "";
+	    _carta.quantidade_efeito = variable_struct_exists(_dados, "quantidade_efeito") ? _dados.quantidade_efeito : 0;
 
     } else if (_dados.categoria == "armadilha") {
         _carta.custo = _dados.custo;
         _carta.dado_efeito = _dados.dado_efeito;
 
     } else if (_dados.categoria == "terreno") {
-        _carta.custo = _dados.custo;
-        _carta.bonus_defesa_global = _dados.bonus_defesa_global;
+	    _carta.custo = _dados.custo;
+	    _carta.bonus_defesa_global = _dados.bonus_defesa_global;
+	    _carta.efeito_terreno = variable_struct_exists(_dados, "efeito_terreno") ? _dados.efeito_terreno : "";
 
     } else if (_dados.categoria == "magica") {
         _carta.custo = _dados.custo;
 
-	} else if (_dados.categoria == "bencao" || _dados.categoria == "maldicao") {
-    _carta.custo = _dados.custo;
-    _carta.efeito_passivo = _dados.efeito;
-	}
-        // identifica qual magia é pelo nome, pra saber qual efeito aplicar depois
-        if (_dados.nome == "Bola de Fogo") {
-            _carta.efeito_tipo = "bola_fogo";
-            _carta.dado_efeito = _dados.dado_efeito;
-            _carta.chance_queimar = _dados.chance_queimar;
-        } else if (_dados.nome == "Veneno Mortal") {
-            _carta.efeito_tipo = "veneno";
-        } else if (_dados.nome == "Congelante") {
-            _carta.efeito_tipo = "gelo";
-        } else if (_dados.nome == "Choque Elétrico") {
-            _carta.efeito_tipo = "choque";
-        }
-    
+    } else if (_dados.categoria == "bencao" || _dados.categoria == "maldicao") {
+        _carta.custo = _dados.custo;
+        _carta.efeito_passivo = _dados.efeito;
+    }
+
+    // identifica qual magia é pelo nome, pra saber qual efeito aplicar depois
+    if (_dados.nome == "Bola de Fogo") {
+        _carta.efeito_tipo = "bola_fogo";
+        _carta.dado_efeito = _dados.dado_efeito;
+        _carta.chance_queimar = _dados.chance_queimar;
+    } else if (_dados.nome == "Veneno Mortal") {
+        _carta.efeito_tipo = "veneno";
+    } else if (_dados.nome == "Congelante") {
+        _carta.efeito_tipo = "gelo";
+    } else if (_dados.nome == "Choque Elétrico") {
+        _carta.efeito_tipo = "choque";
+    }
 
     _carta.esta_na_mao = true;
 
@@ -799,6 +976,32 @@ function comprar_mao_inicial() {
     }
 
     obj_controlador.mao_inicial_comprada = true;
+}
+
+// Compra N cartas seguidas do monte do lado indicado, parando se o monte acabar.
+function comprar_varias_cartas(_quantidade, _dono) {
+    for (var i = 0; i < _quantidade; i++) {
+        if (_dono == "jogador") {
+            if (array_length(obj_controlador.monte) == 0) break;
+            comprar_carta_do_deck(obj_deck.x, obj_deck.y);
+        } else {
+            if (array_length(obj_controlador.monte_inimigo) == 0) break;
+            comprar_carta_do_deck_ia();
+        }
+    }
+}
+
+// Desvira 1 recurso de um tipo específico já virado (gasto) de volta pro estado disponível.
+// Retorna true se achou um pra reverter, false se não tinha nenhum virado.
+function revirar_recurso(_tipo, _dono) {
+    var _revirado = false;
+    with (obj_recurso) {
+        if (!_revirado && dono == _dono && tipo == _tipo && virado) {
+            virado = false;
+            _revirado = true;
+        }
+    }
+    return _revirado;
 }
 
 // Compra a mão inicial da IA (chamada 1x, no Room Start).
@@ -1141,7 +1344,8 @@ function rolar_combate(_atacante, _defensor, _tipo_ataque) {
 
 	iniciar_animacao_ataque(_atacante, _defensor, 8, 14); // cutucada leve no início do ataque
 
-    var _dado_acerto = irandom_range(1, 20);
+    var _dado_acerto = irandom_range(1, 20) + bonus_cemiterio_acerto(_atacante);
+    _dado_acerto = clamp(_dado_acerto, 1, 20); // não deixa passar de 20 nem virar crítico artificial
 
     var _dados_combate = {
         atacante: _atacante,
@@ -1193,8 +1397,9 @@ function processar_resultado_acerto(_dado_acerto, _atacante, _defensor, _tipo_at
 			iniciar_animacao_ataque(defensor, atacante, 18, 18);
 			aplicar_flash_dano(atacante);
 
-            var _dano_contra = _resultado + defensor.mod_dano;
-            _dano_contra = max(0, _dano_contra - atacante.defesa_fisica - obj_controlador.terreno_bonus_defesa);
+            var _dano_contra = _resultado + defensor.mod_dano + bonus_cemiterio_dano(defensor);
+            var _defesa_contra = atacante.defesa_fisica + bonus_cemiterio_defesa(atacante);
+            _dano_contra = max(0, _dano_contra - _defesa_contra - obj_controlador.terreno_bonus_defesa);
             atacante.vida -= _dano_contra;
 
             debug_combate(atacante.nome_carta + " tomou " + string(_dano_contra) + " de contra-ataque. Vida: " + string(atacante.vida));
@@ -1238,13 +1443,13 @@ function processar_resultado_acerto(_dado_acerto, _atacante, _defensor, _tipo_at
     rolar_dado_visual(_atacante.x, _atacante.y, _alvo_real.x, _alvo_real.y, _dado_usado, _dano_dado, method(_dados_dano, function(_resultado) {
         if (!instance_exists(atacante) || !instance_exists(defensor)) return;
 
-		// golpe forte + flash vermelho na hora que o dano é revelado
 		iniciar_animacao_ataque(atacante, defensor, 18, 18);
 		aplicar_flash_dano(defensor);
 
         var _defesa_usada = (tipo_ataque == "magica") ? defensor.defesa_magica : defensor.defesa_fisica;
+        _defesa_usada += bonus_cemiterio_defesa(defensor);
 
-        var _dano_final = _resultado + mod_usado;
+        var _dano_final = _resultado + mod_usado + bonus_cemiterio_dano(atacante);
         _dano_final = max(0, _dano_final - _defesa_usada - obj_controlador.terreno_bonus_defesa);
         defensor.vida -= _dano_final;
 
@@ -1386,7 +1591,7 @@ function jogar_moeda_visual(_origem_x, _origem_y, _destino_x, _destino_y, _funca
     _moeda.tempo_girando = 0;
     _moeda.callback = _funcao_callback;
 
-    _moeda.som_volume = 0.6;
+    _moeda.som_volume = 0.4;
 
 	_moeda.som_arremesso = audio_play_sound(
 	    snd_moeda_arremesso,

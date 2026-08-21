@@ -71,7 +71,7 @@ if (categoria == "tropa") {
 
 	desenhar_stat(self, vida, vida_pos_x, vida_pos_y, _x_desenho, _y_desenho, _rotacao_total, _escala_final, _escala_texto_fallback);
 	desenhar_stat(self, string(nivel_inteligencia), int_pos_x, int_pos_y, _x_desenho, _y_desenho, _rotacao_total, _escala_final, _escala_texto_fallback, true);
-	desenhar_stat(self, mochila, mochila_pos_x, mochila_pos_y, _x_desenho, _y_desenho, _rotacao_total, _escala_final, _escala_texto_fallback);
+	desenhar_stat(self, string(mochila), mochila_pos_x, mochila_pos_y, _x_desenho, _y_desenho, _rotacao_total, _escala_final, _escala_texto_fallback, true);
 	desenhar_stat(self, defesa_fisica, def_pos_x, def_pos_y, _x_desenho, _y_desenho, _rotacao_total, _escala_final, _escala_texto_fallback);
 	desenhar_stat(self, defesa_magica, def_magico_pos_x, def_magico_pos_y, _x_desenho, _y_desenho, _rotacao_total, _escala_final, _escala_texto_fallback);
 

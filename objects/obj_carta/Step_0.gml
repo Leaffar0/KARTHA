@@ -182,14 +182,15 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         x = origem_x; y = origem_y;
         esta_na_mao = true;
     }
+	
 	} else if (categoria == "item_equipavel") {
-    var _alvo = noone;
-    var _menor_distancia = 9999;
+	    var _alvo = noone;
+	    var _menor_distancia = 9999;
     
     with (obj_carta) {
         if (id == other.id) continue;
-        if (!travada || dono != "jogador") continue; // só equipa em tropa sua
-        if (tem_item_equipado) continue; // já tem item, não aceita outro
+        if (!travada || dono != "jogador") continue;
+        if (mochila <= 0) continue; // mochila cheia, não aceita mais itens
         
         var _dist = point_distance(x, y, other.x, other.y);
         if (_dist < 60 && _dist < _menor_distancia) {
@@ -203,7 +204,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         
         _alvo.mod_dano += bonus_mod_dano_item;
         _alvo.defesa_fisica += bonus_defesa_item;
-        _alvo.tem_item_equipado = true;
+        _alvo.mochila -= 1; // ocupa 1 espaço da mochila
         
         var _index = array_get_index(obj_controlador.mao, id);
         if (_index != -1) {
@@ -217,33 +218,138 @@ if (arrastando && mouse_check_button_released(mb_left)) {
     }
     
 } else if (categoria == "item_consumivel") {
-    var _alvo = noone;
-    var _menor_distancia = 9999;
-    
-    with (obj_carta) {
-        if (id == other.id) continue;
-        if (!travada || dono != "jogador") continue;
-        
-        var _dist = point_distance(x, y, other.x, other.y);
-        if (_dist < 60 && _dist < _menor_distancia) {
-            _menor_distancia = _dist;
-            _alvo = id;
+    if (string_pos("buscar_", efeito_tipo) == 1) {
+        // --- Sangue Suga, Poção de Mãna (já existente) ---
+        var _distancia_arrastada = point_distance(x, y, arrastar_inicio_x, arrastar_inicio_y);
+        var _tipo_buscado = string_delete(efeito_tipo, 1, string_length("buscar_"));
+
+        if (_distancia_arrastada > 80 && pode_pagar_custo(custo, "jogador")) {
+            if (buscar_recurso_no_deck(_tipo_buscado, "jogador")) {
+                pagar_custo(custo, "jogador");
+                var _index = array_get_index(obj_controlador.mao, id);
+                if (_index != -1) {
+                    array_delete(obj_controlador.mao, _index, 1);
+                    organizar_mao();
+                }
+                instance_destroy(id);
+            } else {
+                x = origem_x; y = origem_y;
+                esta_na_mao = true;
+            }
+        } else {
+            x = origem_x; y = origem_y;
+            esta_na_mao = true;
         }
-    }
-    
-    if (_alvo != noone && pode_pagar_custo(custo, "jogador")) {
-        pagar_custo(custo, "jogador");
-        _alvo.vida = min(_alvo.vida + cura_item, _alvo.vida_maxima);
-        
-        var _index = array_get_index(obj_controlador.mao, id);
-        if (_index != -1) {
-            array_delete(obj_controlador.mao, _index, 1);
-            organizar_mao();
+
+    } else if (efeito_tipo == "comprar_cartas") {
+        // --- Baú ---
+        var _distancia_arrastada = point_distance(x, y, arrastar_inicio_x, arrastar_inicio_y);
+
+        if (_distancia_arrastada > 80 && pode_pagar_custo(custo, "jogador")) {
+            pagar_custo(custo, "jogador");
+            comprar_varias_cartas(quantidade_efeito, "jogador");
+
+            var _index = array_get_index(obj_controlador.mao, id);
+            if (_index != -1) {
+                array_delete(obj_controlador.mao, _index, 1);
+                organizar_mao();
+            }
+            instance_destroy(id);
+        } else {
+            x = origem_x; y = origem_y;
+            esta_na_mao = true;
         }
-        instance_destroy(id);
-    } else {
-        x = origem_x; y = origem_y;
-        esta_na_mao = true;
+
+	    } else if (efeito_tipo == "aplicar_corrosao") {
+        // --- Frasco de Ácido: mira em qualquer tropa (aliada ou inimiga) ---
+        var _alvo = noone;
+        var _menor_distancia = 9999;
+
+        with (obj_carta) {
+            if (id == other.id) continue; // não mira em si mesma
+            if (!travada) continue; // só tropas já em campo
+
+            var _dist = point_distance(x, y, other.x, other.y);
+            if (_dist < 60 && _dist < _menor_distancia) {
+                _menor_distancia = _dist;
+                _alvo = id;
+            }
+        }
+
+        if (_alvo != noone && pode_pagar_custo(custo, "jogador")) {
+            pagar_custo(custo, "jogador");
+            aplicar_corrosao(_alvo);
+
+            var _index = array_get_index(obj_controlador.mao, id);
+            if (_index != -1) {
+                array_delete(obj_controlador.mao, _index, 1);
+                organizar_mao();
+            }
+            instance_destroy(id);
+        } else {
+            x = origem_x; y = origem_y;
+            esta_na_mao = true;
+        }
+
+    } else if (efeito_tipo == "revirar_sangue") {
+        // --- Frasco de Sangue ---
+        var _distancia_arrastada = point_distance(x, y, arrastar_inicio_x, arrastar_inicio_y);
+
+        if (_distancia_arrastada > 80 && pode_pagar_custo(custo, "jogador")) {
+            if (revirar_recurso("sangue", "jogador")) {
+                pagar_custo(custo, "jogador");
+                var _index = array_get_index(obj_controlador.mao, id);
+                if (_index != -1) {
+                    array_delete(obj_controlador.mao, _index, 1);
+                    organizar_mao();
+                }
+                instance_destroy(id);
+            } else {
+                debug_combate("Frasco de Sangue: nenhum sangue virado pra reverter.");
+                x = origem_x; y = origem_y;
+                esta_na_mao = true;
+            }
+        } else {
+            x = origem_x; y = origem_y;
+            esta_na_mao = true;
+        }
+
+       } else {
+        // --- mira numa tropa: cura (Poção) ou buff de inteligência (Vitamina) ---
+        var _alvo = noone;
+        var _menor_distancia = 9999;
+
+        with (obj_carta) {
+            if (id == other.id) continue;
+            if (!travada || dono != "jogador") continue;
+
+            var _dist = point_distance(x, y, other.x, other.y);
+            if (_dist < 60 && _dist < _menor_distancia) {
+                _menor_distancia = _dist;
+                _alvo = id;
+            }
+        }
+
+        if (_alvo != noone && pode_pagar_custo(custo, "jogador")) {
+            pagar_custo(custo, "jogador");
+
+            if (efeito_tipo == "aumentar_intelig") {
+                _alvo.nivel_inteligencia += quantidade_efeito;
+                debug_combate(_alvo.nome_carta + " ganhou +" + string(quantidade_efeito) + " de inteligência!");
+            } else {
+                _alvo.vida = min(_alvo.vida + cura_item, _alvo.vida_maxima);
+            }
+
+            var _index = array_get_index(obj_controlador.mao, id);
+            if (_index != -1) {
+                array_delete(obj_controlador.mao, _index, 1);
+                organizar_mao();
+            }
+            instance_destroy(id);
+        } else {
+            x = origem_x; y = origem_y;
+            esta_na_mao = true;
+        }
     }
 	
 	} else if (categoria == "armadilha") {
@@ -281,29 +387,32 @@ if (arrastando && mouse_check_button_released(mb_left)) {
 	        esta_na_mao = true;
 	    }
 	} else if (categoria == "terreno") {
-	    var _distancia_arrastada = point_distance(x, y, arrastar_inicio_x, arrastar_inicio_y);
-    
-	    if (_distancia_arrastada > 80 && pode_pagar_custo(custo, "jogador")) {
-	        pagar_custo(custo, "jogador");
-        
-	        with (obj_slot_terreno) {
-	            if (ocupado && terreno_atual != noone) {
-	                instance_destroy(terreno_atual);
-	            }
-	        }
-        
-	        obj_controlador.terreno_bonus_defesa = bonus_defesa_global;
-        
-	        var _index = array_get_index(obj_controlador.mao, id);
-	        if (_index != -1) {
-	            array_delete(obj_controlador.mao, _index, 1);
-	            organizar_mao();
-	        }
-	        instance_destroy(id);
-	    } else {
-	        x = origem_x; y = origem_y;
-	        esta_na_mao = true;
-	    }
+    var _distancia_arrastada = point_distance(x, y, arrastar_inicio_x, arrastar_inicio_y);
+
+    if (_distancia_arrastada > 80 && pode_pagar_custo(custo, "jogador")) {
+        pagar_custo(custo, "jogador");
+
+        with (obj_slot_terreno) {
+            if (ocupado && terreno_atual != noone) {
+                instance_destroy(terreno_atual);
+            }
+        }
+
+        obj_controlador.terreno_bonus_defesa = bonus_defesa_global;
+        obj_controlador.terreno_ativo = efeito_terreno; // "" se for terreno sem efeito condicional
+
+        var _index = array_get_index(obj_controlador.mao, id);
+        if (_index != -1) {
+            array_delete(obj_controlador.mao, _index, 1);
+            organizar_mao();
+        }
+        instance_destroy(id);
+    } else {
+        x = origem_x; y = origem_y;
+        esta_na_mao = true;
+    }
+
+		
 	} else if (categoria == "bencao" || categoria == "maldicao") {
     var _distancia_arrastada = point_distance(x, y, arrastar_inicio_x, arrastar_inicio_y);
     

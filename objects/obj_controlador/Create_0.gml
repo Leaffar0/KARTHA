@@ -32,9 +32,14 @@ baralho = [
     criar_dados_construcao_torre,criar_dados_construcao_hemodrenario,
     criar_dados_magica_bola_fogo, criar_dados_magica_veneno, criar_dados_magica_gelo, criar_dados_magica_choque,
     criar_dados_item_espada, criar_dados_item_escudo, criar_dados_item_pocao,
+	criar_dados_item_sangue_suga, criar_dados_item_pocao_mana,
     criar_dados_armadilha_urso,
-    criar_dados_terreno_pantano,
-	criar_dados_bencao_vida, criar_dados_maldicao_perda
+	criar_dados_bencao_vida, criar_dados_maldicao_perda,
+	criar_dados_bencao_decomposicao, criar_dados_maldicao_sangue_por_sangue,
+	criar_dados_item_bau, criar_dados_item_frasco_sangue,
+	criar_dados_item_vitamina_cerebro, criar_dados_item_elmo_ferro,
+	criar_dados_item_frasco_acido, criar_dados_terreno_pantano,criar_dados_terreno_cemiterio
+	
 ];
 
 monte = montar_deck();
@@ -88,6 +93,7 @@ recurso_colocado_no_turno_inimigo = false;
 
 #region Terreno (efeito global no campo de batalha)
 terreno_bonus_defesa = 0;
+terreno_ativo = "";        // nome do terreno ativo, usado pra efeitos condicionais tipo Cemitério
 #endregion
 
 #region Dados / rolagens visuais
