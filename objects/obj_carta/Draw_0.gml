@@ -1,6 +1,7 @@
 #region Preparação e desenho base da carta
 draw_set_font(Fontenil)
 
+
 var _rotacao_extra = (dono == "inimigo") ? 180 : 0;
 var _rotacao_total = rotacao_atual + rotacao_animacao + rotacao_evolucao + _rotacao_extra;
 
@@ -26,6 +27,9 @@ if (dano_flash_timer > 0) {
     _cor_final = merge_color(cor_evolucao, c_red, _piscar * _flash_progresso);
 }
 
+gpu_set_texfilter(true);
+
+
 draw_sprite_ext(
     sprite_index,
     image_index,
@@ -37,6 +41,7 @@ draw_sprite_ext(
     _cor_final,
     _alpha_carta
 );
+
 
 #endregion
 
