@@ -66,7 +66,9 @@ O projeto encontra-se em desenvolvimento ativo.
 
 ## Capturas de Tela
 
-*(Adicionar imagens futuramente)*
+<img width="1136" height="632" alt="Captura de tela 2026-08-20 223628" src="https://github.com/user-attachments/assets/6e07e63b-8b81-4a22-9eb4-642f29f9491c" />
+
+<img width="1133" height="630" alt="Captura de tela 2026-08-20 223657" src="https://github.com/user-attachments/assets/c2ea9eaa-8baf-47e1-a80e-3b38bee98190" />
 
 ## Autor
 
