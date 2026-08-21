@@ -1,3 +1,4 @@
+gpu_set_texfilter(false);
 // Garante que o sprite continue sendo renderizado normalmente durante todo o voo.
 draw_set_alpha(1);
 draw_set_color(c_white);
@@ -14,3 +15,4 @@ if (!girando && progresso_revelacao > 0) {
 }
 draw_set_halign(fa_left);
 draw_set_valign(fa_top);
+gpu_set_texfilter(true);

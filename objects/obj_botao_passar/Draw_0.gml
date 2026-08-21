@@ -1,3 +1,4 @@
+gpu_set_texfilter(false);
 draw_self();
 draw_set_font(Fontenil);
 
@@ -14,3 +15,4 @@ draw_text(x, y - 30, _texto);
 draw_set_halign(-1);
 draw_set_valign(-1);
 draw_set_font(-1);
+gpu_set_texfilter(true);
