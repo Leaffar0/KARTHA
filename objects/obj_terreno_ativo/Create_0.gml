@@ -9,6 +9,7 @@ destino_y = y;
 
 rotacoes_extras = 2;     // quantas voltas completas dá no ar antes de assentar (drama)
 angulo_final = +90;      // deitada, virada pra direita -- igual à rotação do próprio slot na room
+alpha_visual = 1; // padrão opaco (terreno normal); armadilha vai sobrescrever pra transparente
 
 escala_base = 1;         // recalculado externamente logo após a criação (ver obj_carta)
 pulso_x = 1;

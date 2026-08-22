@@ -32,6 +32,6 @@ if (entrando) {
         }));
 
         audio_play_sound(snd_colocar, 1, 0, .6, 0, random_range(.7, 1));
-        criar_poeira(x, y + sprite_height/2, sprite_width);
+        criar_poeira(x, y + (sprite_height/2) * escala_base, sprite_width * escala_base);
     }
 }

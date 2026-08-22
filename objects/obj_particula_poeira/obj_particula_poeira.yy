@@ -10,8 +10,8 @@
   "name":"obj_particula_poeira",
   "overriddenProperties":[],
   "parent":{
-    "name":"Particula",
-    "path":"folders/Objetos/Particula.yy",
+    "name":"Efeitos",
+    "path":"folders/Objetos/Efeitos.yy",
   },
   "parentObjectId":null,
   "persistent":false,

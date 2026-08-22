@@ -46,9 +46,9 @@ draw_sprite_ext(
 if (armadilha_estado == "vigiando" || armadilha_estado == "pronta") {
     var _pulso_brilho = (sin(current_time / 150) + 1) / 2; // 0 a 1
     var _cor_base = (armadilha_estado == "pronta") ? c_red : c_yellow;
-    var _cor_brilho = merge_color(c_white, _cor_base, 0.35); // suaviza a cor, não fica saturada
+    var _cor_brilho = merge_color(c_white, _cor_base, 0.2); // suaviza a cor, não fica saturada
 
-    draw_set_alpha(_pulso_brilho * 0.22); // era 0.5, bem mais discreto agora
+    draw_set_alpha(_pulso_brilho * 0.15); // era 0.5, bem mais discreto agora
     draw_sprite_ext(sprite_index, image_index, _x_desenho, _y_desenho, _escala_final * 1.05, _escala_final * 1.05, _rotacao_total, _cor_brilho, 1);
     draw_set_alpha(1);
 }

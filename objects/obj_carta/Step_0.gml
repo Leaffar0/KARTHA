@@ -415,7 +415,8 @@ if (arrastando && mouse_check_button_released(mb_left)) {
 		_visual_armadilha.origem_y = y;
 		_visual_armadilha.angulo_final = 0;
 		_visual_armadilha.entrada_duracao = 20;
-		_visual_armadilha.depth = 200;
+		_visual_armadilha.depth = 50;
+		_visual_armadilha.alpha_visual = 0.5;
 
 		armadilha_visual_id = _visual_armadilha.id; // guarda referência pra poder destruir depois
 

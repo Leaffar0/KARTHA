@@ -680,6 +680,8 @@ function ativar_armadilha(_carta_armadilha) {
         return;
     }
 
+    criar_flash(_alvo.x, _alvo.y, 45); // <-- flash discreto no momento do disparo
+
     var _dano = irandom_range(1, _carta_armadilha.dado_efeito);
     _alvo.vida -= _dano;
     aplicar_condicao(_alvo, "sangrando", 1, 3);
@@ -688,7 +690,6 @@ function ativar_armadilha(_carta_armadilha) {
 
     if (_alvo.vida <= 0) destruir_tropa(_alvo);
 
-    // Remove o visual que ficava escondido no slot
     if (_carta_armadilha.armadilha_visual_id != noone && instance_exists(_carta_armadilha.armadilha_visual_id)) {
         instance_destroy(_carta_armadilha.armadilha_visual_id);
     }
@@ -2401,6 +2402,11 @@ function criar_poeira(_x, _y, _largura) {
         _particula.vida_particula = irandom_range(20, 35);
         _particula.vida_particula_max = _particula.vida_particula;
     }
+}
+	
+function criar_flash(_x, _y, _tamanho = 40) {
+    var _flash = instance_create_layer(_x, _y, "Instances", obj_flash_efeito);
+    _flash.tamanho_flash = _tamanho;
 }
 #endregion
 
