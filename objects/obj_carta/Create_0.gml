@@ -32,8 +32,17 @@ tipo_recurso = "";
 condicao = noone;              // "queimado", "envenenado", "paralisado", etc, ou noone
 condicao_turnos_restantes = 0; // -1 = dura pra sempre (até morrer ou ser curada)
 condicao_dano_por_turno = 0;
+
 dado_efeito = 0;
 chance_queimar = 0;
+
+// Armadilha: ciclo de vida "vigiando slot -> pronta pra ativar -> consumida"
+armadilha_estado = "";       // "" = não é armadilha ou ainda na mão normal | "vigiando" | "pronta"
+armadilha_lane = -1;
+armadilha_posicao = -1;
+armadilha_balanco_timer = 0;
+armadilha_visual_id = noone;
+
 efeito_timer = 0;
 efeito_tipo = ""; // qual magia essa carta é: "bola_fogo", "veneno", "gelo", "choque"
 vezes_eletrocutado_seguidas = 0; // contador pro efeito de Loucura

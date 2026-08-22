@@ -1,0 +1,1 @@
+audio_play_sound(snd_bola_fogo_fogo, 1, 0, .7, 0, random_range(.95, 1.05));

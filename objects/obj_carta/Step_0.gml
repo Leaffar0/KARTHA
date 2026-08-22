@@ -1,3 +1,20 @@
+#region Armadilha vigiando: detecta gatilho e faz a carta balançar na mão
+if (armadilha_estado == "vigiando" || armadilha_estado == "pronta") {
+    var _slot_vigiado = buscar_slot(armadilha_lane, armadilha_posicao);
+    var _tem_tropa_em_cima = (_slot_vigiado != noone && _slot_vigiado.ocupado && instance_exists(_slot_vigiado.carta_atual));
+
+    armadilha_estado = _tem_tropa_em_cima ? "pronta" : "vigiando";
+
+    if (armadilha_estado == "pronta" && esta_na_mao && !arrastando) {
+        armadilha_balanco_timer += 0.25;
+        var _balanco = sin(armadilha_balanco_timer) * 6;
+        rotacao_atual = _balanco; // reaproveita a rotação que a carta já usa na mão
+    } else {
+        armadilha_balanco_timer = 0;
+    }
+}
+#endregion
+
 #region Soltar carta e aplicar efeito por categoria
 if (arrastando && mouse_check_button_released(mb_left)) {
     arrastando = false;
@@ -160,7 +177,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         pagar_custo(custo, "jogador");
         switch (efeito_tipo) {
 			case "bola_fogo":
-        aplicar_efeito_bola_fogo(_alvo_mais_perto, dado_efeito, chance_queimar);
+        lancar_bola_de_fogo(_alvo_mais_perto, dado_efeito, chance_queimar);
         break;
 			case "veneno":
         aplicar_condicao(_alvo_mais_perto, "envenenado", -1, 1);
@@ -364,39 +381,56 @@ if (arrastando && mouse_check_button_released(mb_left)) {
     }
 	
 	} else if (categoria == "armadilha") {
-	    var _alvo = noone;
-	    var _menor_distancia = 9999;
-    
-	    with (obj_carta) {
-	        if (id == other.id) continue;
-	        if (!travada) continue;
-        
-	        var _dist = point_distance(x, y, other.x, other.y);
-	        if (_dist < 60 && _dist < _menor_distancia) {
-	            _menor_distancia = _dist;
-	            _alvo = id;
-	        }
+    // Arrasta pra um slot de batalha SEU, da posição 2 (meio) pra trás (3, 4).
+    var _slot_armadilha = noone;
+    var _menor_distancia = 9999;
+    var _distancia_maxima = global.CARTA_LARGURA * 0.7;
+
+	   with (obj_slot_batalha) {
+	    if (dono_slot_armadilha(id) != "jogador") continue;
+	    if (posicao < posicao_ataque()) continue; // bloqueia só posições 0 e 1 (lado inimigo)
+
+	    var _dist = point_distance(x, y, other.x, other.y);
+	    if (_dist < _distancia_maxima && _dist < _menor_distancia) {
+	        _menor_distancia = _dist;
+	        _slot_armadilha = id;
 	    }
-    
-	    if (_alvo != noone && pode_pagar_custo(custo, "jogador")) {
-	        pagar_custo(custo, "jogador");
-        
-	        var _dano = irandom_range(1, dado_efeito);
-	        _alvo.vida -= _dano;
-	        aplicar_condicao(_alvo, "sangrando", 1, 3);
-        
-	        if (_alvo.vida <= 0) destruir_tropa(_alvo);
-        
-	        var _index = array_get_index(obj_controlador.mao, id);
-	        if (_index != -1) {
-	            array_delete(obj_controlador.mao, _index, 1);
-	            organizar_mao();
-	        }
-	        instance_destroy(id);
-	    } else {
-	        x = origem_x; y = origem_y;
-	        esta_na_mao = true;
-	    }
+	}
+
+    if (_slot_armadilha != noone && pode_pagar_custo(custo, "jogador")) {
+        pagar_custo(custo, "jogador");
+
+        armadilha_lane = _slot_armadilha.lane;
+        armadilha_posicao = _slot_armadilha.posicao;
+        armadilha_estado = "vigiando";
+
+        // Efeito visual de "esconder a armadilha" no slot -- reaproveita o objeto de terreno
+        // ativo só pelo visual de "cair e assentar no chão", sem afetar regras.
+     var _visual_armadilha = instance_create_layer(x, y, "Instances", obj_terreno_ativo);
+		_visual_armadilha.sprite_index = sprite_index;
+		_visual_armadilha.escala_base = (global.CARTA_LARGURA * 0.6) / sprite_get_width(sprite_index);
+		_visual_armadilha.destino_x = _slot_armadilha.x;
+		_visual_armadilha.destino_y = _slot_armadilha.y;
+		_visual_armadilha.origem_x = x;
+		_visual_armadilha.origem_y = y;
+		_visual_armadilha.angulo_final = 0;
+		_visual_armadilha.entrada_duracao = 20;
+		_visual_armadilha.depth = 200;
+
+		armadilha_visual_id = _visual_armadilha.id; // guarda referência pra poder destruir depois
+
+        debug_combate(nome_carta + " foi escondida na lane " + string(armadilha_lane) + ", posição " + string(armadilha_posicao) + ".");
+
+        // Volta pra mão como "ativa" -- não é destruída, some do campo e reaparece na mão
+        esta_na_mao = true;
+        travada = false;
+        x = origem_x;
+        y = origem_y;
+    } else {
+        x = origem_x; y = origem_y;
+        esta_na_mao = true;
+    }
+
 	} else if (categoria == "terreno") {
     var _distancia_arrastada = point_distance(x, y, arrastar_inicio_x, arrastar_inicio_y);
 

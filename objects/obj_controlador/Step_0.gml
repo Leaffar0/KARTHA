@@ -147,14 +147,16 @@ for (var i = 0; i < _total; i++) {
 }
 
 if (mouse_check_button_pressed(mb_left)) {
-    if (hover_atual != noone && instance_exists(hover_atual) && !hover_atual.travada) {
+    if (hover_atual != noone && instance_exists(hover_atual) && hover_atual.armadilha_estado == "pronta") {
+        ativar_armadilha(hover_atual.id);
+    } else if (hover_atual != noone && instance_exists(hover_atual) && !hover_atual.travada) {
         with (hover_atual) {
             arrastando = true;
             esta_na_mao = false;
             rotacao_atual = 0;
             escala_atual = 1;
             y_offset_atual = 0;
-			arrastar_inicio_x = x; // <-- guarda de onde a carta começou a ser arrastada de verdade
+			arrastar_inicio_x = x;
 			arrastar_inicio_y = y;
 
             if (slot_atual != noone) {

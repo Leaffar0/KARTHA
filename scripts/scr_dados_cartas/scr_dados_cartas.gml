@@ -654,6 +654,52 @@ function criar_dados_terreno_cemiterio() {
         efeito_terreno: "cemiterio"
     };
 }
+	
+// Infere se um slot de batalha é elegível pra colocar armadilha: qualquer posição
+// do MEIO (2) pra trás no seu lado (3, 4). O MEIO conta porque é passagem obrigatória
+// de qualquer tropa inimiga que avança.
+function dono_slot_armadilha(_slot) {
+    if (_slot.posicao < posicao_ataque()) return "inimigo"; // posições 0, 1 -- não pode
+    return "jogador"; // posições 2 (meio), 3, 4 -- pode colocar armadilha
+}
+
+// Ativa uma carta de armadilha que está "pronta" (tropa em cima do slot vigiado agora).
+// Genérico: funciona pra qualquer carta armadilha que use dado_efeito (dano + sangrando).
+function ativar_armadilha(_carta_armadilha) {
+    if (!instance_exists(_carta_armadilha)) return;
+    if (_carta_armadilha.armadilha_estado != "pronta") return;
+
+    var _slot_vigiado = buscar_slot(_carta_armadilha.armadilha_lane, _carta_armadilha.armadilha_posicao);
+    if (_slot_vigiado == noone || !_slot_vigiado.ocupado) return;
+
+    var _alvo = _slot_vigiado.carta_atual;
+    if (!instance_exists(_alvo)) return;
+
+    if (_alvo.imune_armadilha) {
+        debug_combate(_alvo.nome_carta + " é imune a armadilhas e evitou a " + _carta_armadilha.nome_carta + "!");
+        return;
+    }
+
+    var _dano = irandom_range(1, _carta_armadilha.dado_efeito);
+    _alvo.vida -= _dano;
+    aplicar_condicao(_alvo, "sangrando", 1, 3);
+
+    debug_combate(_carta_armadilha.nome_carta + " ativada em " + _alvo.nome_carta + "! " + string(_dano) + " de dano.");
+
+    if (_alvo.vida <= 0) destruir_tropa(_alvo);
+
+    // Remove o visual que ficava escondido no slot
+    if (_carta_armadilha.armadilha_visual_id != noone && instance_exists(_carta_armadilha.armadilha_visual_id)) {
+        instance_destroy(_carta_armadilha.armadilha_visual_id);
+    }
+
+    var _index = array_get_index(obj_controlador.mao, _carta_armadilha.id);
+    if (_index != -1) {
+        array_delete(obj_controlador.mao, _index, 1);
+        organizar_mao();
+    }
+    instance_destroy(_carta_armadilha);
+}
 
 #endregion
 
@@ -2313,6 +2359,29 @@ function aplicar_efeito_bola_fogo(_alvo, _dado_efeito, _chance_queimar) {
         }
     }));
 }
+	
+// Dispara a Bola de Fogo de um ponto fixo (meio da tela, embaixo) até o alvo, em arco.
+// O dano/queimadura só é aplicado DEPOIS que ela impacta (via callback).
+function lancar_bola_de_fogo(_alvo, _dado_efeito, _chance_queimar) {
+    if (!instance_exists(_alvo)) return;
+
+    var _origem_x = room_width / 2;
+    var _origem_y = obj_controlador.mao_y; // mesma altura da mão do jogador (embaixo)
+
+    var _projetil = instance_create_layer(_origem_x, _origem_y, "Instances", obj_bola_fogo_projetil);
+    _projetil.origem_x = _origem_x;
+    _projetil.origem_y = _origem_y;
+    _projetil.destino_x = _alvo.x;
+    _projetil.destino_y = _alvo.y;
+
+    _projetil.som_voo = audio_play_sound(snd_bola_fogo_voo, 1, 0, .5, 0, random_range(.95, 1.05));
+
+    var _dados_impacto = { alvo: _alvo, dado_efeito: _dado_efeito, chance_queimar: _chance_queimar };
+    _projetil.callback_impacto = method(_dados_impacto, function() {
+        if (!instance_exists(alvo)) return;
+        aplicar_efeito_bola_fogo(alvo, dado_efeito, chance_queimar);
+    });
+}
 #endregion
 
 #region Partículas — poeira ao jogar carta
@@ -2902,5 +2971,14 @@ function debug_encher_recursos(_dono = "jogador") {
     }
 
     debug_combate("DEBUG: recursos do " + _dono + " preenchidos.");
+}
+#endregion
+
+#region Utilidades matemáticas
+// Interpola suavemente entre dois ângulos, sempre pelo caminho mais curto
+// (evita o bug clássico de girar 350° quando devia girar só 10°).
+function lerp_angulo(_atual, _alvo, _fator) {
+    var _diferenca = ((_alvo - _atual + 180) mod 360) - 180;
+    return _atual + _diferenca * _fator;
 }
 #endregion

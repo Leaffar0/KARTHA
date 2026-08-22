@@ -1,6 +1,6 @@
 {
   "$GMSound":"v2",
-  "%Name":"snd_menu",
+  "%Name":"snd_bola_fogo_voo",
   "audioGroupId":{
     "name":"audiogroup_default",
     "path":"audiogroups/audiogroup_default",
@@ -10,9 +10,9 @@
   "compression":0,
   "compressionQuality":4,
   "conversionMode":0,
-  "duration":186.91,
+  "duration":1.0,
   "exportDir":"",
-  "name":"snd_menu",
+  "name":"snd_bola_fogo_voo",
   "parent":{
     "name":"Sound",
     "path":"folders/Sound.yy",
@@ -21,6 +21,6 @@
   "resourceType":"GMSound",
   "resourceVersion":"2.0",
   "sampleRate":44100,
-  "soundFile":"snd_menu.mp3",
-  "volume":0.24,
+  "soundFile":"snd_bola_fogo_voo.wav",
+  "volume":0.88,
 }
