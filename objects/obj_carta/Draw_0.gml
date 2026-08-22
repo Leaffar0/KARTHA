@@ -77,16 +77,16 @@ if (categoria == "tropa") {
 	desenhar_stat(self, vida, vida_pos_x, vida_pos_y, _x_desenho, _y_desenho, _rotacao_total, _escala_final, _escala_texto_fallback);
 	desenhar_stat(self, string(nivel_inteligencia), int_pos_x, int_pos_y, _x_desenho, _y_desenho, _rotacao_total, _escala_final, _escala_texto_fallback, true);
 	desenhar_stat(self, string(mochila), mochila_pos_x, mochila_pos_y, _x_desenho, _y_desenho, _rotacao_total, _escala_final, _escala_texto_fallback, true);
-	desenhar_stat(self, defesa_fisica, def_pos_x, def_pos_y, _x_desenho, _y_desenho, _rotacao_total, _escala_final, _escala_texto_fallback);
-	desenhar_stat(self, defesa_magica, def_magico_pos_x, def_magico_pos_y, _x_desenho, _y_desenho, _rotacao_total, _escala_final, _escala_texto_fallback);
+	desenhar_stat(self, calcular_defesa_fisica_total(self), def_pos_x, def_pos_y, _x_desenho, _y_desenho, _rotacao_total, _escala_final, _escala_texto_fallback);
+	desenhar_stat(self, calcular_defesa_magica_total(self), def_magico_pos_x, def_magico_pos_y, _x_desenho, _y_desenho, _rotacao_total, _escala_final, _escala_texto_fallback);
 
 	// ATK e ATK mágico são especiais: têm 2 números juntos ("dado+mod"), então tratamos separado
 	if (dado_dano != 0) {
-    var _texto_atk = (qtd_dados_dano > 1 ? string(qtd_dados_dano) : "") + "D" + string(dado_dano) + "+" + string(mod_dano);
-    desenhar_stat(self, _texto_atk, atk_pos_x, atk_pos_y, x, _y_desenho, _rotacao_total, _escala_final * global.ESCALA_TEXTO_ATK, _escala_texto_fallback * global.ESCALA_TEXTO_ATK, true);
+	    var _texto_atk = (qtd_dados_dano > 1 ? string(qtd_dados_dano) : "") + "D" + string(dado_dano) + "+" + string(calcular_mod_dano_total(self));
+	    desenhar_stat(self, _texto_atk, atk_pos_x, atk_pos_y, x, _y_desenho, _rotacao_total, _escala_final * global.ESCALA_TEXTO_ATK, _escala_texto_fallback * global.ESCALA_TEXTO_ATK, true);
 	}
 	if (dado_dano_magico != 0) {
-	    var _texto_atk_m = (qtd_dados_dano_magico > 1 ? string(qtd_dados_dano_magico) : "") + "D" + string(dado_dano_magico) + "+" + string(mod_dano_magico);
+	    var _texto_atk_m = (qtd_dados_dano_magico > 1 ? string(qtd_dados_dano_magico) : "") + "D" + string(dado_dano_magico) + "+" + string(calcular_mod_dano_total(self));
 	    desenhar_stat(self, _texto_atk_m, atk_magico_pos_x, atk_magico_pos_y, x, _y_desenho, _rotacao_total, _escala_final * global.ESCALA_TEXTO_ATK, _escala_texto_fallback * global.ESCALA_TEXTO_ATK, true);
 	}
 }

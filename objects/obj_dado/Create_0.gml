@@ -11,6 +11,7 @@ tempo_total_giro = 78;
 
 tamanho_dado = 6;
 valor_final = 1;
+modificador_exibido = 0;
 callback = noone;
 destino_x = x;
 destino_y = y;

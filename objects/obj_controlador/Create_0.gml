@@ -10,6 +10,7 @@ global.RECURSO_LARGURA = 50;
 global.MOEDA_LARGURA = 50;
 global.ESCALA_TEXTO_CARTA = 0.60; // baixa esse número pra diminuir TODO texto das cartas sem arte
 global.ESCALA_TEXTO_ATK = 0.75; // diminui esse número pra encolher só o texto de ATK/ATK mágico
+global.TERRENO_LARGURA_ALVO = 70; // ajuste esse valor até a carta de terreno caber certinho no slot (largura visual JÁ considerando a rotação de -90°)
 
 // true = mostra no console cada rolagem de dado/moeda e resultado de combate.
 // Mude pra false quando quiser jogar sem poluir o console.
@@ -38,7 +39,7 @@ baralho = [
 	criar_dados_bencao_decomposicao, criar_dados_maldicao_sangue_por_sangue,
 	criar_dados_item_bau, criar_dados_item_frasco_sangue,
 	criar_dados_item_vitamina_cerebro, criar_dados_item_elmo_ferro,
-	criar_dados_item_frasco_acido, criar_dados_terreno_pantano,criar_dados_terreno_cemiterio
+	criar_dados_item_frasco_acido, criar_dados_terreno_pantano,criar_dados_terreno_cemiterio, criar_dados_item_espada_quebrada
 	
 ];
 
@@ -125,3 +126,9 @@ max_bencaos_maldicoes = 2;
 #region Abismo
 abismo = []; // guarda os nomes das cartas que foram parar lá, pra sempre
 #endregion	
+
+#region Anúncio de terreno (nome grande na tela)
+terreno_anuncio_texto = "";
+terreno_anuncio_timer = 0;
+terreno_anuncio_duracao = 100; // ~1.6s a 60fps: fade in, hold, fade out
+#endregion

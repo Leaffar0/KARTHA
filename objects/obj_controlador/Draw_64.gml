@@ -18,6 +18,39 @@ if (turno == "inimigo" && ia_ativa) {
 }
 #endregion
 
+#region Anúncio grande de terreno ativado
+if (terreno_anuncio_timer > 0) {
+    var _progresso_anuncio = 1 - (terreno_anuncio_timer / terreno_anuncio_duracao);
+    var _alpha_anuncio = 1;
+
+    if (_progresso_anuncio < 0.2) {
+        _alpha_anuncio = _progresso_anuncio / 0.2; // fade in
+    } else if (_progresso_anuncio > 0.65) {
+        _alpha_anuncio = 1 - ((_progresso_anuncio - 0.65) / 0.35); // fade out
+    }
+
+	var _gui_largura = display_get_gui_width();
+	var _gui_altura = display_get_gui_height();
+
+	var _escala_anuncio = 2.0; // ajuste esse número pra deixar maior/menor
+
+	draw_set_font(fnt_vitoria);
+	draw_set_halign(fa_center);
+	draw_set_valign(fa_middle);
+	draw_set_alpha(_alpha_anuncio);
+	draw_set_color(c_black);
+	draw_text_transformed(_gui_largura/2 + 3, _gui_altura/2 + 3, terreno_anuncio_texto, _escala_anuncio, _escala_anuncio, 0); // sombra
+	draw_set_color(c_white);
+	draw_text_transformed(_gui_largura/2, _gui_altura/2, terreno_anuncio_texto, _escala_anuncio, _escala_anuncio, 0);
+	draw_set_alpha(1);
+	draw_set_halign(fa_left);
+	draw_set_valign(fa_top);
+	draw_set_font(-1);
+
+    terreno_anuncio_timer -= 1;
+}
+#endregion
+
 #region Prévia ampliada da carta
 if (carta_preview != noone && instance_exists(carta_preview)) {
     var _carta = carta_preview;
@@ -69,15 +102,15 @@ if (carta_preview != noone && instance_exists(carta_preview)) {
 	    desenhar_stat_preview(_carta, _carta.vida, _carta.vida_pos_x, _carta.vida_pos_y, _centro_x, _centro_y, _largura_real, _altura_real, _escala_preview, _escala_stats_preview);
 	    desenhar_stat_preview(_carta, string(_carta.nivel_inteligencia), _carta.int_pos_x, _carta.int_pos_y, _centro_x, _centro_y, _largura_real, _altura_real, _escala_preview, _escala_stats_preview, true);
 	    desenhar_stat_preview(_carta, string(_carta.mochila), _carta.mochila_pos_x, _carta.mochila_pos_y, _centro_x, _centro_y, _largura_real, _altura_real, _escala_preview, _escala_stats_preview, true);
-	    desenhar_stat_preview(_carta, _carta.defesa_fisica, _carta.def_pos_x, _carta.def_pos_y, _centro_x, _centro_y, _largura_real, _altura_real, _escala_preview, _escala_stats_preview);
-	    desenhar_stat_preview(_carta, _carta.defesa_magica, _carta.def_magico_pos_x, _carta.def_magico_pos_y, _centro_x, _centro_y, _largura_real, _altura_real, _escala_preview, _escala_stats_preview);
+	    desenhar_stat_preview(_carta, calcular_defesa_fisica_total(_carta), _carta.def_pos_x, _carta.def_pos_y, _centro_x, _centro_y, _largura_real, _altura_real, _escala_preview, _escala_stats_preview);
+		desenhar_stat_preview(_carta, calcular_defesa_magica_total(_carta), _carta.def_magico_pos_x, _carta.def_magico_pos_y, _centro_x, _centro_y, _largura_real, _altura_real, _escala_preview, _escala_stats_preview);
 
 	    if (_carta.dado_dano != 0) {
-		    var _texto_atk = (_carta.qtd_dados_dano > 1 ? string(_carta.qtd_dados_dano) : "") + "D" + string(_carta.dado_dano) + "+" + string(_carta.mod_dano);
+		    var _texto_atk = (_carta.qtd_dados_dano > 1 ? string(_carta.qtd_dados_dano) : "") + "D" + string(_carta.dado_dano) + "+" + string(calcular_mod_dano_total(_carta));
 		    desenhar_stat_preview(_carta, _texto_atk, _carta.atk_pos_x, _carta.atk_pos_y, _centro_x, _centro_y, _largura_real, _altura_real, _escala_preview, _escala_stats_preview * global.ESCALA_TEXTO_ATK, true);
 		}
 		if (_carta.dado_dano_magico != 0) {
-		    var _texto_atk_m = (_carta.qtd_dados_dano_magico > 1 ? string(_carta.qtd_dados_dano_magico) : "") + "D" + string(_carta.dado_dano_magico) + "+" + string(_carta.mod_dano_magico);
+			var _texto_atk_m = (_carta.qtd_dados_dano_magico > 1 ? string(_carta.qtd_dados_dano_magico) : "") + "D" + string(_carta.dado_dano_magico) + "+" + string(calcular_mod_dano_total(_carta));
 		    desenhar_stat_preview(_carta, _texto_atk_m, _carta.atk_magico_pos_x, _carta.atk_magico_pos_y, _centro_x, _centro_y, _largura_real, _altura_real, _escala_preview, _escala_stats_preview * global.ESCALA_TEXTO_ATK, true);
 		}
 	}

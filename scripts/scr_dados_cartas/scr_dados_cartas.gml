@@ -609,6 +609,20 @@ function criar_dados_item_vitamina_cerebro() {
         quantidade_efeito: 1
     };
 }
+	
+function criar_dados_item_espada_quebrada() {
+    return {
+        categoria: "item_equipavel",
+        nome: "Espada Quebrada",
+        sprite_carta: spr_carta_espada_quebrada,   // importe carta_espada_quebrada.png
+        custo: noone,
+        requisito_inteligencia: 1,
+        sobrescreve_dado_dano: 8,   // 1d8
+        sobrescreve_mod_dano: 0,
+        bonus_mod_dano: 0,          // itens sem sobrescrita continuam usando esses (Espada Enferrujada, Elmo)
+        bonus_defesa: 0
+    };
+}
 
 function criar_dados_armadilha_urso() {
     return {
@@ -764,6 +778,23 @@ function bonus_cemiterio_dano(_carta) {
     return eh_morto_vivo(_carta) ? 1 : 0;
 }
 
+// Soma TODOS os modificadores de dano físico que uma tropa recebe agora,
+// incluindo o mod_dano base da carta + bônus externos (terreno, etc).
+// Centraliza aqui pra o número exibido na carta bater 1:1 com o número usado no combate real.
+function calcular_mod_dano_total(_carta) {
+    return _carta.mod_dano + bonus_cemiterio_dano(_carta);
+}
+
+// Mesma ideia, só que pra defesa física.
+function calcular_defesa_fisica_total(_carta) {
+    return _carta.defesa_fisica + bonus_cemiterio_defesa(_carta);
+}
+
+// Mesma ideia, pra defesa mágica.
+function calcular_defesa_magica_total(_carta) {
+    return _carta.defesa_magica + bonus_cemiterio_defesa(_carta);
+}
+
 // Bônus no D20 de acerto que o Cemitério concede.
 function bonus_cemiterio_acerto(_carta) {
     if (obj_controlador.terreno_ativo != "cemiterio") return 0;
@@ -904,9 +935,12 @@ function comprar_carta_do_deck_por_funcao(_funcao_sorteada, _x_inicial, _y_inici
         _carta.custo = _dados.custo;
 
     } else if (_dados.categoria == "item_equipavel") {
-        _carta.custo = _dados.custo;
-        _carta.bonus_mod_dano_item = _dados.bonus_mod_dano;
-        _carta.bonus_defesa_item = _dados.bonus_defesa;
+	    _carta.custo = _dados.custo;
+	    _carta.bonus_mod_dano_item = variable_struct_exists(_dados, "bonus_mod_dano") ? _dados.bonus_mod_dano : 0;
+	    _carta.bonus_defesa_item = variable_struct_exists(_dados, "bonus_defesa") ? _dados.bonus_defesa : 0;
+	    _carta.requisito_inteligencia_item = variable_struct_exists(_dados, "requisito_inteligencia") ? _dados.requisito_inteligencia : 0;
+	    _carta.sobrescreve_dado_dano_item = variable_struct_exists(_dados, "sobrescreve_dado_dano") ? _dados.sobrescreve_dado_dano : 0;
+	    _carta.sobrescreve_mod_dano_item = variable_struct_exists(_dados, "sobrescreve_mod_dano") ? _dados.sobrescreve_mod_dano : 0;
 
     } else if (_dados.categoria == "item_consumivel") {
 	    _carta.custo = _dados.custo;
@@ -1385,13 +1419,14 @@ function processar_resultado_acerto(_dado_acerto, _atacante, _defensor, _tipo_at
 
         // contra-ataque sempre usa o ataque físico do defensor (padrão)
         var _dano_contra_dado = rolar_varios_dados(_defensor.qtd_dados_dano, _defensor.dado_dano);
+		var _mod_contra_exibido = _defensor.mod_dano + bonus_cemiterio_dano(_defensor);
 
-        var _dados_contra = {
-            atacante: _atacante,
-            defensor: _defensor
-        };
+		var _dados_contra = {
+		    atacante: _atacante,
+		    defensor: _defensor
+		};
 
-        rolar_dado_visual(_defensor.x, _defensor.y, _atacante.x, _atacante.y, _defensor.dado_dano, _dano_contra_dado, method(_dados_contra, function(_resultado) {
+		rolar_dado_visual(_defensor.x, _defensor.y, _atacante.x, _atacante.y, _defensor.dado_dano, _dano_contra_dado, method(_dados_contra, function(_resultado) {
             if (!instance_exists(atacante) || !instance_exists(defensor)) return;
 
 			iniciar_animacao_ataque(defensor, atacante, 18, 18);
@@ -1407,7 +1442,7 @@ function processar_resultado_acerto(_dado_acerto, _atacante, _defensor, _tipo_at
             if (atacante.vida <= 0) {
                 destruir_tropa(atacante);
             }
-        }));
+        }), _mod_contra_exibido);
         return;
     }
 
@@ -1431,16 +1466,17 @@ function processar_resultado_acerto(_dado_acerto, _atacante, _defensor, _tipo_at
     }
 
     var _num_dados = (_dado_acerto == 20) ? (_qtd_usada * 2) : _qtd_usada;
-    var _dano_dado = rolar_varios_dados(_num_dados, _dado_usado);
+	var _dano_dado = rolar_varios_dados(_num_dados, _dado_usado);
+	var _mod_total_exibido = _mod_usado + bonus_cemiterio_dano(_atacante);
 
-    var _dados_dano = {
-        atacante: _atacante,
-        defensor: _alvo_real,
-        mod_usado: _mod_usado,
-        tipo_ataque: _tipo_ataque
-    };
+	var _dados_dano = {
+	    atacante: _atacante,
+	    defensor: _alvo_real,
+	    mod_usado: _mod_usado,
+	    tipo_ataque: _tipo_ataque
+	};
 
-    rolar_dado_visual(_atacante.x, _atacante.y, _alvo_real.x, _alvo_real.y, _dado_usado, _dano_dado, method(_dados_dano, function(_resultado) {
+	rolar_dado_visual(_atacante.x, _atacante.y, _alvo_real.x, _alvo_real.y, _dado_usado, _dano_dado, method(_dados_dano, function(_resultado) {
         if (!instance_exists(atacante) || !instance_exists(defensor)) return;
 
 		iniciar_animacao_ataque(atacante, defensor, 18, 18);
@@ -1458,7 +1494,7 @@ function processar_resultado_acerto(_dado_acerto, _atacante, _defensor, _tipo_at
         if (defensor.vida <= 0) {
             destruir_tropa(defensor);
         }
-    }));
+    }), _mod_total_exibido);
 }
 
 function destruir_tropa(_carta, _por_inimigo = true) {
@@ -1543,7 +1579,7 @@ function criar_tropa_no_slot(_dados, _slot, _dono) {
 
     _carta.esta_na_mao = false;
     _carta.travada = true;
-    _carta.depth = 0;
+    _carta.depth = -100;
     _carta.dono = _dono;
     _carta.lane_atual = _slot.lane;
     _carta.posicao_atual = _slot.posicao;
@@ -1560,12 +1596,13 @@ function criar_tropa_no_slot(_dados, _slot, _dono) {
 #region Dado visual (D20 / dado de dano)
 // Cria um dado animado que desliza do atacante até o defensor, gira, e para no valor
 // já decidido (_resultado_final). Quando termina, chama _funcao_callback com o resultado.
-function rolar_dado_visual(_x, _y, _destino_x, _destino_y, _tamanho_dado, _resultado_final, _funcao_callback) {
+function rolar_dado_visual(_x, _y, _destino_x, _destino_y, _tamanho_dado, _resultado_final, _funcao_callback, _modificador_exibido = 0) {
     var _dado = instance_create_layer(_x, _y, "Instances", obj_dado);
     obj_controlador.rolagens_pendentes += 1;
 
     _dado.tamanho_dado = _tamanho_dado;
     _dado.valor_final = _resultado_final;
+    _dado.modificador_exibido = _modificador_exibido;
     _dado.destino_x = _destino_x;
     _dado.destino_y = _destino_y;
     _dado.girando = true;
@@ -1806,7 +1843,7 @@ function ia_jogar_cartas() {
 
                 _carta.esta_na_mao = false;
                 _carta.travada = true;
-                _carta.depth = 0;
+                _carta.depth = -100;
                 _carta.dono = "inimigo";
                 _carta.lane_atual = lane;
                 _carta.posicao_atual = posicao;
@@ -2802,5 +2839,68 @@ function paginar_livro_regras(_capitulos, _limite_caracteres) {
         }
     }
     return _resultado;
+}
+#endregion
+
+#region Debug — ferramentas de teste
+// Procura no baralho inteiro (todas as cartas possíveis do jogo) uma função cujo
+// nome bata (parcialmente, sem diferenciar maiúsculas) com o texto digitado.
+function debug_buscar_funcao_carta_por_nome(_texto_busca) {
+    var _busca_lower = string_lower(_texto_busca);
+
+    for (var i = 0; i < array_length(obj_controlador.baralho); i++) {
+        var _funcao = obj_controlador.baralho[i];
+        var _dados = _funcao();
+        var _nome_lower = string_lower(_dados.nome);
+
+        if (string_pos(_busca_lower, _nome_lower) > 0) {
+            return _funcao;
+        }
+    }
+    return noone;
+}
+
+// Cria a carta direto na mão do jogador, SEM consumir do monte nem gastar recursos.
+// Ideal pra testar uma carta específica sem precisar montar uma run inteira.
+function debug_adicionar_carta_a_mao(_texto_busca) {
+    var _funcao = debug_buscar_funcao_carta_por_nome(_texto_busca);
+
+    if (_funcao == noone) {
+        debug_combate("DEBUG: nenhuma carta encontrada com o nome '" + _texto_busca + "'.");
+        return false;
+    }
+
+    comprar_carta_do_deck_por_funcao(_funcao, obj_deck.x, obj_deck.y);
+    debug_combate("DEBUG: carta adicionada à mão via busca '" + _texto_busca + "'.");
+    return true;
+}
+
+// Enche todos os tipos de recurso do jogador de uma vez, até o limite de 6 por tipo,
+// só pra testar cartas com custo sem precisar juntar recursos manualmente.
+function debug_encher_recursos(_dono = "jogador") {
+    var _tipos = ["sangue", "ossos", "sucata", "mana"];
+
+    for (var i = 0; i < array_length(_tipos); i++) {
+        var _slot_livre = noone;
+        with (obj_slot_recurso) {
+            if (!ocupado && dono == _dono) {
+                _slot_livre = id;
+                break;
+            }
+        }
+        if (_slot_livre == noone) break; // campo já cheio
+
+        // ignora o limite de "1 recurso por turno" só pro debug
+        var _resultado_antigo = (_dono == "jogador") ? obj_controlador.recurso_colocado_no_turno : obj_controlador.recurso_colocado_no_turno_inimigo;
+        if (_dono == "jogador") obj_controlador.recurso_colocado_no_turno = false;
+        else obj_controlador.recurso_colocado_no_turno_inimigo = false;
+
+        colocar_recurso(_tipos[i mod array_length(_tipos)], _dono, _slot_livre.x, _slot_livre.y, _slot_livre);
+
+        if (_dono == "jogador") obj_controlador.recurso_colocado_no_turno = _resultado_antigo;
+        else obj_controlador.recurso_colocado_no_turno_inimigo = _resultado_antigo;
+    }
+
+    debug_combate("DEBUG: recursos do " + _dono + " preenchidos.");
 }
 #endregion

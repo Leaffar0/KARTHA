@@ -44,15 +44,28 @@ if (keyboard_check_pressed(vk_escape)) {
         game_end();
     }
 }
-if (keyboard_check_pressed(ord("R"))) {
+if (keyboard_check_pressed(ord("R")) && global.DEBUG_COMBATE) {
     room_restart();
 }
 
-if (keyboard_check_pressed(ord("K"))) {
+if (keyboard_check_pressed(ord("K")) && global.DEBUG_COMBATE) {
     vida_inimigo = 0;
 }
 
-if (keyboard_check_pressed(ord("C"))) {
+// NOVO: pede o nome de uma carta e coloca ela direto na mão (sem gastar do monte).
+if (keyboard_check_pressed(ord("V")) && global.DEBUG_COMBATE) {
+    var _nome_digitado = get_string("DEBUG - Nome da carta (ou parte dele):", "");
+    if (_nome_digitado != "") {
+        debug_adicionar_carta_a_mao(_nome_digitado);
+    }
+}
+
+// NOVO: enche os recursos do jogador instantaneamente.
+if (keyboard_check_pressed(ord("F")) && global.DEBUG_COMBATE) {
+    debug_encher_recursos("jogador");
+}
+
+if (keyboard_check_pressed(ord("C")) && global.DEBUG_COMBATE) {
     var _quantidade_debug = 10;
     for (var i = 0; i < _quantidade_debug; i++) {
         if (array_length(monte) == 0) break;
@@ -61,7 +74,7 @@ if (keyboard_check_pressed(ord("C"))) {
     debug_combate("DEBUG: comprou " + string(_quantidade_debug) + " cartas pro jogador.");
 }
 
-if (keyboard_check_pressed(ord("M"))) {
+if (keyboard_check_pressed(ord("M"))&& global.DEBUG_COMBATE) {
     jogar_moeda_visual(mao_x_centro, mao_y, room_width / 2, room_height / 2, noone);
 }
 #endregion

@@ -23,6 +23,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
 	
     if (categoria == "tropa") {
         // --- código de soltar tropa que já existe, sem mudar nada ---
+		depth = -100;
         var _slot_mais_perto = noone;
         var _menor_distancia = 9999;
         var _distancia_maxima = global.CARTA_LARGURA * 0.7;
@@ -187,35 +188,45 @@ if (arrastando && mouse_check_button_released(mb_left)) {
 	    var _alvo = noone;
 	    var _menor_distancia = 9999;
     
-    with (obj_carta) {
-        if (id == other.id) continue;
-        if (!travada || dono != "jogador") continue;
-        if (mochila <= 0) continue; // mochila cheia, não aceita mais itens
+	    with (obj_carta) {
+	        if (id == other.id) continue;
+	        if (!travada || dono != "jogador") continue;
+	        if (mochila <= 0) continue; // mochila cheia, não aceita mais itens
+	        if (nivel_inteligencia < other.requisito_inteligencia_item) continue; // não atende ao requisito
         
-        var _dist = point_distance(x, y, other.x, other.y);
-        if (_dist < 60 && _dist < _menor_distancia) {
-            _menor_distancia = _dist;
-            _alvo = id;
-        }
-    }
+	        var _dist = point_distance(x, y, other.x, other.y);
+	        if (_dist < 60 && _dist < _menor_distancia) {
+	            _menor_distancia = _dist;
+	            _alvo = id;
+	        }
+	    }
     
-    if (_alvo != noone && pode_pagar_custo(custo, "jogador")) {
-        pagar_custo(custo, "jogador");
+	    if (_alvo != noone && pode_pagar_custo(custo, "jogador")) {
+	        pagar_custo(custo, "jogador");
         
-        _alvo.mod_dano += bonus_mod_dano_item;
-        _alvo.defesa_fisica += bonus_defesa_item;
-        _alvo.mochila -= 1; // ocupa 1 espaço da mochila
+	        if (sobrescreve_dado_dano_item > 0) {
+	            // Arma alternativa: reescreve o ataque físico da tropa (ex: Espada Quebrada)
+	            _alvo.dado_dano = sobrescreve_dado_dano_item;
+	            _alvo.mod_dano = sobrescreve_mod_dano_item;
+	            debug_combate(_alvo.nome_carta + " equipou " + nome_carta + " e agora ataca com 1D" + string(sobrescreve_dado_dano_item) + "!");
+	        } else {
+	            // Item comum: só soma bônus (Espada Enferrujada, Elmo de Ferro, etc)
+	            _alvo.mod_dano += bonus_mod_dano_item;
+	            _alvo.defesa_fisica += bonus_defesa_item;
+	        }
         
-        var _index = array_get_index(obj_controlador.mao, id);
-        if (_index != -1) {
-            array_delete(obj_controlador.mao, _index, 1);
-            organizar_mao();
-        }
-        instance_destroy(id);
-    } else {
-        x = origem_x; y = origem_y;
-        esta_na_mao = true;
-    }
+	        _alvo.mochila -= 1;
+        
+	        var _index = array_get_index(obj_controlador.mao, id);
+	        if (_index != -1) {
+	            array_delete(obj_controlador.mao, _index, 1);
+	            organizar_mao();
+	        }
+	        instance_destroy(id);
+	    } else {
+	        x = origem_x; y = origem_y;
+	        esta_na_mao = true;
+	    }
     
 } else if (categoria == "item_consumivel") {
     if (string_pos("buscar_", efeito_tipo) == 1) {
@@ -392,14 +403,35 @@ if (arrastando && mouse_check_button_released(mb_left)) {
     if (_distancia_arrastada > 80 && pode_pagar_custo(custo, "jogador")) {
         pagar_custo(custo, "jogador");
 
+        var _slot_terreno_destino = noone;
         with (obj_slot_terreno) {
-            if (ocupado && terreno_atual != noone) {
+            _slot_terreno_destino = id;
+            if (ocupado && terreno_atual != noone && instance_exists(terreno_atual)) {
                 instance_destroy(terreno_atual);
             }
         }
 
         obj_controlador.terreno_bonus_defesa = bonus_defesa_global;
-        obj_controlador.terreno_ativo = efeito_terreno; // "" se for terreno sem efeito condicional
+        obj_controlador.terreno_ativo = efeito_terreno;
+
+       if (_slot_terreno_destino != noone) {
+		    var _terreno_visual = instance_create_layer(x, y, "Instances", obj_terreno_ativo);
+		    _terreno_visual.sprite_index = sprite_index;
+
+		    _terreno_visual.escala_base = global.TERRENO_LARGURA_ALVO / sprite_get_height(sprite_index);
+
+		    _terreno_visual.destino_x = _slot_terreno_destino.x;
+		    _terreno_visual.destino_y = _slot_terreno_destino.y;
+		    _terreno_visual.origem_x = x;
+		    _terreno_visual.origem_y = y;
+
+		    _slot_terreno_destino.ocupado = true;
+		    _slot_terreno_destino.terreno_atual = _terreno_visual.id;
+		}
+
+        // Anúncio dramático na tela
+        obj_controlador.terreno_anuncio_texto = string_upper(nome_carta);
+        obj_controlador.terreno_anuncio_timer = obj_controlador.terreno_anuncio_duracao;
 
         var _index = array_get_index(obj_controlador.mao, id);
         if (_index != -1) {
@@ -411,7 +443,6 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         x = origem_x; y = origem_y;
         esta_na_mao = true;
     }
-
 		
 	} else if (categoria == "bencao" || categoria == "maldicao") {
     var _distancia_arrastada = point_distance(x, y, arrastar_inicio_x, arrastar_inicio_y);

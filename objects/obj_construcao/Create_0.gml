@@ -1,3 +1,4 @@
+depth = -100;
 nome_construcao = "Torre";
 vida = 5;
 vida_maxima = 5;
