@@ -54,7 +54,17 @@ if (keyboard_check_pressed(ord("K")) && global.DEBUG_COMBATE) {
 
 // NOVO: pede o nome de uma carta e coloca ela direto na mão (sem gastar do monte).
 if (keyboard_check_pressed(ord("V")) && global.DEBUG_COMBATE) {
+    var _estava_fullscreen = window_get_fullscreen();
+    if (_estava_fullscreen) {
+        window_set_fullscreen(false);
+    }
+
     var _nome_digitado = get_string("DEBUG - Nome da carta (ou parte dele):", "");
+
+    if (_estava_fullscreen) {
+        window_set_fullscreen(true);
+    }
+
     if (_nome_digitado != "") {
         debug_adicionar_carta_a_mao(_nome_digitado);
     }
