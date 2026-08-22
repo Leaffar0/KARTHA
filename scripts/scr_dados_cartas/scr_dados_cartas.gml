@@ -520,7 +520,7 @@ function criar_dados_item_escudo() {
     return {
         categoria: "item_equipavel",
         nome: "Escudo de Madeira",
-        sprite_carta: noone,
+        sprite_carta: spr_carta_escudo_madeira,
         custo: { tipo: "sucata", quantidade: 1 },
         bonus_mod_dano: 0,
         bonus_defesa: 2
@@ -638,7 +638,7 @@ function criar_dados_terreno_pantano() {
     return {
         categoria: "terreno",
         nome: "Pântano Sombrio",
-        sprite_carta: noone,
+        sprite_carta: spr_carta_pantano_sombrio,
         custo: { tipo: "ossos", quantidade: 1 },
         bonus_defesa_global: -1 // reduz a defesa de todo mundo (terreno traiçoeiro)
     };
