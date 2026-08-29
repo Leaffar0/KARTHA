@@ -143,5 +143,7 @@ terreno_anuncio_duracao = 100; // ~1.6s a 60fps: fade in, hold, fade out
 ritual_texto = "";
 ritual_tipo = "";
 ritual_timer = 0;
-ritual_duracao = 80;
+ritual_duracao = 180; // cerca de 3 segundos a 60 FPS
+ritual_som = -1;
+ritual_fade_final_iniciado = false;
 #endregion

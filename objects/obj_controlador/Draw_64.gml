@@ -73,6 +73,12 @@ if (ritual_timer > 0) {
     draw_set_color(c_white);
     draw_set_halign(fa_left);
     draw_set_valign(fa_top);
+
+    // Últimos 55 frames: abaixa o volume enquanto o ritual desaparece.
+    if (ritual_timer <= 55 && !ritual_fade_final_iniciado) {
+        audio_sound_gain(ritual_som, 0, 900);
+        ritual_fade_final_iniciado = true;
+    }
     ritual_timer -= 1;
 }
 #endregion

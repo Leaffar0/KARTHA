@@ -1311,6 +1311,12 @@ function iniciar_animacao_bencao_maldicao(_categoria, _nome) {
     obj_controlador.ritual_tipo = _categoria;
     obj_controlador.ritual_texto = string_upper(_nome);
     obj_controlador.ritual_timer = obj_controlador.ritual_duracao;
+    obj_controlador.ritual_fade_final_iniciado = false;
+
+    var _som_ritual = (_categoria == "bencao") ? snd_bencao : snd_maldicao;
+    // Começa inaudível e sobe suavemente junto com a primeira expansão visual.
+    obj_controlador.ritual_som = audio_play_sound(_som_ritual, 1, false, 0, 0, 1);
+    audio_sound_gain(obj_controlador.ritual_som, 0.8, 550);
 
     var _cor = (_categoria == "bencao") ? make_color_rgb(255, 220, 95) : make_color_rgb(190, 45, 70);
     var _direcao_base = (_categoria == "bencao") ? 270 : 90;
