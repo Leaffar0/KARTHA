@@ -53,6 +53,21 @@ if (armadilha_estado == "vigiando" || armadilha_estado == "pronta") {
     draw_set_alpha(1);
 }
 
+// Sinal curto para a tropa que intercepta ataques direcionados ao castelo.
+if (travada && defendendo_castelo) {
+    var _tag_y = _y_desenho - sprite_height * 0.56;
+    draw_set_alpha(0.92);
+    draw_set_color(make_color_rgb(55, 145, 190));
+    draw_rectangle(_x_desenho - 16, _tag_y - 8, _x_desenho + 16, _tag_y + 8, false);
+    draw_set_color(c_white);
+    draw_set_halign(fa_center);
+    draw_set_valign(fa_middle);
+    draw_text(_x_desenho, _tag_y, "DEF");
+    draw_set_halign(fa_left);
+    draw_set_valign(fa_top);
+    draw_set_alpha(1);
+}
+
 #endregion
 
 #region Nome e atributos

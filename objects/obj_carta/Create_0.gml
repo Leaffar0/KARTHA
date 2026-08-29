@@ -15,6 +15,7 @@ dono = "jogador"; // ou "inimigo"
 lane_atual = -1;
 posicao_atual = -1;
 moveu_este_turno = false;
+defendendo_castelo = false; // intercepta ataques diretos ao castelo na mesma fileira
 #endregion
 
 #region Atributos e custos da carta

@@ -1195,6 +1195,7 @@ function mover_tropa(_carta, _direcao) {
     _slot_destino.carta_atual = _carta.id;
     _carta.slot_atual = _slot_destino;
     _carta.posicao_atual = _nova_posicao;
+    _carta.defendendo_castelo = false;
 
     iniciar_pulo_tropa(_carta, _slot_destino.x, _slot_destino.y);
 
@@ -1305,6 +1306,20 @@ function buscar_construcao(_lane, _dono) {
     return _resultado;
 }
 
+// Uma tropa na casa inicial pode se oferecer para receber ataques que chegariam
+// diretamente ao castelo da sua própria fileira.
+function buscar_defensor_castelo(_lane, _dono) {
+    var _resultado = noone;
+    with (obj_carta) {
+        if (travada && dono == _dono && defendendo_castelo
+            && lane_atual == _lane && posicao_atual == posicao_entrada(_dono)) {
+            _resultado = id;
+            break;
+        }
+    }
+    return _resultado;
+}
+
 // Ritual visual sem depender de sprites novos. As partículas reforçam a leitura
 // angelical/demoníaca e o anúncio principal é desenhado pelo controlador em Draw GUI.
 function iniciar_animacao_bencao_maldicao(_categoria, _nome) {
@@ -1408,11 +1423,17 @@ function processar_combate(_lado_atacante) {
                         instance_destroy(_construcao_alvo);
                     }
                 } else {
-                    var _dano_direto = irandom_range(1, _atacante.dado_dano) + _atacante.mod_dano;
-                    if (_lado_atacante == "jogador") {
-                        obj_controlador.vida_inimigo -= _dano_direto;
+                    var _defensor_castelo = buscar_defensor_castelo(lane, _lado_defensor);
+                    if (_defensor_castelo != noone) {
+                        debug_combate(_defensor_castelo.nome_carta + " defende o castelo!");
+                        rolar_combate(_atacante, _defensor_castelo, ia_escolher_tipo_ataque(_atacante, _defensor_castelo));
                     } else {
-                        obj_controlador.vida_jogador -= _dano_direto;
+                        var _dano_direto = irandom_range(1, _atacante.dado_dano) + _atacante.mod_dano;
+                        if (_lado_atacante == "jogador") {
+                            obj_controlador.vida_inimigo -= _dano_direto;
+                        } else {
+                            obj_controlador.vida_jogador -= _dano_direto;
+                        }
                     }
                 }
             }
@@ -1467,11 +1488,17 @@ function processar_combate_tropa(_carta, _tipo_ataque) {
                 instance_destroy(_construcao_alvo);
             }
         } else {
-            var _dano_direto = irandom_range(1, _dado_usado) + _mod_usado;
-            if (_lado_atacante == "jogador") {
-                obj_controlador.vida_inimigo -= _dano_direto;
+            var _defensor_castelo = buscar_defensor_castelo(_slot.lane, _lado_defensor);
+            if (_defensor_castelo != noone) {
+                debug_combate(_defensor_castelo.nome_carta + " defende o castelo!");
+                rolar_combate(_carta, _defensor_castelo, _tipo_ataque);
             } else {
-                obj_controlador.vida_jogador -= _dano_direto;
+                var _dano_direto = irandom_range(1, _dado_usado) + _mod_usado;
+                if (_lado_atacante == "jogador") {
+                    obj_controlador.vida_inimigo -= _dano_direto;
+                } else {
+                    obj_controlador.vida_jogador -= _dano_direto;
+                }
             }
         }
     } else {
@@ -2960,6 +2987,9 @@ function obter_opcoes_menu(_carta) {
     }
 
     if (!_carta.moveu_este_turno) array_push(_opcoes, "Mover");
+    if (_carta.dono == "jogador" && _carta.travada && _carta.posicao_atual == posicao_entrada("jogador")) {
+        array_push(_opcoes, _carta.defendendo_castelo ? "Parar de Defender" : "Defender Castelo");
+    }
     if (tem_habilidade_ativa(_carta) != noone && !_carta.habilidade_usada_este_turno) array_push(_opcoes, "Habilidade");
     if (_carta.funcao_evolucao != noone && _carta.turnos_no_campo >= 1 && evolucoes_disponiveis(_carta.dono)) {
         array_push(_opcoes, "Evoluir");
@@ -2994,6 +3024,14 @@ function executar_opcao_menu(_carta, _opcao) {
             if (_resultado == "movido") {
                 _carta.moveu_este_turno = true;
             }
+            break;
+        case "Defender Castelo":
+            _carta.defendendo_castelo = true;
+            debug_combate(_carta.nome_carta + " está defendendo o castelo.");
+            break;
+        case "Parar de Defender":
+            _carta.defendendo_castelo = false;
+            debug_combate(_carta.nome_carta + " deixou de defender o castelo.");
             break;
         case "Habilidade":
             usar_habilidade(_carta);
