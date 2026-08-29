@@ -18,6 +18,13 @@ sumario_hover_index = -1;
 arrastando = false;
 preview_ativo = false;
 
+// Animação de virar página (efeito estilo Potion Craft)
+virando = false;
+flip_progresso = 0;
+flip_duracao = 10;        // frames -- baixo = virada rápida e seca, como no Potion Craft
+flip_direcao = 1;
+flip_pagina_alvo = 0;
+
 // tamanho do livro FECHADO, como aparece solto pela room
 livro_escala = 0.1;
 livro_largura = 90 * livro_escala;
@@ -37,11 +44,15 @@ image_yscale = livro_escala;
 #region Funções locais de navegação
 function iniciar_flip(_direcao) {
     if (mostrando_sumario) return;
+    if (virando) return; // já está virando, ignora clique repetido
 
     var _novo_index = pagina_atual + (_direcao * 2);
     if (_novo_index < 0 || _novo_index >= array_length(paginas)) return;
 
-    pagina_atual = _novo_index;
+    flip_direcao = _direcao;
+    flip_pagina_alvo = _novo_index;
+    virando = true;
+    flip_progresso = 0;
 }
 
 // Clique num item do sumário: pula direto pra página do capítulo escolhido.

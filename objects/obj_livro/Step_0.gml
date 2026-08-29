@@ -8,6 +8,23 @@ if (arrastando) {
 }
 #endregion
 
+#region Animação de virar página
+if (virando) {
+    flip_progresso += 1 / flip_duracao;
+
+    // troca o conteúdo exatamente na metade -- é o instante em que a página
+    // está "de perfil" (escala 0), então a troca fica invisível pro jogador
+    if (flip_progresso >= 0.5 && pagina_atual != flip_pagina_alvo) {
+        pagina_atual = flip_pagina_alvo;
+    }
+
+    if (flip_progresso >= 1) {
+        virando = false;
+        flip_progresso = 0;
+    }
+}
+#endregion
+
 #region Resposta visual do livro fechado
 if (!preview_ativo && !arrastando) {
     var _meia_largura_hover = livro_largura / 2;
