@@ -17,6 +17,8 @@ if (rolagens_pendentes > 0) {
 }
 #endregion
 
+atualizar_animacao_dano_castelo();
+
 // Enquanto a IA joga, o turno é processado em etapas e o jogador não pode interagir.
 if (turno == "inimigo" && ia_ativa) {
     processar_turno_ia();

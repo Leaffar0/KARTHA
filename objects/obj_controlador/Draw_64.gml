@@ -1,8 +1,12 @@
 #region Informações da partida
 draw_set_font(Fontenil);
 
-draw_text(20, 20, "Vida jogador: " + string(vida_jogador));
-draw_text(20, 50, "Vida inimigo: " + string(vida_inimigo));
+var _escala_impacto_vida = 1 + (dano_castelo_impacto_timer / 10) * 0.28;
+var _cor_vida = (dano_castelo_impacto_timer > 0) ? c_red : c_white;
+draw_set_color(_cor_vida);
+draw_text_transformed(20, 20, "Vida jogador: " + string(vida_jogador), _escala_impacto_vida, _escala_impacto_vida, 0);
+draw_text_transformed(20, 50, "Vida inimigo: " + string(vida_inimigo), _escala_impacto_vida, _escala_impacto_vida, 0);
+draw_set_color(c_white);
 draw_text(20, 80, (turno == "jogador") ? "Seu turno" : "Turno do inimigo");
 
 if (turno == "inimigo" && ia_ativa) {
@@ -200,4 +204,56 @@ if (vida_inimigo <= 0) {
 	draw_set_font(-1)
 }
 draw_set_font(-1);
+#endregion
+
+#region Dano do castelo - camada final do HUD
+// Fica no fim do Draw GUI para não ser coberto por cartas, menus ou prévias.
+if (dano_castelo_ativo) {
+    var _tempo_decorrido = dano_castelo_duracao - dano_castelo_timer;
+    var _progresso_dano = clamp(_tempo_decorrido / 30, 0, 1);
+    var _progresso_suave = 1 - power(1 - _progresso_dano, 3);
+    var _alvo_y = (dano_castelo_dono == "jogador") ? 32 : 62;
+    var _x_dano = lerp(340, 185, _progresso_suave);
+    var _escala_dano = 1 + sin(_progresso_dano * pi) * 0.35;
+
+    draw_set_font(Fontenil);
+    draw_set_halign(fa_center);
+    draw_set_valign(fa_middle);
+    draw_set_color(c_black);
+    draw_text_transformed(_x_dano + 2, _alvo_y + 2, "-" + string(dano_castelo_valor), _escala_dano, _escala_dano, 0);
+    draw_set_color(c_red);
+    draw_text_transformed(_x_dano, _alvo_y, "-" + string(dano_castelo_valor), _escala_dano, _escala_dano, 0);
+    draw_set_font(-1);
+    draw_set_color(c_white);
+    draw_set_halign(fa_left);
+    draw_set_valign(fa_top);
+}
+#endregion
+
+#region Avisos de regra - camada final do HUD
+with (obj_texto_flutuante) {
+    var _gui_x = x;
+    var _gui_y = y;
+    var _camera = view_camera[0];
+    if (_camera != -1) {
+        _gui_x = (x - camera_get_view_x(_camera)) * display_get_gui_width() / camera_get_view_width(_camera);
+        _gui_y = (y - camera_get_view_y(_camera)) * display_get_gui_height() / camera_get_view_height(_camera);
+    }
+
+    var _progresso_aviso = vida_texto / vida_texto_max;
+    var _alpha_aviso = (_progresso_aviso < 0.15) ? (_progresso_aviso / 0.15) : ((_progresso_aviso > 0.6) ? (1 - ((_progresso_aviso - 0.6) / 0.4)) : 1);
+    draw_set_font(Fontenil);
+    draw_set_alpha(_alpha_aviso);
+    draw_set_color(c_black);
+    draw_set_halign(fa_center);
+    draw_set_valign(fa_middle);
+    draw_text(_gui_x + 2, _gui_y + 2, texto);
+    draw_set_color(cor_texto);
+    draw_text(_gui_x, _gui_y, texto);
+}
+draw_set_font(-1);
+draw_set_color(c_white);
+draw_set_alpha(1);
+draw_set_halign(fa_left);
+draw_set_valign(fa_top);
 #endregion

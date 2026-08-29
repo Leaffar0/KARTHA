@@ -788,11 +788,7 @@ function aplicar_efeitos_morte(_carta, _por_inimigo) {
         var _maldicoes = lista_maldicoes(_dono);
         for (var i = 0; i < array_length(_maldicoes); i++) {
             if (_maldicoes[i] == "perde_vida_ao_morrer") {
-                if (_dono == "jogador") {
-                    obj_controlador.vida_jogador -= 1;
-                } else {
-                    obj_controlador.vida_inimigo -= 1;
-                }
+                causar_dano_castelo(_dono, 1);
                 debug_combate("Maldição da Perda causou 1 de dano!");
             }
         }
@@ -1156,6 +1152,9 @@ function iniciar_pulo_tropa(_carta, _novo_x, _novo_y, _entrada_no_campo = false)
 // "movido", "ja_no_meio", "fora_do_tabuleiro", "invalido", "bloqueado" (aliado no caminho)
 // ou "ataque_necessario" (tem inimigo na frente, precisa atacar em vez de mover).
 function mover_tropa(_carta, _direcao) {
+    // A tropa precisa sobreviver até o próximo turno do próprio dono antes de avançar.
+    if (_carta.turnos_no_campo < 1) return "recem_colocada";
+
     if (_carta.posicao_atual == posicao_ataque() && _direcao == 1) {
         return "ja_no_meio"; // ela já chegou no MEIO e fica ali até morrer
     }
@@ -1207,7 +1206,7 @@ function mover_tropa(_carta, _direcao) {
 // Move todas as tropas de um lado que ainda não chegaram no MEIO (usada no início de cada turno).
 function mover_tropas_automatico(_dono) {
     with (obj_carta) {
-        if (dono == _dono && travada && posicao_atual != posicao_ataque() && tropa_pode_agir(id)) {
+        if (dono == _dono && travada && turnos_no_campo >= 1 && posicao_atual != posicao_ataque() && tropa_pode_agir(id)) {
             mover_tropa(id, 1);
         }
     }
@@ -1369,6 +1368,90 @@ function ia_escolher_tipo_ataque(_atacante, _defensor) {
     return (_magico > _fisico) ? "magica" : "fisica";
 }
 
+// Para atacar o castelo sem um defensor, não há defesa física/mágica a comparar.
+// A IA escolhe simplesmente o tipo com maior dano médio bruto.
+function ia_escolher_tipo_ataque_direto(_carta) {
+    if (_carta.dado_dano_magico <= 0) return "fisica";
+    if (_carta.dado_dano <= 0) return "magica";
+
+    var _fisico = _carta.qtd_dados_dano * ((_carta.dado_dano + 1) / 2) + _carta.mod_dano;
+    var _magico = _carta.qtd_dados_dano_magico * ((_carta.dado_dano_magico + 1) / 2) + _carta.mod_dano_magico;
+    return (_magico > _fisico) ? "magica" : "fisica";
+}
+
+// Rola todos os dados do ataque escolhido. É usado quando o alvo é o castelo,
+// pois não existe uma tropa para aplicar defesas.
+function rolar_dano_direto(_carta, _tipo_ataque) {
+    var _dado = (_tipo_ataque == "magica") ? _carta.dado_dano_magico : _carta.dado_dano;
+    var _quantidade = (_tipo_ataque == "magica") ? _carta.qtd_dados_dano_magico : _carta.qtd_dados_dano;
+    var _modificador = (_tipo_ataque == "magica") ? _carta.mod_dano_magico : _carta.mod_dano;
+
+    var _dano = _modificador;
+    for (var i = 0; i < _quantidade; i++) {
+        _dano += irandom_range(1, _dado);
+    }
+    return max(0, _dano);
+}
+
+// O dano direto entra numa fila visual. A vida só é reduzida no momento em que
+// o número vermelho alcança o indicador no HUD.
+function causar_dano_castelo(_dono, _dano) {
+    if (_dano <= 0) return;
+    var _controle = instance_find(obj_controlador, 0);
+    if (_controle == noone) return;
+    // Também cobre uma partida que ficou aberta durante a atualização do código.
+    if (!variable_instance_exists(_controle, "fila_dano_castelo") || !is_array(_controle.fila_dano_castelo)) {
+        _controle.fila_dano_castelo = [];
+    }
+    array_push(_controle.fila_dano_castelo, { dono: _dono, valor: _dano });
+}
+
+function atualizar_animacao_dano_castelo() {
+    var _controle = instance_find(obj_controlador, 0);
+    if (_controle == noone) return;
+
+    // Compatibilidade com uma instância criada antes desses campos existirem.
+    if (!variable_instance_exists(_controle, "fila_dano_castelo") || !is_array(_controle.fila_dano_castelo)) {
+        _controle.fila_dano_castelo = [];
+    }
+    if (!variable_instance_exists(_controle, "dano_castelo_ativo")) {
+        _controle.dano_castelo_ativo = false;
+        _controle.dano_castelo_dono = "";
+        _controle.dano_castelo_valor = 0;
+        _controle.dano_castelo_timer = 0;
+        _controle.dano_castelo_duracao = 45;
+        _controle.dano_castelo_aplicado = false;
+        _controle.dano_castelo_impacto_timer = 0;
+    }
+
+    if (!_controle.dano_castelo_ativo && array_length(_controle.fila_dano_castelo) > 0) {
+        var _evento = _controle.fila_dano_castelo[0];
+        _controle.fila_dano_castelo = array_delete(_controle.fila_dano_castelo, 0, 1);
+        _controle.dano_castelo_ativo = true;
+        _controle.dano_castelo_dono = _evento.dono;
+        _controle.dano_castelo_valor = _evento.valor;
+        _controle.dano_castelo_timer = _controle.dano_castelo_duracao;
+        _controle.dano_castelo_aplicado = false;
+    }
+
+    if (!_controle.dano_castelo_ativo) return;
+
+    _controle.dano_castelo_timer -= 1;
+    // Os últimos 15 frames são o impacto: a vida diminui exatamente aqui.
+    if (!_controle.dano_castelo_aplicado && _controle.dano_castelo_timer <= 15) {
+        if (_controle.dano_castelo_dono == "jogador") {
+            _controle.vida_jogador -= _controle.dano_castelo_valor;
+        } else {
+            _controle.vida_inimigo -= _controle.dano_castelo_valor;
+        }
+        _controle.dano_castelo_aplicado = true;
+        _controle.dano_castelo_impacto_timer = 10;
+    }
+
+    if (_controle.dano_castelo_impacto_timer > 0) _controle.dano_castelo_impacto_timer -= 1;
+    if (_controle.dano_castelo_timer <= 0) _controle.dano_castelo_ativo = false;
+}
+
 function ia_poder_ataque(_carta) {
     var _fisico = max(0, _carta.qtd_dados_dano * ((_carta.dado_dano + 1) / 2) + _carta.mod_dano);
     var _magico = max(0, _carta.qtd_dados_dano_magico * ((_carta.dado_dano_magico + 1) / 2) + _carta.mod_dano_magico);
@@ -1428,12 +1511,9 @@ function processar_combate(_lado_atacante) {
                         debug_combate(_defensor_castelo.nome_carta + " defende o castelo!");
                         rolar_combate(_atacante, _defensor_castelo, ia_escolher_tipo_ataque(_atacante, _defensor_castelo));
                     } else {
-                        var _dano_direto = irandom_range(1, _atacante.dado_dano) + _atacante.mod_dano;
-                        if (_lado_atacante == "jogador") {
-                            obj_controlador.vida_inimigo -= _dano_direto;
-                        } else {
-                            obj_controlador.vida_jogador -= _dano_direto;
-                        }
+                        var _tipo_direto = ia_escolher_tipo_ataque_direto(_atacante);
+                        var _dano_direto = rolar_dano_direto(_atacante, _tipo_direto);
+                        causar_dano_castelo(_lado_defensor, _dano_direto);
                     }
                 }
             }
@@ -1493,12 +1573,8 @@ function processar_combate_tropa(_carta, _tipo_ataque) {
                 debug_combate(_defensor_castelo.nome_carta + " defende o castelo!");
                 rolar_combate(_carta, _defensor_castelo, _tipo_ataque);
             } else {
-                var _dano_direto = irandom_range(1, _dado_usado) + _mod_usado;
-                if (_lado_atacante == "jogador") {
-                    obj_controlador.vida_inimigo -= _dano_direto;
-                } else {
-                    obj_controlador.vida_jogador -= _dano_direto;
-                }
+                var _dano_direto = rolar_dano_direto(_carta, _tipo_ataque);
+                causar_dano_castelo(_lado_defensor, _dano_direto);
             }
         }
     } else {
@@ -2679,8 +2755,7 @@ function processar_loucura(_carta) {
         }
     } else if (_resultado == 3) {
         if (_carta.posicao_atual == posicao_entrada(_carta.dono)) {
-            if (_carta.dono == "jogador") obj_controlador.vida_jogador -= _carta.dado_dano;
-            else obj_controlador.vida_inimigo -= _carta.dado_dano;
+            causar_dano_castelo(_carta.dono, _carta.dado_dano);
         } else {
             mover_tropa(_carta, -1);
         }
@@ -3023,6 +3098,8 @@ function executar_opcao_menu(_carta, _opcao) {
             var _resultado = mover_tropa(_carta, 1);
             if (_resultado == "movido") {
                 _carta.moveu_este_turno = true;
+            } else if (_resultado == "recem_colocada") {
+                mostrar_aviso_regra("A tropa só pode mover no próximo turno", _carta.x, _carta.y);
             }
             break;
         case "Defender Castelo":
