@@ -1,0 +1,7 @@
+# Artefatos locais gerados pelo GameMaker
+cache/
+output/
+
+# Pacotes/exportações que podem ser recriados a partir do projeto
+*.yyz
+*.yymp
