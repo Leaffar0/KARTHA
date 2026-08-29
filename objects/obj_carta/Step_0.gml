@@ -33,10 +33,35 @@ if (arrastando && mouse_check_button_released(mb_left)) {
 	
 	if (dono == "jogador" && obj_controlador.primeiro_turno_jogador && categoria_bloqueada_primeiro_turno(categoria)) {
 	    debug_combate("Primeiro turno: não pode usar " + categoria + " ainda.");
+	    mostrar_aviso_regra("Não pode usar " + categoria + " no primeiro turno", x, y);
 	    x = origem_x; y = origem_y;
 	    esta_na_mao = true;
     exit;
 }
+
+    if ((categoria == "item_equipavel" || categoria == "item_consumivel") && obj_controlador.itens_usados_este_turno >= 3) {
+        debug_combate("Limite de 3 itens por turno atingido.");
+        mostrar_aviso_regra("Limite de 3 itens por turno", x, y);
+        x = origem_x; y = origem_y;
+        esta_na_mao = true;
+        exit;
+    }
+
+    if (categoria == "magica" && obj_controlador.magias_usadas_este_turno >= 2) {
+        mostrar_aviso_regra("Limite de 2 magias por turno", x, y);
+        x = origem_x; y = origem_y; esta_na_mao = true;
+        exit;
+    }
+    if (categoria == "construcao" && obj_controlador.construcoes_jogadas_este_turno >= 1) {
+        mostrar_aviso_regra("Limite de 1 construção por turno", x, y);
+        x = origem_x; y = origem_y; esta_na_mao = true;
+        exit;
+    }
+    if (categoria == "terreno" && obj_controlador.terrenos_jogados_este_turno >= 1) {
+        mostrar_aviso_regra("Limite de 1 terreno por turno", x, y);
+        x = origem_x; y = origem_y; esta_na_mao = true;
+        exit;
+    }
 	
     if (categoria == "tropa") {
         // --- código de soltar tropa que já existe, sem mudar nada ---
@@ -131,8 +156,9 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         }
     }
     
-    if (_slot_construcao_perto != noone && pode_pagar_custo(custo, "jogador")) {
+    if (_slot_construcao_perto != noone && obj_controlador.construcoes_jogadas_este_turno < 1 && pode_pagar_custo(custo, "jogador")) {
         pagar_custo(custo, "jogador");
+        obj_controlador.construcoes_jogadas_este_turno += 1;
         
         var _construcao = instance_create_layer(_slot_construcao_perto.x, _slot_construcao_perto.y, "Instances", obj_construcao);
         _construcao.nome_construcao = nome_carta;
@@ -173,8 +199,9 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         }
     }
     
-    if (_alvo_mais_perto != noone && pode_pagar_custo(custo, "jogador")) {
+    if (_alvo_mais_perto != noone && obj_controlador.magias_usadas_este_turno < 2 && pode_pagar_custo(custo, "jogador")) {
         pagar_custo(custo, "jogador");
+        obj_controlador.magias_usadas_este_turno += 1;
         switch (efeito_tipo) {
 			case "bola_fogo":
         lancar_bola_de_fogo(_alvo_mais_perto, dado_efeito, chance_queimar);
@@ -220,6 +247,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
     
 	    if (_alvo != noone && pode_pagar_custo(custo, "jogador")) {
 	        pagar_custo(custo, "jogador");
+            obj_controlador.itens_usados_este_turno += 1;
         
 	        if (sobrescreve_dado_dano_item > 0) {
 	            // Arma alternativa: reescreve o ataque físico da tropa (ex: Espada Quebrada)
@@ -254,6 +282,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         if (_distancia_arrastada > 80 && pode_pagar_custo(custo, "jogador")) {
             if (buscar_recurso_no_deck(_tipo_buscado, "jogador")) {
                 pagar_custo(custo, "jogador");
+                obj_controlador.itens_usados_este_turno += 1;
                 var _index = array_get_index(obj_controlador.mao, id);
                 if (_index != -1) {
                     array_delete(obj_controlador.mao, _index, 1);
@@ -275,6 +304,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
 
         if (_distancia_arrastada > 80 && pode_pagar_custo(custo, "jogador")) {
             pagar_custo(custo, "jogador");
+            obj_controlador.itens_usados_este_turno += 1;
             comprar_varias_cartas(quantidade_efeito, "jogador");
 
             var _index = array_get_index(obj_controlador.mao, id);
@@ -306,6 +336,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
 
         if (_alvo != noone && pode_pagar_custo(custo, "jogador")) {
             pagar_custo(custo, "jogador");
+            obj_controlador.itens_usados_este_turno += 1;
             aplicar_corrosao(_alvo);
 
             var _index = array_get_index(obj_controlador.mao, id);
@@ -326,6 +357,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         if (_distancia_arrastada > 80 && pode_pagar_custo(custo, "jogador")) {
             if (revirar_recurso("sangue", "jogador")) {
                 pagar_custo(custo, "jogador");
+                obj_controlador.itens_usados_este_turno += 1;
                 var _index = array_get_index(obj_controlador.mao, id);
                 if (_index != -1) {
                     array_delete(obj_controlador.mao, _index, 1);
@@ -360,6 +392,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
 
         if (_alvo != noone && pode_pagar_custo(custo, "jogador")) {
             pagar_custo(custo, "jogador");
+            obj_controlador.itens_usados_este_turno += 1;
 
             if (efeito_tipo == "aumentar_intelig") {
                 _alvo.nivel_inteligencia += quantidade_efeito;
@@ -435,8 +468,9 @@ if (arrastando && mouse_check_button_released(mb_left)) {
 	} else if (categoria == "terreno") {
     var _distancia_arrastada = point_distance(x, y, arrastar_inicio_x, arrastar_inicio_y);
 
-    if (_distancia_arrastada > 80 && pode_pagar_custo(custo, "jogador")) {
+    if (_distancia_arrastada > 80 && obj_controlador.terrenos_jogados_este_turno < 1 && pode_pagar_custo(custo, "jogador")) {
         pagar_custo(custo, "jogador");
+        obj_controlador.terrenos_jogados_este_turno += 1;
 
         var _slot_terreno_destino = noone;
         with (obj_slot_terreno) {
@@ -487,6 +521,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         
         if (_sucesso) {
             pagar_custo(custo, "jogador");
+            iniciar_animacao_bencao_maldicao(categoria, nome_carta);
             
             var _index = array_get_index(obj_controlador.mao, id);
             if (_index != -1) {

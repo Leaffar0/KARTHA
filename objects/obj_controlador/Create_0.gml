@@ -69,10 +69,14 @@ mao_inimigo_inicial_comprada = false;
 
 #region Turno e vida
 turno = "jogador";
-vida_jogador = 100;
-vida_inimigo = 100;
+vida_jogador = 20;
+vida_inimigo = 20;
 cartas_jogadas_no_turno = 0;
 max_cartas_por_turno = 1;
+itens_usados_este_turno = 0;
+magias_usadas_este_turno = 0;
+construcoes_jogadas_este_turno = 0;
+terrenos_jogados_este_turno = 0;
 primeiro_turno_jogador = true;
 primeiro_turno_inimigo = true;
 mao_inicial_comprada = false; // <-- nova trava
@@ -125,10 +129,19 @@ max_bencaos_maldicoes = 2;
 
 #region Abismo
 abismo = []; // guarda os nomes das cartas que foram parar lá, pra sempre
+cemiterio_jogador = []; // descarte lógico; a visualização pode ser adicionada depois
+cemiterio_inimigo = [];
 #endregion	
 
 #region Anúncio de terreno (nome grande na tela)
 terreno_anuncio_texto = "";
 terreno_anuncio_timer = 0;
 terreno_anuncio_duracao = 100; // ~1.6s a 60fps: fade in, hold, fade out
+#endregion
+
+#region Animação de bênção e maldição
+ritual_texto = "";
+ritual_tipo = "";
+ritual_timer = 0;
+ritual_duracao = 80;
 #endregion

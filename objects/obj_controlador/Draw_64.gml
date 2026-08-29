@@ -18,6 +18,65 @@ if (turno == "inimigo" && ia_ativa) {
 }
 #endregion
 
+#region Ritual de bênção/maldição
+if (ritual_timer > 0) {
+    var _progresso_ritual = 1 - (ritual_timer / ritual_duracao);
+    var _alpha_ritual = sin(_progresso_ritual * pi);
+    var _gui_largura = display_get_gui_width();
+    var _gui_altura = display_get_gui_height();
+    var _centro_x = _gui_largura / 2;
+    var _centro_y = _gui_altura / 2;
+    var _raio = 45 + _progresso_ritual * 150;
+    var _cor_ritual = (ritual_tipo == "bencao") ? make_color_rgb(255, 220, 95) : make_color_rgb(185, 35, 65);
+
+    draw_set_alpha(_alpha_ritual * 0.65);
+    draw_set_color(_cor_ritual);
+    draw_circle(_centro_x, _centro_y, _raio, true);
+    draw_circle(_centro_x, _centro_y, _raio * 0.66, true);
+
+    if (ritual_tipo == "bencao") {
+        // Halo e raios ascendentes para uma leitura angelical.
+        for (var i = 0; i < 12; i++) {
+            var _angulo = i * 30 + _progresso_ritual * 35;
+            var _x1 = _centro_x + lengthdir_x(_raio * 0.55, _angulo);
+            var _y1 = _centro_y + lengthdir_y(_raio * 0.55, _angulo);
+            var _x2 = _centro_x + lengthdir_x(_raio, _angulo);
+            var _y2 = _centro_y + lengthdir_y(_raio, _angulo);
+            draw_line_width(_x1, _y1, _x2, _y2, 2);
+        }
+    } else {
+        // Selo de cinco pontas pulsante para a maldição.
+        var _pontos_x = [];
+        var _pontos_y = [];
+        for (var i = 0; i < 5; i++) {
+            var _angulo = -90 + i * 72 - _progresso_ritual * 45;
+            array_push(_pontos_x, _centro_x + lengthdir_x(_raio * 0.72, _angulo));
+            array_push(_pontos_y, _centro_y + lengthdir_y(_raio * 0.72, _angulo));
+        }
+        for (var i = 0; i < 5; i++) {
+            var _proximo = (i + 2) mod 5;
+            draw_line_width(_pontos_x[i], _pontos_y[i], _pontos_x[_proximo], _pontos_y[_proximo], 3);
+        }
+    }
+
+    draw_set_font(fnt_vitoria);
+    draw_set_halign(fa_center);
+    draw_set_valign(fa_middle);
+    draw_set_alpha(_alpha_ritual);
+    draw_set_color(c_black);
+    draw_text_transformed(_centro_x + 3, _centro_y + 3, ritual_tipo == "bencao" ? "BÊNÇÃO" : "MALDIÇÃO", 1.4, 1.4, 0);
+    draw_set_color(_cor_ritual);
+    draw_text_transformed(_centro_x, _centro_y, ritual_tipo == "bencao" ? "BÊNÇÃO" : "MALDIÇÃO", 1.4, 1.4, 0);
+    draw_set_font(Fontenil);
+    draw_text_transformed(_centro_x, _centro_y + 42, ritual_texto, 0.9, 0.9, 0);
+    draw_set_alpha(1);
+    draw_set_color(c_white);
+    draw_set_halign(fa_left);
+    draw_set_valign(fa_top);
+    ritual_timer -= 1;
+}
+#endregion
+
 #region Anúncio grande de terreno ativado
 if (terreno_anuncio_timer > 0) {
     var _progresso_anuncio = 1 - (terreno_anuncio_timer / terreno_anuncio_duracao);

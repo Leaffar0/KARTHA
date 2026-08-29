@@ -46,6 +46,7 @@ armadilha_visual_id = noone;
 efeito_timer = 0;
 efeito_tipo = ""; // qual magia essa carta é: "bola_fogo", "veneno", "gelo", "choque"
 vezes_eletrocutado_seguidas = 0; // contador pro efeito de Loucura
+loucura_sem_defesa = false;
 bonus_mod_dano_item = 0;
 bonus_defesa_item = 0;
 requisito_inteligencia_item = 0;
