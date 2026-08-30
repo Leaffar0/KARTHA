@@ -124,7 +124,9 @@ if (terreno_anuncio_timer > 0) {
 if (carta_preview != noone && instance_exists(carta_preview)) {
     var _carta = carta_preview;
 
-    var _centro_x = display_get_gui_width() / 2;
+    var _gui_largura_preview = display_get_gui_width();
+    var _tem_painel_lateral = _gui_largura_preview >= 950;
+    var _centro_x = _gui_largura_preview / 2 - (_tem_painel_lateral ? 165 : 0);
     var _centro_y = display_get_gui_height() / 2;
 
     draw_set_alpha(0.7);
@@ -184,26 +186,33 @@ if (carta_preview != noone && instance_exists(carta_preview)) {
 		}
 	}
 
+    #region Painel de detalhes da carta
+    var _painel_largura = _tem_painel_lateral ? 300 : min(360, display_get_gui_width() - 40);
+    var _painel_x = _tem_painel_lateral ? (_centro_x + 205) : ((display_get_gui_width() - _painel_largura) / 2);
+    var _painel_y = _tem_painel_lateral ? 105 : (display_get_gui_height() - 245);
+    var _painel_altura = _tem_painel_lateral ? 430 : 260;
+    var _texto_detalhes = descricao_carta_preview(_carta);
+
+    draw_set_alpha(0.92);
+    draw_set_color(c_black);
+    draw_roundrect(_painel_x, _painel_y, _painel_x + _painel_largura, _painel_y + _painel_altura, false);
+    draw_set_alpha(1);
+    draw_set_color(c_white);
+    draw_roundrect(_painel_x, _painel_y, _painel_x + _painel_largura, _painel_y + _painel_altura, true);
+    draw_set_font(Fontenil);
+    draw_set_halign(fa_left);
+    draw_set_valign(fa_top);
+    draw_set_color(c_yellow);
+    draw_text(_painel_x + 14, _painel_y + 12, "DETALHES DA CARTA");
+    draw_set_color(c_white);
+    draw_text_ext(_painel_x + 14, _painel_y + 42, _texto_detalhes, 28, _painel_largura - 28);
+    #endregion
+
     draw_set_halign(fa_left);
     draw_set_valign(fa_top);
     draw_set_color(c_white);
     draw_text(_centro_x - 200, display_get_gui_height() - 40, "Clique com o botão direito pra fechar");
 }
-#endregion
-
-#region Mensagem de fim de partida
-if (vida_jogador <= 0) {
-    draw_set_font(fnt_vitoria)
-    draw_text(room_width/2 - 150, room_height/2.5, "VOCÊ PERDEU");
-	draw_set_font(-1)
-}
-	
-if (vida_inimigo <= 0) {
-	draw_set_font(fnt_vitoria)
-    draw_text(room_width/2 - 150, room_height/2.5, "VOCÊ VENCEU");
-	draw_set_font(-1)
-}
-draw_set_font(-1);
 #endregion
 
 #region Dano do castelo - camada final do HUD
@@ -256,4 +265,166 @@ draw_set_color(c_white);
 draw_set_alpha(1);
 draw_set_halign(fa_left);
 draw_set_valign(fa_top);
+#endregion
+
+#region Histórico e cemitério
+var _hud_largura = display_get_gui_width();
+draw_set_font(Fontenil);
+
+// Histórico fica recolhido até o jogador pedir, para não poluir a tela.
+draw_set_color(c_black);
+draw_roundrect(14, 112, 190, 144, false);
+draw_set_color(c_yellow);
+draw_set_halign(fa_center);
+draw_set_valign(fa_middle);
+draw_text(102, 128, "HISTÓRICO  " + string(array_length(historico_combate)));
+draw_set_color(c_white);
+if (historico_aberto) {
+    var _primeiro_evento = max(0, array_length(historico_combate) - 12);
+    var _eventos_visiveis = array_length(historico_combate) - _primeiro_evento;
+    draw_set_alpha(0.88);
+    draw_set_color(c_black);
+    draw_roundrect(14, 150, 330, 150 + 26 + _eventos_visiveis * 17, false);
+    draw_set_alpha(1);
+    draw_set_halign(fa_left);
+    draw_set_valign(fa_top);
+    draw_set_color(c_yellow);
+    draw_text(24, 156, "ÚLTIMAS AÇÕES");
+    draw_set_color(c_white);
+    for (var i = _primeiro_evento; i < array_length(historico_combate); i++) {
+        draw_text(24, 178 + (i - _primeiro_evento) * 17, "• " + historico_combate[i]);
+    }
+}
+
+// Botão e lista das tropas que morreram durante a partida.
+var _cem_x1 = _hud_largura - 205;
+var _cem_x2 = _hud_largura - 15;
+draw_set_color(c_black);
+draw_roundrect(_cem_x1, 30, _cem_x2, 62, false);
+draw_set_color(c_white);
+draw_roundrect(_cem_x1, 30, _cem_x2, 62, true);
+draw_set_halign(fa_center);
+draw_set_valign(fa_middle);
+draw_text((_cem_x1 + _cem_x2) / 2, 46, "TUTORIAL  (F1)");
+draw_set_color(c_black);
+draw_roundrect(_cem_x1, 72, _cem_x2, 104, false);
+draw_set_color(c_white);
+draw_roundrect(_cem_x1, 72, _cem_x2, 104, true);
+draw_set_halign(fa_center);
+draw_set_valign(fa_middle);
+draw_text((_cem_x1 + _cem_x2) / 2, 88, "CEMITÉRIO  " + string(array_length(cemiterio_jogador)) + "/" + string(array_length(cemiterio_inimigo)));
+
+if (cemiterio_aberto) {
+    var _lista_y1 = 110;
+    var _lista_y2 = 300;
+    draw_set_alpha(0.9);
+    draw_set_color(c_black);
+    draw_roundrect(_cem_x1, _lista_y1, _cem_x2, _lista_y2, false);
+    draw_set_alpha(1);
+    draw_set_halign(fa_left);
+    draw_set_valign(fa_top);
+    draw_set_color(c_aqua);
+    draw_text(_cem_x1 + 10, _lista_y1 + 8, "SUAS TROPAS");
+    draw_set_color(c_white);
+    var _linha_cemiterio = 0;
+    for (var i = max(0, array_length(cemiterio_jogador) - 4); i < array_length(cemiterio_jogador); i++) {
+        draw_text(_cem_x1 + 10, _lista_y1 + 28 + _linha_cemiterio * 16, "• " + cemiterio_jogador[i]);
+        _linha_cemiterio += 1;
+    }
+    draw_set_color(c_red);
+    draw_text(_cem_x1 + 10, _lista_y1 + 98, "INIMIGAS");
+    draw_set_color(c_white);
+    _linha_cemiterio = 0;
+    for (var i = max(0, array_length(cemiterio_inimigo) - 4); i < array_length(cemiterio_inimigo); i++) {
+        draw_text(_cem_x1 + 10, _lista_y1 + 118 + _linha_cemiterio * 16, "• " + cemiterio_inimigo[i]);
+        _linha_cemiterio += 1;
+    }
+}
+draw_set_halign(fa_left);
+draw_set_valign(fa_top);
+draw_set_color(c_white);
+draw_set_font(-1);
+#endregion
+
+#region Tutorial opcional
+if (tutorial_ativo) {
+    var _tutorial_largura = display_get_gui_width();
+    var _tutorial_altura = display_get_gui_height();
+    var _tutorial_cx = _tutorial_largura / 2;
+    var _tutorial_cy = _tutorial_altura / 2;
+    var _tutorial = tutorial_paginas[tutorial_pagina];
+
+    draw_set_alpha(0.82);
+    draw_set_color(c_black);
+    draw_rectangle(0, 0, _tutorial_largura, _tutorial_altura, false);
+    draw_set_alpha(1);
+    draw_set_color(c_white);
+    draw_roundrect(_tutorial_cx - 300, _tutorial_cy - 210, _tutorial_cx + 300, _tutorial_cy + 220, false);
+    draw_set_color(c_black);
+    draw_roundrect(_tutorial_cx - 300, _tutorial_cy - 210, _tutorial_cx + 300, _tutorial_cy + 220, true);
+
+    draw_set_font(fnt_vitoria);
+    draw_set_halign(fa_center);
+    draw_set_valign(fa_middle);
+    draw_set_color(c_black);
+    draw_text_transformed(_tutorial_cx, _tutorial_cy - 145, _tutorial.titulo, 0.8, 0.8, 0);
+    // Fontenil inclui os caracteres portugueses; o espaçamento maior mantém a leitura confortável.
+    draw_set_font(Fontenil);
+    draw_set_halign(fa_left);
+    draw_set_valign(fa_top);
+    draw_text_ext(_tutorial_cx - 245, _tutorial_cy - 95, _tutorial.texto, 20, 490);
+    draw_set_font(Fontenil);
+    draw_set_halign(fa_center);
+    draw_set_valign(fa_middle);
+    draw_text(_tutorial_cx, _tutorial_cy + 105, string(tutorial_pagina + 1) + " / " + string(array_length(tutorial_paginas)));
+
+    draw_set_color(c_black);
+    draw_roundrect(_tutorial_cx - 230, _tutorial_cy + 150, _tutorial_cx - 70, _tutorial_cy + 195, false);
+    draw_roundrect(_tutorial_cx + 70, _tutorial_cy + 150, _tutorial_cx + 230, _tutorial_cy + 195, false);
+    draw_set_color(c_white);
+    draw_roundrect(_tutorial_cx - 230, _tutorial_cy + 150, _tutorial_cx - 70, _tutorial_cy + 195, true);
+    draw_roundrect(_tutorial_cx + 70, _tutorial_cy + 150, _tutorial_cx + 230, _tutorial_cy + 195, true);
+    draw_text(_tutorial_cx - 150, _tutorial_cy + 172, "< ANTERIOR");
+    draw_text(_tutorial_cx + 150, _tutorial_cy + 172, "PRÓXIMA >");
+
+    draw_set_color(c_black);
+    draw_roundrect(_tutorial_cx + 250, _tutorial_cy - 190, _tutorial_cx + 290, _tutorial_cy - 150, false);
+    draw_set_color(c_white);
+    draw_text(_tutorial_cx + 270, _tutorial_cy - 170, "X");
+    draw_set_font(-1);
+    draw_set_halign(fa_left);
+    draw_set_valign(fa_top);
+    draw_set_color(c_white);
+}
+#endregion
+
+#region Tela final da partida
+if (vida_jogador <= 0 || vida_inimigo <= 0) {
+    var _fim_largura = display_get_gui_width();
+    var _fim_altura = display_get_gui_height();
+    var _fim_x = _fim_largura / 2;
+    var _fim_y = _fim_altura / 2;
+    var _venceu = vida_inimigo <= 0 && vida_jogador > 0;
+
+    draw_set_alpha(0.78);
+    draw_set_color(c_black);
+    draw_rectangle(0, 0, _fim_largura, _fim_altura, false);
+    draw_set_alpha(1);
+    draw_set_font(fnt_vitoria);
+    draw_set_halign(fa_center);
+    draw_set_valign(fa_middle);
+    draw_set_color(_venceu ? c_yellow : c_red);
+    draw_text(_fim_x, _fim_y - 35, _venceu ? "VOCÊ VENCEU" : "VOCÊ PERDEU");
+    draw_set_font(Fontenil);
+    draw_set_color(c_white);
+    draw_text(_fim_x, _fim_y, "O castelo " + (_venceu ? "inimigo caiu." : "foi destruído."));
+    draw_set_color(c_black);
+    draw_roundrect(_fim_x - 120, _fim_y + 35, _fim_x + 120, _fim_y + 80, false);
+    draw_set_color(c_white);
+    draw_roundrect(_fim_x - 120, _fim_y + 35, _fim_x + 120, _fim_y + 80, true);
+    draw_text(_fim_x, _fim_y + 57, "REINICIAR PARTIDA");
+    draw_set_font(-1);
+    draw_set_halign(fa_left);
+    draw_set_valign(fa_top);
+}
 #endregion

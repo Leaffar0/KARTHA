@@ -139,7 +139,24 @@ max_bencaos_maldicoes = 2;
 abismo = []; // guarda os nomes das cartas que foram parar lá, pra sempre
 cemiterio_jogador = []; // descarte lógico; a visualização pode ser adicionada depois
 cemiterio_inimigo = [];
+cemiterio_aberto = false;
+historico_aberto = false;
+historico_combate = [];
+max_historico_combate = 15;
 #endregion	
+
+#region Tutorial opcional
+tutorial_ativo = false;
+tutorial_pagina = 0;
+tutorial_paginas = [
+    { titulo: "BEM-VINDO A KARTHA", texto: "O objetivo é reduzir a vida do castelo inimigo a zero. Use suas cartas para formar tropas, criar recursos e controlar as três fileiras." },
+    { titulo: "SEU TURNO", texto: "Compre cartas, coloque até um recurso e jogue suas cartas pagando o custo indicado. Recursos usados ficam virados até o próximo turno." },
+    { titulo: "TROPAS E MOVIMENTO", texto: "Tropas entram na base da sua fileira. Uma tropa recém-colocada só pode se mover no próximo turno dela. Assim, chegar ao centro exige planejamento." },
+    { titulo: "COMBATE E CASTELO", texto: "No centro, a tropa ataca inimigos à frente. Sem tropa ou construção na fileira, ela ataca o castelo. Uma tropa na base pode escolher Defender Castelo para interceptar esse dano." },
+    { titulo: "AÇÕES E EVOLUÇÃO", texto: "Clique numa tropa no campo para atacar, mover, usar habilidade, evoluir ou defender. Evoluções exigem que a tropa tenha sobrevivido pelo menos um turno." },
+    { titulo: "INFORMAÇÕES DA PARTIDA", texto: "Use HISTÓRICO para rever ações recentes e CEMITÉRIO para ver as tropas derrotadas. Você pode abrir este tutorial novamente a qualquer momento pelo botão TUTORIAL ou com F1." }
+];
+#endregion
 
 #region Anúncio de terreno (nome grande na tela)
 terreno_anuncio_texto = "";

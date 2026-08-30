@@ -14,6 +14,21 @@ function debug_combate(_msg) {
     if (global.DEBUG_COMBATE) {
         show_debug_message(_msg);
     }
+
+    // Histórico curto e visível na partida, independente do console de debug.
+    if (instance_exists(obj_controlador)) {
+        var _controle = instance_find(obj_controlador, 0);
+        if (!variable_instance_exists(_controle, "historico_combate") || !is_array(_controle.historico_combate)) {
+            _controle.historico_combate = [];
+        }
+        if (!variable_instance_exists(_controle, "max_historico_combate") || _controle.max_historico_combate < 15) {
+            _controle.max_historico_combate = 15;
+        }
+        array_push(_controle.historico_combate, _msg);
+        while (array_length(_controle.historico_combate) > _controle.max_historico_combate) {
+            _controle.historico_combate = array_delete(_controle.historico_combate, 0, 1);
+        }
+    }
 }
 #endregion
 
@@ -1200,6 +1215,8 @@ function mover_tropa(_carta, _direcao) {
 
 	verificar_olhar_vazio(_carta);
 
+    debug_combate(_carta.nome_carta + " avançou na fileira " + string(_carta.lane_atual + 1) + ".");
+
     return "movido";
 }
 
@@ -1404,6 +1421,7 @@ function causar_dano_castelo(_dono, _dano) {
         _controle.fila_dano_castelo = [];
     }
     array_push(_controle.fila_dano_castelo, { dono: _dono, valor: _dano });
+    debug_combate("Castelo do " + _dono + " recebeu " + string(_dano) + " de dano.");
 }
 
 function atualizar_animacao_dano_castelo() {
@@ -1717,13 +1735,18 @@ function processar_resultado_acerto(_dado_acerto, _atacante, _defensor, _tipo_at
 }
 
 function destruir_tropa(_carta, _por_inimigo = true) {
+    debug_combate(_carta.nome_carta + " foi derrotada e enviada ao cemitério.");
     aplicar_efeitos_morte(_carta, _por_inimigo);
 
     if (_carta.selo_abissal) {
         mandar_para_abismo(_carta.nome_carta);
     } else {
-        var _cemiterio = (_carta.dono == "jogador") ? obj_controlador.cemiterio_jogador : obj_controlador.cemiterio_inimigo;
-        array_push(_cemiterio, _carta.nome_carta);
+        var _controle = instance_find(obj_controlador, 0);
+        if (_carta.dono == "jogador") {
+            array_push(_controle.cemiterio_jogador, _carta.nome_carta);
+        } else {
+            array_push(_controle.cemiterio_inimigo, _carta.nome_carta);
+        }
         ativar_hemodrenario_ao_morrer(_carta);
     }
 
@@ -2548,6 +2571,7 @@ function colocar_recurso(_tipo, _dono, _origem_x = noone, _origem_y = noone, _sl
         obj_controlador.recurso_colocado_no_turno_inimigo = true;
     }
 
+    debug_combate("" + string_upper(string_copy(_dono, 1, 1)) + string_delete(_dono, 1, 1) + " colocou " + nome_recurso_exibicao(_tipo, 1) + ".");
     return "colocado";
 }
 
@@ -2581,6 +2605,8 @@ function pode_pagar_custo(_custo, _dono) {
 
     // aceita tanto o formato antigo (1 struct só) quanto o novo (array de structs)
     var _lista_custos = is_array(_custo) ? _custo : [_custo];
+    var _faltas = [];
+    var _pode_pagar = true;
 
     for (var i = 0; i < array_length(_lista_custos); i++) {
         var _item = _lista_custos[i];
@@ -2593,15 +2619,22 @@ function pode_pagar_custo(_custo, _dono) {
         }
 
         if (_disponiveis < _item.quantidade) {
-            if (_dono == "jogador") {
-                var _faltam = _item.quantidade - _disponiveis;
-                mostrar_aviso_regra("Falta " + string(_faltam) + " " + nome_recurso_exibicao(_item.tipo, _faltam));
-            }
-            return false;
+            _pode_pagar = false;
+            var _quantidade_faltante = _item.quantidade - _disponiveis;
+            array_push(_faltas, string(_quantidade_faltante) + " " + nome_recurso_exibicao(_item.tipo, _quantidade_faltante));
         }
     }
 
-    return true;
+    if (!_pode_pagar && _dono == "jogador") {
+        var _texto_faltas = "Falta ";
+        for (var j = 0; j < array_length(_faltas); j++) {
+            if (j > 0) _texto_faltas += (j == array_length(_faltas) - 1) ? " e " : ", ";
+            _texto_faltas += _faltas[j];
+        }
+        mostrar_aviso_regra(_texto_faltas);
+    }
+
+    return _pode_pagar;
 }
 
 // paga de verdade, virando os recursos usados
@@ -3130,6 +3163,100 @@ function obter_nome_exibicao_habilidade(_chave) {
         case "visao_do_veu": return "Visão do Véu";
     }
     return "Habilidade";
+}
+
+// Texto usado na prévia ampliada. Centraliza as explicações das regras que já
+// estão implementadas, para que cartas novas também recebam informações úteis.
+function texto_custo_exibicao(_custo) {
+    if (_custo == noone) return "Sem custo";
+
+    var _lista = is_array(_custo) ? _custo : [_custo];
+    var _texto = "";
+    for (var i = 0; i < array_length(_lista); i++) {
+        var _item = _lista[i];
+        if (i > 0) _texto += " + ";
+        _texto += string(_item.quantidade) + " " + nome_recurso_exibicao(_item.tipo, _item.quantidade);
+    }
+    return _texto;
+}
+
+function descricao_habilidade(_chave) {
+    switch (_chave) {
+        case "alcance": return "Alcance: pode atacar uma casa mais distante.";
+        case "alcance_magico": return "Alcance mágico: pode mirar inimigos mais distantes.";
+        case "voar": return "Voar: atravessa tropas terrestres ao se mover.";
+        case "golpe_duplo": return "Golpe Duplo: realiza dois ataques na mesma ação.";
+        case "mitose": return "Mitose: ao morrer, gera duas tropas menores quando houver espaço.";
+        case "imitacao": return "Imitação: pode confundir ou copiar o comportamento do inimigo.";
+        case "sombra_translucida": return "Sombra Translúcida: fica difícil de ser alvo por um tempo.";
+        case "visao_do_veu": return "Visão do Véu: revela e interage com efeitos ocultos.";
+        case "olhar_vazio": return "Olhar Vazio: aplica seu efeito ao avançar sobre um alvo.";
+        case "tiro_burro": return "Tiro Burro: pode atingir alvos de forma imprevisível.";
+    }
+    return _chave;
+}
+
+function categoria_exibicao(_categoria) {
+    switch (_categoria) {
+        case "tropa": return "Tropa";
+        case "recurso": return "Recurso";
+        case "construcao": return "Construção";
+        case "armadilha": return "Armadilha";
+        case "item_equipavel": return "Item equipável";
+        case "item_consumivel": return "Item consumível";
+        case "magica": return "Magia";
+        case "terreno": return "Terreno";
+        case "bencao": return "Bênção";
+        case "maldicao": return "Maldição";
+    }
+    return _categoria;
+}
+
+function descricao_efeito_preview(_carta) {
+    switch (_carta.efeito_tipo) {
+        case "bola_fogo": return "Causa " + string(_carta.dado_efeito) + " de dano e pode queimar o alvo.";
+        case "veneno": return "Envenena a tropa alvo, causando dano ao longo dos turnos.";
+        case "gelo": return "Congela a tropa alvo e limita suas ações.";
+        case "choque": return "Eletrocuta a tropa alvo; choques repetidos podem causar Loucura.";
+        case "comprar_cartas": return "Compra " + string(_carta.quantidade_efeito) + " cartas do seu deck.";
+        case "revirar_sangue": return "Desvira um recurso de Sangue usado.";
+        case "buscar_sangue": return "Obtém um recurso de Sangue.";
+        case "buscar_mana": return "Obtém um recurso de Mana.";
+        case "aplicar_corrosao": return "Aplica Corrosão, com dano decrescente por 3 turnos.";
+        case "aumentar_intelig": return "Concede +" + string(_carta.quantidade_efeito) + " de Inteligência a uma tropa aliada.";
+    }
+    return "Use o efeito da carta em um alvo válido.";
+}
+
+function descricao_carta_preview(_carta) {
+    var _texto = "TIPO: " + categoria_exibicao(_carta.categoria) + "\nCUSTO: " + texto_custo_exibicao(_carta.custo);
+
+    if (_carta.categoria == "tropa") {
+        if (array_length(_carta.habilidades) > 0) {
+            _texto += "\n\nHABILIDADES:";
+            for (var i = 0; i < array_length(_carta.habilidades); i++) {
+                _texto += "\n• " + descricao_habilidade(_carta.habilidades[i]);
+            }
+        }
+        if (_carta.funcao_evolucao != noone) {
+            var _dados_evolucao = _carta.funcao_evolucao();
+            _texto += "\n\nEVOLUÇÃO: após sobreviver 1 turno, pode evoluir para " + _dados_evolucao.nome + ".";
+        }
+        return _texto;
+    }
+
+    switch (_carta.categoria) {
+        case "recurso": _texto += "\n\nColoque no seu campo de recursos. Recursos virados pagam cartas e voltam no próximo turno."; break;
+        case "construcao": _texto += "\n\nOcupa uma fileira e protege o castelo antes do dano direto."; break;
+        case "armadilha": _texto += "\n\nFica escondida no campo e ativa quando uma tropa inimiga entra no espaço vigiado."; break;
+        case "item_equipavel": _texto += "\n\nEquipe em uma tropa aliada. Bônus: +" + string(_carta.bonus_mod_dano_item) + " dano e +" + string(_carta.bonus_defesa_item) + " defesa."; break;
+        case "item_consumivel": _texto += "\n\n" + descricao_efeito_preview(_carta) + " É consumido depois do uso."; break;
+        case "magica": _texto += "\n\n" + descricao_efeito_preview(_carta) + " Magias possuem limite por turno."; break;
+        case "terreno": _texto += "\n\nAltera regras ou atributos do campo enquanto estiver ativo."; break;
+        case "bencao": _texto += "\n\nEfeito positivo permanente para seu lado da partida: " + string(_carta.efeito_passivo) + "."; break;
+        case "maldicao": _texto += "\n\nEfeito negativo permanente aplicado ao lado escolhido: " + string(_carta.efeito_passivo) + "."; break;
+    }
+    return _texto;
 }
 	
 function tem_habilidade(_carta, _chave) {

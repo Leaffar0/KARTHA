@@ -21,7 +21,7 @@ preview_ativo = false;
 // Animação de virar página (efeito estilo Potion Craft)
 virando = false;
 flip_progresso = 0;
-flip_duracao = 10;        // frames -- baixo = virada rápida e seca, como no Potion Craft
+flip_duracao = 24;        // tempo suficiente para a folha ganhar peso e desacelerar
 flip_direcao = 1;
 flip_pagina_alvo = 0;
 

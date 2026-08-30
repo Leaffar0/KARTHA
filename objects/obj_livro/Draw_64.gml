@@ -15,14 +15,17 @@ draw_set_alpha(1);
 
 #region Cálculo da animação de virar página
 var _escala_flip_x = 1;
+var _intensidade_dobra = 0;
 if (virando) {
-    _escala_flip_x = (flip_progresso < 0.5)
-        ? (1 - (flip_progresso / 0.5))
-        : ((flip_progresso - 0.5) / 0.5);
+    // A folha parte e termina devagar, acelera no meio e fica fina na lombada.
+    // É uma curva suave, diferente do encolhimento linear anterior.
+    var _fase_dobra = (flip_progresso < 0.5)
+        ? (flip_progresso * 2)
+        : ((1 - flip_progresso) * 2);
+    _escala_flip_x = cos(_fase_dobra * pi / 2);
     _escala_flip_x = clamp(_escala_flip_x, 0.015, 1);
+    _intensidade_dobra = sin(flip_progresso * pi);
 }
-var _sombra_flip_alpha = virando ? (1 - abs(_escala_flip_x - 0.5) * 2) * 0.35 : 0;
-
 // qual lado fisicamente dobra: Próxima (direcao 1) -> direita | Anterior (direcao -1) -> esquerda
 var _vira_direita = virando && (flip_direcao == 1);
 var _vira_esquerda = virando && (flip_direcao == -1);
@@ -53,6 +56,27 @@ var _meia_largura_direita = (sprite_get_width(spr_livro_pagina) / 2) * abs(_esca
 var _centro_direita_atual = _vira_direita ? (_spine_x + _meia_largura_direita) : _pagina_direita_x;
 var _escala_x_direita_atual = -_escala_pagina_x * (_vira_direita ? _escala_flip_x : 1);
 draw_sprite_ext(spr_livro_pagina, 0, _centro_direita_atual, _cy, _escala_x_direita_atual, _escala_pagina_y, 0, c_white, 1);
+#endregion
+
+#region Vinco da folha virando
+if (virando) {
+    // Sombra estreita na lombada e brilho na borda da folha dão espessura à dobra.
+    var _largura_vinco = 8 + _intensidade_dobra * 24;
+    draw_set_alpha(0.18 + _intensidade_dobra * 0.28);
+    draw_set_color(c_black);
+    if (_vira_direita) {
+        draw_line_width(_spine_x + _largura_vinco * 0.5, _cy - preview_altura * 0.45, _spine_x + _largura_vinco * 0.5, _cy + preview_altura * 0.45, max(1, _largura_vinco * 0.22));
+    } else {
+        draw_line_width(_spine_x - _largura_vinco * 0.5, _cy - preview_altura * 0.45, _spine_x - _largura_vinco * 0.5, _cy + preview_altura * 0.45, max(1, _largura_vinco * 0.22));
+    }
+
+    draw_set_alpha(_intensidade_dobra * 0.5);
+    draw_set_color(make_color_rgb(255, 235, 190));
+    var _borda_x = _vira_direita ? (_centro_direita_atual + _meia_largura_direita) : (_centro_esquerda_atual - _meia_largura_esquerda);
+    draw_line_width(_borda_x, _cy - preview_altura * 0.43, _borda_x, _cy + preview_altura * 0.43, 2);
+    draw_set_alpha(1);
+    draw_set_color(c_white);
+}
 #endregion
 
 var _cor_tinta = make_color_rgb(64, 44, 27);
@@ -126,20 +150,6 @@ if (_indice_direita < array_length(paginas)) {
         desenhar_pagina_do_livro(paginas[_indice_direita], _pagina_direita_x, _cy, _largura_pagina * 0.86, preview_altura * 0.86);
         draw_set_alpha(1);
     }
-}
-#endregion
-
-#region Sombra de profundidade durante a virada (aparece do lado que está dobrando)
-if (virando && _sombra_flip_alpha > 0) {
-    draw_set_alpha(_sombra_flip_alpha);
-    draw_set_color(c_black);
-    if (_vira_direita) {
-        draw_rectangle(_cx, _cy - preview_altura/2, _pagina_direita_x + _largura_pagina/2, _cy + preview_altura/2, false);
-    } else {
-        draw_rectangle(_pagina_esquerda_x - _largura_pagina/2, _cy - preview_altura/2, _cx, _cy + preview_altura/2, false);
-    }
-    draw_set_alpha(1);
-    draw_set_color(c_white);
 }
 #endregion
 

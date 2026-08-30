@@ -19,6 +19,64 @@ if (rolagens_pendentes > 0) {
 
 atualizar_animacao_dano_castelo();
 
+// Compatibilidade com partidas abertas antes do botão de Histórico existir.
+if (!variable_instance_exists(id, "historico_aberto")) historico_aberto = false;
+
+// Tela final: bloqueia a partida e permite recomeçar sem fechar o jogo.
+if (vida_jogador <= 0 || vida_inimigo <= 0) {
+    var _fim_gui_x = device_mouse_x_to_gui(0);
+    var _fim_gui_y = device_mouse_y_to_gui(0);
+    var _fim_centro_x = display_get_gui_width() / 2;
+    var _fim_centro_y = display_get_gui_height() / 2;
+    var _clicou_reiniciar = point_in_rectangle(_fim_gui_x, _fim_gui_y, _fim_centro_x - 120, _fim_centro_y + 35, _fim_centro_x + 120, _fim_centro_y + 80);
+    if (keyboard_check_pressed(vk_enter) || keyboard_check_pressed(ord("R")) || (mouse_check_button_pressed(mb_left) && _clicou_reiniciar)) {
+        room_restart();
+    }
+    exit;
+}
+
+// Tutorial opcional: quando aberto, pausa as interações da partida.
+var _tutorial_gui_x = device_mouse_x_to_gui(0);
+var _tutorial_gui_y = device_mouse_y_to_gui(0);
+var _tutorial_largura_gui = display_get_gui_width();
+var _tutorial_altura_gui = display_get_gui_height();
+if (tutorial_ativo) {
+    var _tutorial_cx = _tutorial_largura_gui / 2;
+    var _tutorial_cy = _tutorial_altura_gui / 2;
+    if (keyboard_check_pressed(vk_escape) || mouse_check_button_pressed(mb_left) && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _tutorial_cx + 250, _tutorial_cy - 190, _tutorial_cx + 290, _tutorial_cy - 150)) {
+        tutorial_ativo = false;
+    } else if (keyboard_check_pressed(vk_left) || mouse_check_button_pressed(mb_left) && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _tutorial_cx - 230, _tutorial_cy + 150, _tutorial_cx - 70, _tutorial_cy + 195)) {
+        tutorial_pagina = max(0, tutorial_pagina - 1);
+    } else if (keyboard_check_pressed(vk_right) || mouse_check_button_pressed(mb_left) && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _tutorial_cx + 70, _tutorial_cy + 150, _tutorial_cx + 230, _tutorial_cy + 195)) {
+        tutorial_pagina = min(array_length(tutorial_paginas) - 1, tutorial_pagina + 1);
+    }
+    exit;
+}
+
+if (keyboard_check_pressed(vk_f1) || (turno == "jogador" && mouse_check_button_pressed(mb_left)
+    && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _tutorial_largura_gui - 205, 30, _tutorial_largura_gui - 15, 62))) {
+    tutorial_ativo = true;
+    tutorial_pagina = 0;
+    carta_preview = noone;
+    carta_menu_aberto = noone;
+    exit;
+}
+
+// Abre/fecha a lista do cemitério pelo botão do HUD.
+var _mouse_gui_x_cemiterio = device_mouse_x_to_gui(0);
+var _mouse_gui_y_cemiterio = device_mouse_y_to_gui(0);
+var _gui_largura_cemiterio = display_get_gui_width();
+if (turno == "jogador" && mouse_check_button_pressed(mb_left)
+    && point_in_rectangle(_mouse_gui_x_cemiterio, _mouse_gui_y_cemiterio, 14, 112, 190, 144)) {
+    historico_aberto = !historico_aberto;
+    exit;
+}
+if (turno == "jogador" && mouse_check_button_pressed(mb_left)
+    && point_in_rectangle(_mouse_gui_x_cemiterio, _mouse_gui_y_cemiterio, _gui_largura_cemiterio - 205, 72, _gui_largura_cemiterio - 15, 104)) {
+    cemiterio_aberto = !cemiterio_aberto;
+    exit;
+}
+
 // Enquanto a IA joga, o turno é processado em etapas e o jogador não pode interagir.
 if (turno == "inimigo" && ia_ativa) {
     processar_turno_ia();
