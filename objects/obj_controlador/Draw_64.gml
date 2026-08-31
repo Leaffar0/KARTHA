@@ -9,6 +9,29 @@ draw_text_transformed(20, 50, "Vida inimigo: " + string(vida_inimigo), _escala_i
 draw_set_color(c_white);
 draw_text(20, 80, (turno == "jogador") ? "Seu turno" : "Turno do inimigo");
 
+if (turno == "jogador") {
+    var _status_recurso = recurso_colocado_no_turno ? "usado" : "disponível";
+    draw_set_color(recurso_colocado_no_turno ? c_gray : c_lime);
+    draw_text(20, 108, "Recurso: " + _status_recurso + "  |  Cartas: " + string(cartas_jogadas_no_turno) + "/" + string(max_cartas_por_turno));
+    draw_set_color(c_white);
+    draw_text(20, 134, "Evoluções: " + string(evolucoes_jogador_este_turno) + "/" + string(max_evolucoes_por_turno));
+}
+
+var _hud_largura = display_get_gui_width();
+var _hud_direita_x1 = _hud_largura - 205 + hud_deslocamento_direita;
+var _hud_direita_x2 = _hud_largura - 15 + hud_deslocamento_direita;
+draw_set_alpha(0.88);
+draw_set_color(c_black);
+draw_roundrect(_hud_direita_x1, 152, _hud_direita_x2, 184, false);
+draw_set_alpha(1);
+draw_set_color(c_white);
+draw_roundrect(_hud_direita_x1, 152, _hud_direita_x2, 184, true);
+draw_set_halign(fa_center);
+draw_set_valign(fa_middle);
+draw_text((_hud_direita_x1 + _hud_direita_x2) / 2, 168, "PAUSA  [P]");
+draw_set_halign(fa_left);
+draw_set_valign(fa_top);
+
 if (turno == "inimigo" && ia_ativa) {
     var _gui_largura = display_get_gui_width();
     draw_set_alpha(0.82);
@@ -19,6 +42,30 @@ if (turno == "inimigo" && ia_ativa) {
     draw_set_halign(fa_center);
     draw_text(_gui_largura / 2, 28, "INIMIGO: " + ia_texto_acao);
     draw_set_halign(fa_left);
+}
+#endregion
+
+#region Transição de turno
+if (anuncio_turno_timer > 0) {
+    var _progresso_turno = 1 - (anuncio_turno_timer / anuncio_turno_duracao);
+    var _alpha_turno = sin(_progresso_turno * pi) * 0.92;
+    var _largura_turno = display_get_gui_width();
+    var _altura_turno = display_get_gui_height();
+    var _cor_turno = (turno == "jogador") ? c_aqua : c_red;
+    draw_set_font(fnt_vitoria);
+    draw_set_halign(fa_center);
+    draw_set_valign(fa_middle);
+    draw_set_alpha(_alpha_turno);
+    draw_set_color(c_black);
+    draw_text_transformed(_largura_turno / 2 + 3, _altura_turno / 2 + 3, anuncio_turno_texto, 1.15, 1.15, 0);
+    draw_set_color(_cor_turno);
+    draw_text_transformed(_largura_turno / 2, _altura_turno / 2, anuncio_turno_texto, 1.15, 1.15, 0);
+    draw_set_alpha(1);
+    draw_set_color(c_white);
+    draw_set_halign(fa_left);
+    draw_set_valign(fa_top);
+    draw_set_font(Fontenil);
+    anuncio_turno_timer -= 1;
 }
 #endregion
 
@@ -273,32 +320,34 @@ draw_set_font(Fontenil);
 
 // Histórico fica recolhido até o jogador pedir, para não poluir a tela.
 draw_set_color(c_black);
-draw_roundrect(14, 112, 190, 144, false);
+var _historico_x1 = 14 - hud_deslocamento_esquerda;
+var _historico_x2 = 190 - hud_deslocamento_esquerda;
+draw_roundrect(_historico_x1, 210, _historico_x2, 242, false);
 draw_set_color(c_yellow);
 draw_set_halign(fa_center);
 draw_set_valign(fa_middle);
-draw_text(102, 128, "HISTÓRICO  " + string(array_length(historico_combate)));
+draw_text((_historico_x1 + _historico_x2) / 2, 226, "HISTÓRICO  " + string(array_length(historico_combate)));
 draw_set_color(c_white);
 if (historico_aberto) {
     var _primeiro_evento = max(0, array_length(historico_combate) - 12);
     var _eventos_visiveis = array_length(historico_combate) - _primeiro_evento;
     draw_set_alpha(0.88);
     draw_set_color(c_black);
-    draw_roundrect(14, 150, 330, 150 + 26 + _eventos_visiveis * 17, false);
+    draw_roundrect(_historico_x1, 248, _historico_x1 + 316, 248 + 26 + _eventos_visiveis * 17, false);
     draw_set_alpha(1);
     draw_set_halign(fa_left);
     draw_set_valign(fa_top);
     draw_set_color(c_yellow);
-    draw_text(24, 156, "ÚLTIMAS AÇÕES");
+    draw_text(_historico_x1 + 10, 254, "ÚLTIMAS AÇÕES");
     draw_set_color(c_white);
     for (var i = _primeiro_evento; i < array_length(historico_combate); i++) {
-        draw_text(24, 178 + (i - _primeiro_evento) * 17, "• " + historico_combate[i]);
+        draw_text(_historico_x1 + 10, 276 + (i - _primeiro_evento) * 17, "• " + historico_combate[i]);
     }
 }
 
 // Botão e lista das tropas que morreram durante a partida.
-var _cem_x1 = _hud_largura - 205;
-var _cem_x2 = _hud_largura - 15;
+var _cem_x1 = _hud_largura - 205 + hud_deslocamento_direita;
+var _cem_x2 = _hud_largura - 15 + hud_deslocamento_direita;
 draw_set_color(c_black);
 draw_roundrect(_cem_x1, 30, _cem_x2, 62, false);
 draw_set_color(c_white);
@@ -344,6 +393,124 @@ draw_set_halign(fa_left);
 draw_set_valign(fa_top);
 draw_set_color(c_white);
 draw_set_font(-1);
+#endregion
+
+#region Confirmação de descarte manual
+if (confirmacao_descarte_ativa && instance_exists(carta_pendente_descarte)) {
+    var _confirmacao_largura = display_get_gui_width();
+    var _confirmacao_altura = display_get_gui_height();
+    var _confirmacao_cx = _confirmacao_largura / 2;
+    var _confirmacao_cy = _confirmacao_altura / 2;
+
+    draw_set_alpha(0.65);
+    draw_set_color(c_black);
+    draw_rectangle(0, 0, _confirmacao_largura, _confirmacao_altura, false);
+    draw_set_alpha(1);
+    draw_set_color(c_black);
+    draw_roundrect(_confirmacao_cx - 245, _confirmacao_cy - 110, _confirmacao_cx + 245, _confirmacao_cy + 110, false);
+    draw_set_color(c_white);
+    draw_roundrect(_confirmacao_cx - 245, _confirmacao_cy - 110, _confirmacao_cx + 245, _confirmacao_cy + 110, true);
+    draw_set_font(fnt_botao);
+    draw_set_halign(fa_center);
+    draw_set_valign(fa_middle);
+    draw_set_color(c_yellow);
+    draw_text(_confirmacao_cx, _confirmacao_cy - 62, "DESCARTAR CARTA?");
+    draw_set_font(-1);
+    draw_set_color(c_white);
+    draw_text(_confirmacao_cx, _confirmacao_cy - 25, carta_pendente_descarte.nome_carta);
+    draw_set_color(c_black);
+    draw_roundrect(_confirmacao_cx - 180, _confirmacao_cy + 42, _confirmacao_cx - 12, _confirmacao_cy + 82, false);
+    draw_roundrect(_confirmacao_cx + 12, _confirmacao_cy + 42, _confirmacao_cx + 180, _confirmacao_cy + 82, false);
+    draw_set_color(c_white);
+    draw_roundrect(_confirmacao_cx - 180, _confirmacao_cy + 42, _confirmacao_cx - 12, _confirmacao_cy + 82, true);
+    draw_roundrect(_confirmacao_cx + 12, _confirmacao_cy + 42, _confirmacao_cx + 180, _confirmacao_cy + 82, true);
+    draw_text(_confirmacao_cx - 96, _confirmacao_cy + 62, "DESCARTAR");
+    draw_text(_confirmacao_cx + 96, _confirmacao_cy + 62, "CANCELAR");
+    draw_set_halign(fa_left);
+    draw_set_valign(fa_top);
+    draw_set_color(c_white);
+}
+#endregion
+
+#region Pilha de descarte
+if (descarte_aberto) {
+    var _descarte_largura = display_get_gui_width();
+    var _descarte_altura = display_get_gui_height();
+    var _descarte_cx = _descarte_largura / 2;
+    var _descarte_cy = _descarte_altura / 2;
+    var _descarte_x1 = _descarte_cx - 280;
+    var _descarte_x2 = _descarte_cx + 280;
+    var _descarte_y1 = _descarte_cy - 200;
+    var _descarte_y2 = _descarte_cy + 200;
+    var _primeira_carta = max(0, array_length(descarte_jogador) - 12);
+
+    draw_set_alpha(0.72);
+    draw_set_color(c_black);
+    draw_rectangle(0, 0, _descarte_largura, _descarte_altura, false);
+    draw_set_alpha(1);
+    draw_set_color(c_black);
+    draw_roundrect(_descarte_x1, _descarte_y1, _descarte_x2, _descarte_y2, false);
+    draw_set_color(c_white);
+    draw_roundrect(_descarte_x1, _descarte_y1, _descarte_x2, _descarte_y2, true);
+
+    draw_set_font(fnt_botao);
+    draw_set_halign(fa_center);
+    draw_set_valign(fa_middle);
+    draw_set_color(c_yellow);
+    draw_text(_descarte_cx, _descarte_y1 + 32, "PILHA DE DESCARTE");
+    draw_set_font(-1);
+    draw_set_color(c_white);
+    draw_text(_descarte_cx, _descarte_y1 + 58, string(array_length(descarte_jogador)) + " carta(s) usada(s)");
+
+    draw_set_halign(fa_left);
+    draw_set_valign(fa_top);
+    if (descarte_preview_indice >= 0 && descarte_preview_indice < array_length(descarte_jogador)) {
+        var _carta_descartada = descarte_jogador[descarte_preview_indice];
+        var _sprite_descartada = variable_struct_exists(_carta_descartada, "sprite") ? _carta_descartada.sprite : spr_carta_placeholder;
+        var _escala_descartada = min(155 / sprite_get_width(_sprite_descartada), 210 / sprite_get_height(_sprite_descartada));
+        var _descricao_descartada = variable_struct_exists(_carta_descartada, "descricao") ? _carta_descartada.descricao : "Informações da carta indisponíveis nesta partida.";
+
+        draw_sprite_ext(_sprite_descartada, 0, _descarte_x1 + 28, _descarte_y1 + 94, _escala_descartada, _escala_descartada, 0, c_white, 1);
+        draw_set_color(c_aqua);
+        draw_text(_descarte_x1 + 205, _descarte_y1 + 94, _carta_descartada.nome);
+        draw_set_color(c_white);
+        draw_text_ext(_descarte_x1 + 205, _descarte_y1 + 120, _descricao_descartada, 16, _descarte_x2 - (_descarte_x1 + 225));
+
+        draw_set_color(c_black);
+        draw_roundrect(_descarte_x1 + 35, _descarte_y2 - 55, _descarte_x1 + 200, _descarte_y2 - 20, false);
+        draw_set_color(c_white);
+        draw_roundrect(_descarte_x1 + 35, _descarte_y2 - 55, _descarte_x1 + 200, _descarte_y2 - 20, true);
+        draw_set_halign(fa_center);
+        draw_set_valign(fa_middle);
+        draw_text(_descarte_x1 + 117, _descarte_y2 - 37, "VOLTAR");
+    } else if (array_length(descarte_jogador) <= 0) {
+        draw_set_halign(fa_center);
+        draw_text(_descarte_cx, _descarte_cy, "Nenhuma carta foi descartada ainda.");
+    } else {
+        for (var i = _primeira_carta; i < array_length(descarte_jogador); i++) {
+            var _carta_descartada = descarte_jogador[i];
+            draw_text(_descarte_x1 + 35, _descarte_y1 + 90 + (i - _primeira_carta) * 21, "• " + _carta_descartada.nome);
+        }
+        draw_set_halign(fa_center);
+        draw_set_valign(fa_middle);
+        draw_set_color(c_gray);
+        draw_text(_descarte_cx, _descarte_y2 - 48, "Clique em uma carta para ver os detalhes");
+        draw_set_color(c_white);
+    }
+
+    draw_set_halign(fa_center);
+    draw_set_valign(fa_middle);
+    draw_set_color(c_black);
+    draw_roundrect(_descarte_cx + 240, _descarte_cy - 180, _descarte_cx + 280, _descarte_cy - 140, false);
+    draw_set_color(c_white);
+    draw_roundrect(_descarte_cx + 240, _descarte_cy - 180, _descarte_cx + 280, _descarte_cy - 140, true);
+    draw_text(_descarte_cx + 260, _descarte_cy - 160, "X");
+    draw_set_color(c_gray);
+    draw_text(_descarte_cx, _descarte_y2 - 22, descarte_preview_indice != -1 ? "ESC ou X para voltar" : "ESC ou X para fechar");
+    draw_set_halign(fa_left);
+    draw_set_valign(fa_top);
+    draw_set_color(c_white);
+}
 #endregion
 
 #region Tutorial opcional
@@ -398,6 +565,62 @@ if (tutorial_ativo) {
 }
 #endregion
 
+#region Painel de pausa
+if (pausa_ativa) {
+    var _pausa_largura = display_get_gui_width();
+    var _pausa_altura = display_get_gui_height();
+    var _pausa_cx = _pausa_largura / 2;
+    var _pausa_cy = _pausa_altura / 2;
+    draw_set_alpha(0.78);
+    draw_set_color(c_black);
+    draw_rectangle(0, 0, _pausa_largura, _pausa_altura, false);
+    draw_set_alpha(1);
+    draw_set_color(c_black);
+    draw_roundrect(_pausa_cx - 235, _pausa_cy - 150, _pausa_cx + 235, _pausa_cy + 225, false);
+    draw_set_color(c_white);
+    draw_roundrect(_pausa_cx - 235, _pausa_cy - 150, _pausa_cx + 235, _pausa_cy + 225, true);
+    draw_set_font(fnt_vitoria);
+    draw_set_halign(fa_center);
+    draw_set_valign(fa_middle);
+    draw_text(_pausa_cx, _pausa_cy - 88, opcoes_pausa_ativa ? "OPÇÕES" : "PAUSA");
+    draw_set_font(Fontenil);
+    if (opcoes_pausa_ativa) {
+        draw_text(_pausa_cx - 125, _pausa_cy - 35, "<");
+        draw_text(_pausa_cx + 125, _pausa_cy - 35, ">");
+        draw_text(_pausa_cx, _pausa_cy - 35, "MÚSICA  " + string(round(global.volume_musica * 100)) + "%");
+        draw_text(_pausa_cx - 125, _pausa_cy + 10, "<");
+        draw_text(_pausa_cx + 125, _pausa_cy + 10, ">");
+        draw_text(_pausa_cx, _pausa_cy + 10, "EFEITOS  " + string(round(global.volume_efeitos * 100)) + "%");
+        draw_set_color(c_gray);
+        draw_text(_pausa_cx, _pausa_cy + 55, "TELA CHEIA: " + (window_get_fullscreen() ? "SIM" : "NÃO"));
+        draw_set_color(c_white);
+        draw_text(_pausa_cx, _pausa_cy + 110, "VOLTAR");
+    } else {
+        draw_text(_pausa_cx, _pausa_cy - 38, "A partida está aguardando.");
+    draw_set_color(c_black);
+    draw_roundrect(_pausa_cx - 125, _pausa_cy + 35, _pausa_cx + 125, _pausa_cy + 75, false);
+    draw_set_color(c_white);
+    draw_roundrect(_pausa_cx - 125, _pausa_cy + 35, _pausa_cx + 125, _pausa_cy + 75, true);
+    draw_text(_pausa_cx, _pausa_cy + 55, "CONTINUAR  [P / ESC]");
+    draw_set_color(c_black);
+    draw_roundrect(_pausa_cx - 125, _pausa_cy + 90, _pausa_cx + 125, _pausa_cy + 130, false);
+    draw_set_color(c_white);
+    draw_roundrect(_pausa_cx - 125, _pausa_cy + 90, _pausa_cx + 125, _pausa_cy + 130, true);
+    draw_text(_pausa_cx, _pausa_cy + 110, "OPÇÕES");
+    draw_set_color(c_black);
+    draw_roundrect(_pausa_cx - 125, _pausa_cy + 145, _pausa_cx + 125, _pausa_cy + 185, false);
+    draw_set_color(c_red);
+    draw_roundrect(_pausa_cx - 125, _pausa_cy + 145, _pausa_cx + 125, _pausa_cy + 185, true);
+    draw_text(_pausa_cx, _pausa_cy + 165, "SAIR DO JOGO");
+    draw_set_color(c_gray);
+    draw_text(_pausa_cx, _pausa_cy + 210, "F1 abre o tutorial");
+    }
+    draw_set_color(c_white);
+    draw_set_halign(fa_left);
+    draw_set_valign(fa_top);
+}
+#endregion
+
 #region Tela final da partida
 if (vida_jogador <= 0 || vida_inimigo <= 0) {
     var _fim_largura = display_get_gui_width();
@@ -418,11 +641,13 @@ if (vida_jogador <= 0 || vida_inimigo <= 0) {
     draw_set_font(Fontenil);
     draw_set_color(c_white);
     draw_text(_fim_x, _fim_y, "O castelo " + (_venceu ? "inimigo caiu." : "foi destruído."));
+    draw_text(_fim_x, _fim_y + 26, "Turnos completos: " + string(turnos_completos));
+    draw_text(_fim_x, _fim_y + 50, "Tropas derrotadas — Você: " + string(array_length(cemiterio_jogador)) + " | Inimigo: " + string(array_length(cemiterio_inimigo)));
     draw_set_color(c_black);
-    draw_roundrect(_fim_x - 120, _fim_y + 35, _fim_x + 120, _fim_y + 80, false);
+    draw_roundrect(_fim_x - 120, _fim_y + 85, _fim_x + 120, _fim_y + 130, false);
     draw_set_color(c_white);
-    draw_roundrect(_fim_x - 120, _fim_y + 35, _fim_x + 120, _fim_y + 80, true);
-    draw_text(_fim_x, _fim_y + 57, "REINICIAR PARTIDA");
+    draw_roundrect(_fim_x - 120, _fim_y + 85, _fim_x + 120, _fim_y + 130, true);
+    draw_text(_fim_x, _fim_y + 107, "REINICIAR PARTIDA");
     draw_set_font(-1);
     draw_set_halign(fa_left);
     draw_set_valign(fa_top);

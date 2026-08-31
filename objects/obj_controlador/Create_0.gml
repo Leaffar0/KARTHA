@@ -87,6 +87,7 @@ construcoes_jogadas_este_turno = 0;
 terrenos_jogados_este_turno = 0;
 primeiro_turno_jogador = true;
 primeiro_turno_inimigo = true;
+turnos_completos = 0;
 mao_inicial_comprada = false; // <-- nova trava
 
 // A IA executa o turno em etapas visíveis, sem revelar a mão do oponente.
@@ -94,6 +95,9 @@ ia_ativa = false;
 ia_etapa = 0;
 ia_tempo_espera = 0;
 ia_texto_acao = "";
+anuncio_turno_texto = "SEU TURNO";
+anuncio_turno_timer = 75;
+anuncio_turno_duracao = 75;
 #endregion
 
 #region Recursos
@@ -119,6 +123,12 @@ carta_menu_aberto = noone;
 menu_escala = 0;
 opcao_hover_index = -1;
 tooltip_escala = 0;
+tropa_selecionada = noone;
+pausa_ativa = false;
+opcoes_pausa_ativa = false;
+carregar_configuracoes();
+hud_deslocamento_esquerda = 160;
+hud_deslocamento_direita = 180;
 #endregion
 
 #region Evolução
@@ -139,6 +149,12 @@ max_bencaos_maldicoes = 2;
 abismo = []; // guarda os nomes das cartas que foram parar lá, pra sempre
 cemiterio_jogador = []; // descarte lógico; a visualização pode ser adicionada depois
 cemiterio_inimigo = [];
+descarte_jogador = []; // magias e itens consumidos; a pilha visual será ligada a este array
+descarte_inimigo = [];
+descarte_aberto = false;
+descarte_preview_indice = -1;
+confirmacao_descarte_ativa = false;
+carta_pendente_descarte = noone;
 cemiterio_aberto = false;
 historico_aberto = false;
 historico_combate = [];
@@ -156,6 +172,12 @@ tutorial_paginas = [
     { titulo: "AÇÕES E EVOLUÇÃO", texto: "Clique numa tropa no campo para atacar, mover, usar habilidade, evoluir ou defender. Evoluções exigem que a tropa tenha sobrevivido pelo menos um turno." },
     { titulo: "INFORMAÇÕES DA PARTIDA", texto: "Use HISTÓRICO para rever ações recentes e CEMITÉRIO para ver as tropas derrotadas. Você pode abrir este tutorial novamente a qualquer momento pelo botão TUTORIAL ou com F1." }
 ];
+abrir_livro_pendente = variable_global_exists("abrir_livro_menu") && global.abrir_livro_menu;
+if (variable_global_exists("abrir_tutorial_menu") && global.abrir_tutorial_menu) {
+    tutorial_ativo = true;
+    global.abrir_tutorial_menu = false;
+}
+if (abrir_livro_pendente) global.abrir_livro_menu = false;
 #endregion
 
 #region Anúncio de terreno (nome grande na tela)

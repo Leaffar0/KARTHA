@@ -25,6 +25,8 @@ if (obj_controlador.carta_menu_aberto != noone && obj_controlador.carta_menu_abe
 
 if (obj_controlador.carta_menu_aberto == id) {
     obj_controlador.carta_menu_aberto = noone;
+    obj_controlador.tropa_selecionada = noone;
 } else {
     obj_controlador.carta_menu_aberto = id;
+    obj_controlador.tropa_selecionada = id;
 }

@@ -141,6 +141,9 @@ ataque_calc_tempo_retorno = 0;
 
 dano_flash_timer = 0;
 dano_flash_duracao = 25;
+morrendo = false;
+morte_timer = 0;
+morte_duracao = 30;
 #endregion
 
 #region Efeito de voo (tropas com a habilidade Voar)

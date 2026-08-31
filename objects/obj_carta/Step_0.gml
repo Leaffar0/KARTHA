@@ -1,3 +1,12 @@
+#region Morte visual
+// A regra já foi resolvida e o slot está livre; aqui só termina a animação.
+if (morrendo) {
+    morte_timer -= 1;
+    if (morte_timer <= 0) instance_destroy();
+    exit;
+}
+#endregion
+
 #region Armadilha vigiando: detecta gatilho e faz a carta balançar na mão
 if (armadilha_estado == "vigiando" || armadilha_estado == "pronta") {
     var _slot_vigiado = buscar_slot(armadilha_lane, armadilha_posicao);
@@ -25,11 +34,21 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         exit;
     }
     
-    if (obj_controlador.turno != "jogador") {
+	if (obj_controlador.turno != "jogador") {
 	    x = origem_x; y = origem_y;
 	    esta_na_mao = true;
 	    exit;
 	}
+
+    // Descarte manual: solte uma carta da mão sobre a pilha de descarte.
+    var _pilha_descarte = instance_find(obj_descarte, 0);
+    if (_pilha_descarte != noone
+        && point_in_rectangle(x, y, _pilha_descarte.x - 20, _pilha_descarte.y - 20,
+            _pilha_descarte.x + _pilha_descarte.sprite_width + 20, _pilha_descarte.y + _pilha_descarte.sprite_height + 20)) {
+        obj_controlador.confirmacao_descarte_ativa = true;
+        obj_controlador.carta_pendente_descarte = id;
+        exit;
+    }
 	
 	if (dono == "jogador" && obj_controlador.primeiro_turno_jogador && categoria_bloqueada_primeiro_turno(categoria)) {
 	    debug_combate("Primeiro turno: não pode usar " + categoria + " ainda.");
@@ -177,6 +196,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
             array_delete(obj_controlador.mao, _index, 1);
             organizar_mao();
         }
+        mostrar_feedback("USADA", x, y, c_gray, 30);
         instance_destroy(id);
     } else {
         x = origem_x; y = origem_y;
@@ -222,6 +242,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
             array_delete(obj_controlador.mao, _index, 1);
             organizar_mao();
         }
+        registrar_descarte(id);
         instance_destroy(id);
     } else {
         x = origem_x; y = origem_y;
@@ -267,6 +288,8 @@ if (arrastando && mouse_check_button_released(mb_left)) {
 	            array_delete(obj_controlador.mao, _index, 1);
 	            organizar_mao();
 	        }
+	        mostrar_feedback("USADA", x, y, c_gray, 30);
+        registrar_descarte(id);
 	        instance_destroy(id);
 	    } else {
 	        x = origem_x; y = origem_y;
@@ -288,6 +311,8 @@ if (arrastando && mouse_check_button_released(mb_left)) {
                     array_delete(obj_controlador.mao, _index, 1);
                     organizar_mao();
                 }
+                mostrar_feedback("USADA", x, y, c_gray, 30);
+                registrar_descarte(id);
                 instance_destroy(id);
             } else {
                 x = origem_x; y = origem_y;
@@ -312,6 +337,8 @@ if (arrastando && mouse_check_button_released(mb_left)) {
                 array_delete(obj_controlador.mao, _index, 1);
                 organizar_mao();
             }
+            mostrar_feedback("USADA", x, y, c_gray, 30);
+            registrar_descarte(id);
             instance_destroy(id);
         } else {
             x = origem_x; y = origem_y;
@@ -344,6 +371,8 @@ if (arrastando && mouse_check_button_released(mb_left)) {
                 array_delete(obj_controlador.mao, _index, 1);
                 organizar_mao();
             }
+            mostrar_feedback("USADA", x, y, c_gray, 30);
+            registrar_descarte(id);
             instance_destroy(id);
         } else {
             x = origem_x; y = origem_y;
@@ -363,6 +392,8 @@ if (arrastando && mouse_check_button_released(mb_left)) {
                     array_delete(obj_controlador.mao, _index, 1);
                     organizar_mao();
                 }
+                mostrar_feedback("USADA", x, y, c_gray, 30);
+                registrar_descarte(id);
                 instance_destroy(id);
             } else {
                 debug_combate("Frasco de Sangue: nenhum sangue virado pra reverter.");
@@ -397,8 +428,11 @@ if (arrastando && mouse_check_button_released(mb_left)) {
             if (efeito_tipo == "aumentar_intelig") {
                 _alvo.nivel_inteligencia += quantidade_efeito;
                 debug_combate(_alvo.nome_carta + " ganhou +" + string(quantidade_efeito) + " de inteligência!");
+                mostrar_feedback("INT +" + string(quantidade_efeito), _alvo.x, _alvo.y - _alvo.sprite_height * 0.45, c_aqua, 45);
             } else {
-                _alvo.vida = min(_alvo.vida + cura_item, _alvo.vida_maxima);
+                var _cura_real = min(cura_item, _alvo.vida_maxima - _alvo.vida);
+                _alvo.vida += _cura_real;
+                if (_cura_real > 0) mostrar_feedback("+" + string(_cura_real), _alvo.x, _alvo.y - _alvo.sprite_height * 0.45, c_lime, 45);
             }
 
             var _index = array_get_index(obj_controlador.mao, id);
@@ -406,6 +440,8 @@ if (arrastando && mouse_check_button_released(mb_left)) {
                 array_delete(obj_controlador.mao, _index, 1);
                 organizar_mao();
             }
+            mostrar_feedback("USADA", x, y, c_gray, 30);
+            registrar_descarte(id);
             instance_destroy(id);
         } else {
             x = origem_x; y = origem_y;

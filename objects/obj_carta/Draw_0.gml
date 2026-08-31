@@ -27,6 +27,16 @@ if (dano_flash_timer > 0) {
     _cor_final = merge_color(cor_evolucao, c_red, _piscar * _flash_progresso);
 }
 
+// A derrota consome a carta de fora para dentro: ela escurece, queima e encolhe.
+if (morrendo) {
+    var _progresso_morte = 1 - (morte_timer / morte_duracao);
+    _alpha_carta *= 1 - _progresso_morte;
+    _escala_final *= 1 - _progresso_morte * 0.72;
+    _cor_final = merge_color(_cor_final, c_black, _progresso_morte * 0.82);
+}
+
+draw_set_alpha(_alpha_carta);
+
 gpu_set_texfilter(true);
 
 
@@ -41,6 +51,21 @@ draw_sprite_ext(
     _cor_final,
     _alpha_carta
 );
+
+if (morrendo) {
+    var _brasa_alpha = (1 - _progresso_morte) * 0.85;
+    var _meia_largura_brasa = sprite_width * _escala_final * 0.50;
+    var _meia_altura_brasa = sprite_height * _escala_final * 0.50;
+    draw_set_alpha(_brasa_alpha);
+    draw_set_color(make_color_rgb(255, 105, 25));
+    for (var _brasa = 0; _brasa < 4; _brasa++) {
+        var _invasao = _progresso_morte * (_brasa + 1) * 5;
+        draw_line(_x_desenho - _meia_largura_brasa + _invasao, _y_desenho - _meia_altura_brasa + _invasao,
+            _x_desenho + _meia_largura_brasa - _invasao, _y_desenho - _meia_altura_brasa + _invasao);
+    }
+    draw_set_alpha(_alpha_carta);
+    draw_set_color(_cor_final);
+}
 
 // Brilho pulsante quando a armadilha está ativa em campo (vigiando ou pronta)
 if (armadilha_estado == "vigiando" || armadilha_estado == "pronta") {
@@ -66,6 +91,35 @@ if (travada && defendendo_castelo) {
     draw_set_halign(fa_left);
     draw_set_valign(fa_top);
     draw_set_alpha(1);
+}
+
+// Etiqueta curta para estados que impedem ou modificam ações.
+if (travada && categoria == "tropa" && !morrendo) {
+    var _estado_texto = "";
+    var _estado_cor = c_gray;
+    if (condicao != noone && condicao != "imune_queimado") {
+        _estado_texto = string_upper(string_replace_all(condicao, "_", " "));
+        _estado_cor = (condicao == "congelado") ? c_aqua : ((condicao == "paralisado") ? c_yellow : c_red);
+    } else if (turnos_no_campo < 1) {
+        _estado_texto = "NOVA";
+    } else if (atacou_este_turno && moveu_este_turno) {
+        _estado_texto = "AGIU";
+    } else if (atacou_este_turno) {
+        _estado_texto = "ATACOU";
+    } else if (moveu_este_turno) {
+        _estado_texto = "MOVEU";
+    } else if (habilidade_usada_este_turno) {
+        _estado_texto = "HAB. USADA";
+    }
+    if (_estado_texto != "") {
+        draw_set_halign(fa_center);
+        draw_set_valign(fa_top);
+        draw_set_color(_estado_cor);
+        draw_text_transformed(_x_desenho, _y_desenho + sprite_height * 0.54, _estado_texto, 0.32, 0.32, 0);
+        draw_set_halign(fa_left);
+        draw_set_valign(fa_top);
+        draw_set_color(c_white);
+    }
 }
 
 #endregion

@@ -699,6 +699,8 @@ function ativar_armadilha(_carta_armadilha) {
 
     var _dano = irandom_range(1, _carta_armadilha.dado_efeito);
     _alvo.vida -= _dano;
+    aplicar_flash_dano(_alvo);
+    mostrar_dano_tropa(_alvo, _dano);
     aplicar_condicao(_alvo, "sangrando", 1, 3);
 
     debug_combate(_carta_armadilha.nome_carta + " ativada em " + _alvo.nome_carta + "! " + string(_dano) + " de dano.");
@@ -1043,6 +1045,9 @@ function comprar_carta_do_deck_por_funcao(_funcao_sorteada, _x_inicial, _y_inici
 
     _carta.x = _x_inicial;
     _carta.y = _y_inicial;
+    if (obj_controlador.mao_inicial_comprada) {
+        mostrar_feedback("+ CARTA", _x_inicial, _y_inicial, c_aqua, 32);
+    }
 }
 	
 // Compra 1 carta do monte da IA (consumindo ele) e guarda na mão dela.
@@ -1300,6 +1305,17 @@ function iniciar_animacao_ataque(_carta, _alvo = noone, _intensidade = 10, _dura
 function aplicar_flash_dano(_carta, _duracao = 18) {
     if (!instance_exists(_carta)) return;
     _carta.dano_flash_timer = _duracao;
+}
+
+// Número de dano sobre a tropa, desenhado pelo HUD acima de todas as cartas.
+function mostrar_dano_tropa(_carta, _dano) {
+    if (!instance_exists(_carta) || _dano <= 0) return;
+    var _texto = instance_create_layer(_carta.x, _carta.y - _carta.sprite_height * 0.45, "Instances", obj_texto_flutuante);
+    _texto.texto = "-" + string(_dano);
+    _texto.cor_texto = c_red;
+    _texto.vida_texto_max = 42;
+    _texto.velocidade_subida = 0.35;
+    _texto.oscilacao_intensidade = 1.2;
 }
 
 function buscar_slot(_lane, _posicao) {
@@ -1673,6 +1689,7 @@ function processar_resultado_acerto(_dado_acerto, _atacante, _defensor, _tipo_at
             var _defesa_contra = atacante.defesa_fisica + bonus_cemiterio_defesa(atacante);
             _dano_contra = max(0, _dano_contra - _defesa_contra - obj_controlador.terreno_bonus_defesa);
             atacante.vida -= _dano_contra;
+            mostrar_dano_tropa(atacante, _dano_contra);
 
             debug_combate(atacante.nome_carta + " tomou " + string(_dano_contra) + " de contra-ataque. Vida: " + string(atacante.vida));
 
@@ -1725,6 +1742,7 @@ function processar_resultado_acerto(_dado_acerto, _atacante, _defensor, _tipo_at
         var _dano_final = _resultado + mod_usado + bonus_cemiterio_dano(atacante);
         _dano_final = max(0, _dano_final - _defesa_usada - obj_controlador.terreno_bonus_defesa);
         defensor.vida -= _dano_final;
+        mostrar_dano_tropa(defensor, _dano_final);
 
         debug_combate(defensor.nome_carta + " tomou " + string(_dano_final) + " de dano " + tipo_ataque + "! Vida agora: " + string(defensor.vida));
 
@@ -1735,6 +1753,7 @@ function processar_resultado_acerto(_dado_acerto, _atacante, _defensor, _tipo_at
 }
 
 function destruir_tropa(_carta, _por_inimigo = true) {
+    if (!instance_exists(_carta) || _carta.morrendo) return;
     debug_combate(_carta.nome_carta + " foi derrotada e enviada ao cemitério.");
     aplicar_efeitos_morte(_carta, _por_inimigo);
 
@@ -1761,7 +1780,26 @@ function destruir_tropa(_carta, _por_inimigo = true) {
         executar_mitose(_carta);
     }
 
-    instance_destroy(_carta);
+    if (obj_controlador.carta_menu_aberto == _carta) obj_controlador.carta_menu_aberto = noone;
+    if (obj_controlador.tropa_selecionada == _carta) obj_controlador.tropa_selecionada = noone;
+    _carta.morrendo = true;
+    _carta.morte_timer = _carta.morte_duracao;
+    _carta.condicao = noone;
+}
+
+// Itens e magias consumidos vão para o descarte; tropas derrotadas usam o cemitério.
+function registrar_descarte(_carta) {
+    if (!instance_exists(_carta)) return;
+    var _destino = (_carta.dono == "jogador") ? obj_controlador.descarte_jogador : obj_controlador.descarte_inimigo;
+    array_push(_destino, {
+        nome: _carta.nome_carta,
+        categoria: _carta.categoria,
+        sprite: _carta.sprite_index,
+        descricao: descricao_carta_preview(_carta)
+    });
+    if (_carta.dono == "jogador") obj_controlador.descarte_jogador = _destino;
+    else obj_controlador.descarte_inimigo = _destino;
+    debug_combate(_carta.nome_carta + " foi para o descarte.");
 }
 
 function executar_mitose(_carta) {
@@ -1901,8 +1939,14 @@ function passar_turno_jogador() {
     iniciar_turno_inimigo();
 }
 
+function anunciar_turno(_dono) {
+    obj_controlador.anuncio_turno_texto = (_dono == "jogador") ? "SEU TURNO" : "TURNO DO INIMIGO";
+    obj_controlador.anuncio_turno_timer = obj_controlador.anuncio_turno_duracao;
+}
+
 function iniciar_turno_inimigo() {
     obj_controlador.turno = "inimigo";
+    anunciar_turno("inimigo");
 
     obj_controlador.itens_usados_este_turno = 0;
     obj_controlador.magias_usadas_este_turno = 0;
@@ -1918,7 +1962,7 @@ function iniciar_turno_inimigo() {
     obj_controlador.ia_ativa = true;
     obj_controlador.ia_etapa = 0;
     obj_controlador.ia_tempo_espera = 45;
-    obj_controlador.ia_texto_acao = "planejando...";
+    obj_controlador.ia_texto_acao = "intenção: planejar o campo";
 }
 
 // Executa uma ação por vez. As pausas deixam claros os movimentos da IA,
@@ -1936,14 +1980,14 @@ function processar_turno_ia() {
 
     switch (obj_controlador.ia_etapa) {
         case 0:
-            obj_controlador.ia_texto_acao = "preparando recursos";
+            obj_controlador.ia_texto_acao = "intenção: preparar recursos";
             ia_jogar_recursos();
             obj_controlador.ia_etapa = 1;
             obj_controlador.ia_tempo_espera = 55;
         break;
 
         case 1:
-            obj_controlador.ia_texto_acao = "organizando o campo";
+            obj_controlador.ia_texto_acao = "intenção: fortalecer o campo";
             ia_jogar_construcao();
             ia_usar_construcoes();
             obj_controlador.ia_etapa = 2;
@@ -1951,21 +1995,21 @@ function processar_turno_ia() {
         break;
 
         case 2:
-            obj_controlador.ia_texto_acao = "movendo tropas";
+            obj_controlador.ia_texto_acao = "intenção: avançar tropas";
             mover_tropas_automatico("inimigo");
             obj_controlador.ia_etapa = 3;
             obj_controlador.ia_tempo_espera = 70;
         break;
 
         case 3:
-            obj_controlador.ia_texto_acao = "escolhendo uma carta";
+            obj_controlador.ia_texto_acao = "intenção: reforçar a estratégia";
             ia_jogar_cartas();
             obj_controlador.ia_etapa = 4;
             obj_controlador.ia_tempo_espera = 70;
         break;
 
         case 4:
-            obj_controlador.ia_texto_acao = "usando habilidades";
+            obj_controlador.ia_texto_acao = "intenção: usar habilidades";
             ia_evoluir_tropa();
             ia_usar_habilidades_tropas();
             obj_controlador.ia_etapa = 5;
@@ -1973,14 +2017,14 @@ function processar_turno_ia() {
         break;
 
         case 5:
-            obj_controlador.ia_texto_acao = "avaliando alvos";
+            obj_controlador.ia_texto_acao = "intenção: escolher alvos";
             ia_jogar_magias();
             obj_controlador.ia_etapa = 6;
             obj_controlador.ia_tempo_espera = 55;
         break;
 
         case 6:
-            obj_controlador.ia_texto_acao = "atacando";
+            obj_controlador.ia_texto_acao = "intenção: atacar";
             if (!obj_controlador.primeiro_turno_inimigo) {
                 processar_combate("inimigo");
             }
@@ -1994,6 +2038,8 @@ function processar_turno_ia() {
             obj_controlador.ia_ativa = false;
             obj_controlador.ia_texto_acao = "";
             obj_controlador.turno = "jogador";
+            obj_controlador.turnos_completos += 1;
+            anunciar_turno("jogador");
 
             processar_condicoes("jogador");
             desvirar_recursos("jogador");
@@ -2566,6 +2612,7 @@ function colocar_recurso(_tipo, _dono, _origem_x = noone, _origem_y = noone, _sl
     if (_dono == "jogador") {
         array_push(obj_controlador.recursos_jogador, _recurso);
         obj_controlador.recurso_colocado_no_turno = true;
+        mostrar_feedback("+ " + string_upper(nome_recurso_exibicao(_tipo, 1)), _slot_livre.x, _slot_livre.y, c_lime, 45);
     } else {
         array_push(obj_controlador.recursos_inimigo, _recurso);
         obj_controlador.recurso_colocado_no_turno_inimigo = true;
@@ -2587,6 +2634,15 @@ function mostrar_aviso_regra(_texto, _x = mouse_x, _y = mouse_y) {
     _aviso.cor_texto = make_color_rgb(255, 210, 70);
     _aviso.vida_texto_max = 75;
     _aviso.velocidade_subida = 0.55;
+}
+
+function mostrar_feedback(_texto, _x, _y, _cor = c_white, _duracao = 55) {
+    var _aviso = instance_create_layer(_x, _y - 24, "Instances", obj_texto_flutuante);
+    _aviso.texto = _texto;
+    _aviso.cor_texto = _cor;
+    _aviso.vida_texto_max = _duracao;
+    _aviso.velocidade_subida = 0.45;
+    _aviso.oscilacao_intensidade = 1;
 }
 
 function nome_recurso_exibicao(_tipo, _quantidade) {
@@ -2842,10 +2898,13 @@ function processar_condicoes(_dono) {
             case "apodrecer":
             case "sangrando":
                 vida -= condicao_dano_por_turno;
+                aplicar_flash_dano(id, 12);
+                mostrar_dano_tropa(id, condicao_dano_por_turno);
                 break;
 
             case "regeneracao":
                 vida = min(vida + condicao_dano_por_turno, vida_maxima);
+                mostrar_feedback("+" + string(condicao_dano_por_turno), x, y - sprite_height * 0.45, c_lime, 38);
                 break;
         }
 
@@ -2900,6 +2959,8 @@ function aplicar_efeito_bola_fogo(_alvo, _dado_efeito, _chance_queimar) {
     debug_combate(_alvo.nome_carta + " tomou " + string(_dano) + " de Bola de Fogo!");
 
     _alvo.vida -= _dano;
+    aplicar_flash_dano(_alvo);
+    mostrar_dano_tropa(_alvo, _dano);
 
     if (_alvo.vida <= 0) {
         destruir_tropa(_alvo);
@@ -3092,15 +3153,26 @@ function obter_opcoes_menu(_carta) {
         } else {
             array_push(_opcoes, "Atacar");
         }
+    } else {
+        array_push(_opcoes, _carta.atacou_este_turno ? "Atacar [já usado]" : "Atacar [1º turno]");
     }
 
-    if (!_carta.moveu_este_turno) array_push(_opcoes, "Mover");
+    if (!_carta.moveu_este_turno) {
+        if (_carta.turnos_no_campo < 1) array_push(_opcoes, "Mover [próximo turno]");
+        else array_push(_opcoes, "Mover");
+    } else {
+        array_push(_opcoes, "Mover [já usado]");
+    }
     if (_carta.dono == "jogador" && _carta.travada && _carta.posicao_atual == posicao_entrada("jogador")) {
         array_push(_opcoes, _carta.defendendo_castelo ? "Parar de Defender" : "Defender Castelo");
     }
-    if (tem_habilidade_ativa(_carta) != noone && !_carta.habilidade_usada_este_turno) array_push(_opcoes, "Habilidade");
-    if (_carta.funcao_evolucao != noone && _carta.turnos_no_campo >= 1 && evolucoes_disponiveis(_carta.dono)) {
-        array_push(_opcoes, "Evoluir");
+    if (tem_habilidade_ativa(_carta) != noone) {
+        array_push(_opcoes, _carta.habilidade_usada_este_turno ? "Habilidade [já usada]" : "Habilidade");
+    }
+    if (_carta.funcao_evolucao != noone) {
+        if (_carta.turnos_no_campo < 1) array_push(_opcoes, "Evoluir [sobreviva 1 turno]");
+        else if (!evolucoes_disponiveis(_carta.dono)) array_push(_opcoes, "Evoluir [limite atingido]");
+        else array_push(_opcoes, "Evoluir");
     }
     return _opcoes;
 }
@@ -3113,6 +3185,10 @@ function categoria_bloqueada_primeiro_turno(_categoria) {
 }
 
 function executar_opcao_menu(_carta, _opcao) {
+    if (string_pos("[", _opcao) > 0) {
+        mostrar_aviso_regra(string_delete(_opcao, 1, string_pos("[", _opcao) - 1), _carta.x, _carta.y);
+        return;
+    }
     switch (_opcao) {
         case "Atacar":
             var _tipo = (_carta.dado_dano_magico > 0 && _carta.dado_dano == 0) ? "magica" : "fisica";
@@ -3547,12 +3623,42 @@ function desenhar_pagina_do_livro(_pagina, _centro_x, _centro_y, _largura_dispon
 #endregion
 
 #region Áudio
+function carregar_configuracoes() {
+    ini_open("kartha_config.ini");
+    global.volume_musica = clamp(ini_read_real("audio", "musica", 0.8), 0, 1);
+    global.volume_efeitos = clamp(ini_read_real("audio", "efeitos", 0.8), 0, 1);
+    var _tela_cheia = ini_read_real("video", "tela_cheia", 0) >= 0.5;
+    ini_close();
+    if (window_get_fullscreen() != _tela_cheia) window_set_fullscreen(_tela_cheia);
+    aplicar_config_audio();
+}
+
+function salvar_configuracoes() {
+    ini_open("kartha_config.ini");
+    ini_write_real("audio", "musica", global.volume_musica);
+    ini_write_real("audio", "efeitos", global.volume_efeitos);
+    ini_write_real("video", "tela_cheia", window_get_fullscreen() ? 1 : 0);
+    ini_close();
+}
+
+function aplicar_config_audio() {
+    var _musica = variable_global_exists("volume_musica") ? global.volume_musica : 0.8;
+    var _efeitos = variable_global_exists("volume_efeitos") ? global.volume_efeitos : 0.8;
+    audio_sound_gain(snd_menu, _musica, 0);
+    audio_sound_gain(snd_jogo, _musica, 0);
+    var _sons_efeito = [snd_bencao, snd_maldicao, snd_bola_fogo_fogo, snd_bola_fogo_impacto, snd_bola_fogo_voo, snd_colocar, snd_moeda_arremesso, snd_moeda_impacto, snd_shuffle];
+    for (var i = 0; i < array_length(_sons_efeito); i++) {
+        audio_sound_gain(_sons_efeito[i], _efeitos, 0);
+    }
+}
+
 function tocar_musica(_musica) {
     audio_stop_all();
 
     if (!audio_is_playing(_musica)) {
         audio_play_sound(_musica, 0, true);
     }
+    aplicar_config_audio();
 }
 
 // Divide capítulos longos em partes legíveis. Assim o livro não reduz o texto

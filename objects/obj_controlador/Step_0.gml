@@ -19,8 +19,29 @@ if (rolagens_pendentes > 0) {
 
 atualizar_animacao_dano_castelo();
 
+// Opção vinda da tela inicial: abre o livro assim que a instância da room existir.
+if (abrir_livro_pendente && instance_exists(obj_livro)) {
+    obj_livro.preview_ativo = true;
+    obj_livro.mostrando_sumario = true;
+    abrir_livro_pendente = false;
+    exit;
+}
+
 // Compatibilidade com partidas abertas antes do botão de Histórico existir.
 if (!variable_instance_exists(id, "historico_aberto")) historico_aberto = false;
+if (!variable_instance_exists(id, "hud_deslocamento_esquerda")) hud_deslocamento_esquerda = 160;
+if (!variable_instance_exists(id, "hud_deslocamento_direita")) hud_deslocamento_direita = 180;
+
+// Abas do HUD: só se revelam quando o mouse se aproxima do respectivo canto.
+var _hud_mouse_x = device_mouse_x_to_gui(0);
+var _hud_mouse_y = device_mouse_y_to_gui(0);
+var _hud_largura_animacao = display_get_gui_width();
+var _mostrar_esquerda = historico_aberto || (_hud_mouse_x < 215 && _hud_mouse_y >= 190 && _hud_mouse_y <= 270);
+var _mostrar_direita = cemiterio_aberto || (_hud_mouse_x > _hud_largura_animacao - 220 && _hud_mouse_y >= 10 && _hud_mouse_y <= 210);
+var _alvo_esquerda = _mostrar_esquerda ? 0 : 160;
+var _alvo_direita = _mostrar_direita ? 0 : 180;
+hud_deslocamento_esquerda += (_alvo_esquerda - hud_deslocamento_esquerda) * 0.22;
+hud_deslocamento_direita += (_alvo_direita - hud_deslocamento_direita) * 0.22;
 
 // Tela final: bloqueia a partida e permite recomeçar sem fechar o jogo.
 if (vida_jogador <= 0 || vida_inimigo <= 0) {
@@ -28,7 +49,7 @@ if (vida_jogador <= 0 || vida_inimigo <= 0) {
     var _fim_gui_y = device_mouse_y_to_gui(0);
     var _fim_centro_x = display_get_gui_width() / 2;
     var _fim_centro_y = display_get_gui_height() / 2;
-    var _clicou_reiniciar = point_in_rectangle(_fim_gui_x, _fim_gui_y, _fim_centro_x - 120, _fim_centro_y + 35, _fim_centro_x + 120, _fim_centro_y + 80);
+    var _clicou_reiniciar = point_in_rectangle(_fim_gui_x, _fim_gui_y, _fim_centro_x - 120, _fim_centro_y + 85, _fim_centro_x + 120, _fim_centro_y + 130);
     if (keyboard_check_pressed(vk_enter) || keyboard_check_pressed(ord("R")) || (mouse_check_button_pressed(mb_left) && _clicou_reiniciar)) {
         room_restart();
     }
@@ -53,12 +74,141 @@ if (tutorial_ativo) {
     exit;
 }
 
-if (keyboard_check_pressed(vk_f1) || (turno == "jogador" && mouse_check_button_pressed(mb_left)
-    && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _tutorial_largura_gui - 205, 30, _tutorial_largura_gui - 15, 62))) {
+// Confirmação do descarte manual: a carta só sai da mão após a escolha do jogador.
+if (confirmacao_descarte_ativa) {
+    var _confirmacao_cx = _tutorial_largura_gui / 2;
+    var _confirmacao_cy = _tutorial_altura_gui / 2;
+    var _confirmar_descarte = mouse_check_button_pressed(mb_left)
+        && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _confirmacao_cx - 180, _confirmacao_cy + 42, _confirmacao_cx - 12, _confirmacao_cy + 82);
+    var _cancelar_descarte = mouse_check_button_pressed(mb_left)
+        && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _confirmacao_cx + 12, _confirmacao_cy + 42, _confirmacao_cx + 180, _confirmacao_cy + 82);
+
+    if (_confirmar_descarte && instance_exists(carta_pendente_descarte)) {
+        var _carta_descarte = carta_pendente_descarte;
+        var _indice_mao_descarte = array_get_index(mao, _carta_descarte);
+        if (_indice_mao_descarte != -1) {
+            array_delete(mao, _indice_mao_descarte, 1);
+            organizar_mao();
+        }
+        registrar_descarte(_carta_descarte);
+        mostrar_feedback("DESCARTADA", _carta_descarte.x, _carta_descarte.y - 30, c_gray, 35);
+        instance_destroy(_carta_descarte);
+        carta_pendente_descarte = noone;
+        confirmacao_descarte_ativa = false;
+    } else if (keyboard_check_pressed(vk_escape) || _cancelar_descarte || !instance_exists(carta_pendente_descarte)) {
+        if (instance_exists(carta_pendente_descarte)) {
+            carta_pendente_descarte.x = carta_pendente_descarte.origem_x;
+            carta_pendente_descarte.y = carta_pendente_descarte.origem_y;
+            carta_pendente_descarte.esta_na_mao = true;
+        }
+        carta_pendente_descarte = noone;
+        confirmacao_descarte_ativa = false;
+    }
+    exit;
+}
+
+// A pilha de descarte é apenas de consulta, mas bloqueia ações enquanto estiver aberta.
+if (descarte_aberto) {
+    var _descarte_cx = _tutorial_largura_gui / 2;
+    var _descarte_cy = _tutorial_altura_gui / 2;
+    var _fechar_descarte = mouse_check_button_pressed(mb_left)
+        && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _descarte_cx + 240, _descarte_cy - 180, _descarte_cx + 280, _descarte_cy - 140);
+    var _primeira_carta_descarte = max(0, array_length(descarte_jogador) - 12);
+    var _linha_descarte = floor((_tutorial_gui_y - (_descarte_cy - 110)) / 21);
+    var _clicou_linha_descarte = mouse_check_button_pressed(mb_left)
+        && descarte_preview_indice == -1
+        && _tutorial_gui_x >= _descarte_cx - 245 && _tutorial_gui_x <= _descarte_cx + 245
+        && _linha_descarte >= 0 && _linha_descarte < array_length(descarte_jogador) - _primeira_carta_descarte;
+    var _clicou_voltar_descarte = mouse_check_button_pressed(mb_left)
+        && descarte_preview_indice != -1
+        && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _descarte_cx - 245, _descarte_cy + 145, _descarte_cx - 80, _descarte_cy + 180);
+
+    if (keyboard_check_pressed(vk_escape) || _fechar_descarte) {
+        if (descarte_preview_indice != -1) descarte_preview_indice = -1;
+        else descarte_aberto = false;
+    } else if (_clicou_voltar_descarte) {
+        descarte_preview_indice = -1;
+    } else if (_clicou_linha_descarte) {
+        descarte_preview_indice = _primeira_carta_descarte + _linha_descarte;
+    }
+    exit;
+}
+
+var _botoes_direita_x1 = _tutorial_largura_gui - 205 + hud_deslocamento_direita;
+var _botoes_direita_x2 = _tutorial_largura_gui - 15 + hud_deslocamento_direita;
+if (!pausa_ativa && (keyboard_check_pressed(vk_f1) || (turno == "jogador" && mouse_check_button_pressed(mb_left)
+    && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _botoes_direita_x1, 30, _botoes_direita_x2, 62)))) {
     tutorial_ativo = true;
     tutorial_pagina = 0;
     carta_preview = noone;
     carta_menu_aberto = noone;
+    exit;
+}
+
+// Pausa manual: mantém o jogo aberto e impede qualquer ação enquanto o painel estiver visível.
+var _pausa_x1 = _botoes_direita_x1;
+var _pausa_x2 = _botoes_direita_x2;
+var _clicou_pausa = mouse_check_button_pressed(mb_left)
+    && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _pausa_x1, 152, _pausa_x2, 184);
+if (pausa_ativa) {
+    var _pausa_cx = _tutorial_largura_gui / 2;
+    var _pausa_cy = _tutorial_altura_gui / 2;
+    if (opcoes_pausa_ativa) {
+        var _musica_y = _pausa_cy - 35;
+        var _efeitos_y = _pausa_cy + 10;
+        var _tela_y = _pausa_cy + 55;
+        var _voltar_y = _pausa_cy + 110;
+        if (keyboard_check_pressed(vk_escape)) {
+            opcoes_pausa_ativa = false;
+        } else if (mouse_check_button_pressed(mb_left) && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _pausa_cx - 160, _musica_y - 18, _pausa_cx - 90, _musica_y + 18)) {
+            global.volume_musica = clamp(global.volume_musica - 0.1, 0, 1);
+            aplicar_config_audio();
+            salvar_configuracoes();
+        } else if (mouse_check_button_pressed(mb_left) && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _pausa_cx + 90, _musica_y - 18, _pausa_cx + 160, _musica_y + 18)) {
+            global.volume_musica = clamp(global.volume_musica + 0.1, 0, 1);
+            aplicar_config_audio();
+            salvar_configuracoes();
+        } else if (mouse_check_button_pressed(mb_left) && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _pausa_cx - 160, _efeitos_y - 18, _pausa_cx - 90, _efeitos_y + 18)) {
+            global.volume_efeitos = clamp(global.volume_efeitos - 0.1, 0, 1);
+            aplicar_config_audio();
+            salvar_configuracoes();
+        } else if (mouse_check_button_pressed(mb_left) && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _pausa_cx + 90, _efeitos_y - 18, _pausa_cx + 160, _efeitos_y + 18)) {
+            global.volume_efeitos = clamp(global.volume_efeitos + 0.1, 0, 1);
+            aplicar_config_audio();
+            salvar_configuracoes();
+        } else if (mouse_check_button_pressed(mb_left) && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _pausa_cx - 160, _tela_y - 18, _pausa_cx + 160, _tela_y + 18)) {
+            window_set_fullscreen(!window_get_fullscreen());
+            salvar_configuracoes();
+        } else if (mouse_check_button_pressed(mb_left) && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _pausa_cx - 150, _voltar_y - 22, _pausa_cx + 150, _voltar_y + 22)) {
+            opcoes_pausa_ativa = false;
+        }
+        exit;
+    }
+    var _clicou_continuar = mouse_check_button_pressed(mb_left)
+        && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _pausa_cx - 125, _pausa_cy + 35, _pausa_cx + 125, _pausa_cy + 75);
+    var _clicou_opcoes = mouse_check_button_pressed(mb_left)
+        && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _pausa_cx - 125, _pausa_cy + 90, _pausa_cx + 125, _pausa_cy + 130);
+    var _clicou_sair = mouse_check_button_pressed(mb_left)
+        && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _pausa_cx - 125, _pausa_cy + 145, _pausa_cx + 125, _pausa_cy + 185);
+    if (_clicou_sair) {
+        game_end();
+    } else if (_clicou_opcoes) {
+        opcoes_pausa_ativa = true;
+    } else if (keyboard_check_pressed(vk_escape) || keyboard_check_pressed(ord("P")) || _clicou_continuar) {
+        pausa_ativa = false;
+    } else if (keyboard_check_pressed(vk_f1)) {
+        pausa_ativa = false;
+        tutorial_ativo = true;
+        tutorial_pagina = 0;
+    }
+    exit;
+}
+if (keyboard_check_pressed(ord("P")) || _clicou_pausa) {
+    pausa_ativa = true;
+    opcoes_pausa_ativa = false;
+    carta_preview = noone;
+    carta_menu_aberto = noone;
+    tropa_selecionada = noone;
     exit;
 }
 
@@ -67,12 +217,12 @@ var _mouse_gui_x_cemiterio = device_mouse_x_to_gui(0);
 var _mouse_gui_y_cemiterio = device_mouse_y_to_gui(0);
 var _gui_largura_cemiterio = display_get_gui_width();
 if (turno == "jogador" && mouse_check_button_pressed(mb_left)
-    && point_in_rectangle(_mouse_gui_x_cemiterio, _mouse_gui_y_cemiterio, 14, 112, 190, 144)) {
+    && point_in_rectangle(_mouse_gui_x_cemiterio, _mouse_gui_y_cemiterio, 14 - hud_deslocamento_esquerda, 210, 190 - hud_deslocamento_esquerda, 242)) {
     historico_aberto = !historico_aberto;
     exit;
 }
 if (turno == "jogador" && mouse_check_button_pressed(mb_left)
-    && point_in_rectangle(_mouse_gui_x_cemiterio, _mouse_gui_y_cemiterio, _gui_largura_cemiterio - 205, 72, _gui_largura_cemiterio - 15, 104)) {
+    && point_in_rectangle(_mouse_gui_x_cemiterio, _mouse_gui_y_cemiterio, _gui_largura_cemiterio - 205 + hud_deslocamento_direita, 72, _gui_largura_cemiterio - 15 + hud_deslocamento_direita, 104)) {
     cemiterio_aberto = !cemiterio_aberto;
     exit;
 }
@@ -99,9 +249,9 @@ if (keyboard_check_pressed(vk_escape)) {
         _fechou_algum_preview = true;
     }
 
-    // Se nenhum preview estava aberto, ESC fecha o jogo normalmente
+    // Sem preview, ESC abre a pausa em vez de encerrar a partida por acidente.
     if (!_fechou_algum_preview) {
-        game_end();
+        pausa_ativa = true;
     }
 }
 if (keyboard_check_pressed(ord("R")) && global.DEBUG_COMBATE) {
@@ -183,6 +333,12 @@ if (carta_preview != noone) {
     exit;
 }
 #endregion
+
+// A tropa destacada só existe enquanto ela continuar válida e no turno do jogador.
+if (tropa_selecionada != noone && (!instance_exists(tropa_selecionada)
+    || !tropa_selecionada.travada || tropa_selecionada.dono != "jogador" || turno != "jogador")) {
+    tropa_selecionada = noone;
+}
 
 #region Hover e clique nas cartas da mão
 var _total = array_length(mao);
@@ -293,6 +449,9 @@ if (carta_menu_aberto != noone && instance_exists(carta_menu_aberto) && menu_esc
             if (mouse_check_button_pressed(mb_left)) {
                 executar_opcao_menu(_carta, _opcoes[i]);
                 carta_menu_aberto = noone;
+                // Depois de escolher qualquer ação, a tropa deixa de ficar destacada.
+                // Mesmo quando a regra impedir a ação, o jogador pode selecionar novamente se quiser.
+                tropa_selecionada = noone;
             }
             break;
         }
