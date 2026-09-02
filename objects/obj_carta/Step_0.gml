@@ -10,9 +10,13 @@ if (morrendo) {
 #region Armadilha vigiando: detecta gatilho e faz a carta balançar na mão
 if (armadilha_estado == "vigiando" || armadilha_estado == "pronta") {
     var _slot_vigiado = buscar_slot(armadilha_lane, armadilha_posicao);
-    var _tem_tropa_em_cima = (_slot_vigiado != noone && _slot_vigiado.ocupado && instance_exists(_slot_vigiado.carta_atual));
+    var _alvo_vigiado = (_slot_vigiado != noone && _slot_vigiado.ocupado) ? _slot_vigiado.carta_atual : noone;
+    var _tem_inimigo_valido = instance_exists(_alvo_vigiado)
+        && _alvo_vigiado.dono != dono
+        && !_alvo_vigiado.imune_armadilha
+        && !tem_habilidade(_alvo_vigiado, "voar");
 
-    armadilha_estado = _tem_tropa_em_cima ? "pronta" : "vigiando";
+    armadilha_estado = _tem_inimigo_valido ? "pronta" : "vigiando";
 
     if (armadilha_estado == "pronta" && esta_na_mao && !arrastando) {
         armadilha_balanco_timer += 0.25;
@@ -91,13 +95,18 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         
         with (obj_slot_batalha) {
             var _dist = point_distance(x, y, other.x, other.y);
-            if (posicao == posicao_entrada("jogador") && !ocupado && _dist < _distancia_maxima && _dist < _menor_distancia) {
+            if (posicao == posicao_entrada("jogador") && _dist < _distancia_maxima && _dist < _menor_distancia) {
                 _menor_distancia = _dist;
                 _slot_mais_perto = id;
             }
         }
         
-        if (_slot_mais_perto != noone && obj_controlador.cartas_jogadas_no_turno < obj_controlador.max_cartas_por_turno && pode_pagar_custo(custo, "jogador")) {
+        var _coluna_ocupada = (_slot_mais_perto != noone
+            && buscar_tropa_na_coluna(_slot_mais_perto.lane, "jogador") != noone);
+
+        if (_slot_mais_perto != noone && !_slot_mais_perto.ocupado && !_coluna_ocupada
+            && obj_controlador.cartas_jogadas_no_turno < obj_controlador.max_cartas_por_turno
+            && pode_pagar_custo(custo, "jogador")) {
             _slot_mais_perto.ocupado = true;
             _slot_mais_perto.carta_atual = id;
             slot_atual = _slot_mais_perto;
@@ -116,8 +125,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
 
             // Mantém a carta visível até o slot, em vez de teletransportá-la ao soltar.
             iniciar_pulo_tropa(id, _slot_mais_perto.x, _slot_mais_perto.y, true);
-			
-            
+
             obj_controlador.cartas_jogadas_no_turno += 1;
             
             var _index = array_get_index(obj_controlador.mao, id);
@@ -126,6 +134,13 @@ if (arrastando && mouse_check_button_released(mb_left)) {
                 organizar_mao();
             }
         } else {
+            if (_slot_mais_perto != noone) {
+                if (_coluna_ocupada) {
+                    mostrar_aviso_regra("Coluna ocupada: máximo de 1 tropa", _slot_mais_perto.x, _slot_mais_perto.y);
+                } else if (_slot_mais_perto.ocupado) {
+                    mostrar_aviso_regra("A base desta coluna está ocupada", _slot_mais_perto.x, _slot_mais_perto.y);
+                }
+            }
             x = origem_x; y = origem_y;
             esta_na_mao = true;
         }
@@ -205,38 +220,57 @@ if (arrastando && mouse_check_button_released(mb_left)) {
 	
 	} else if (categoria == "magica") {
     var _alvo_mais_perto = noone;
+    var _tipo_alvo_magia = "tropa";
+    var _dono_castelo_alvo = "";
     var _menor_distancia = 9999;
-    var _distancia_maxima = 60;
-    
+    var _distancia_maxima = 65;
+
+    // Magias ofensivas miram tropas inimigas. A Bola de Fogo também aceita
+    // construções e a área do castelo inimigo.
     with (obj_carta) {
-        if (id == other.id) continue; // não pode mirar em si mesma
-        if (!travada) continue; // só mira tropas que já estão no campo
-        
+        if (id == other.id || !travada || dono != "inimigo") continue;
         var _dist = point_distance(x, y, other.x, other.y);
         if (_dist < _distancia_maxima && _dist < _menor_distancia) {
             _menor_distancia = _dist;
             _alvo_mais_perto = id;
+            _tipo_alvo_magia = "tropa";
         }
     }
-    
-    if (_alvo_mais_perto != noone && obj_controlador.magias_usadas_este_turno < 2 && pode_pagar_custo(custo, "jogador")) {
+
+    if (efeito_tipo == "bola_fogo") {
+        with (obj_construcao) {
+            if (dono != "inimigo") continue;
+            var _dist = point_distance(x, y, other.x, other.y);
+            if (_dist < _distancia_maxima && _dist < _menor_distancia) {
+                _menor_distancia = _dist;
+                _alvo_mais_perto = id;
+                _tipo_alvo_magia = "construcao";
+            }
+        }
+        var _pos_castelo = obter_posicao_castelo("inimigo");
+        var _dist_castelo = point_distance(x, y, _pos_castelo.x, _pos_castelo.y);
+        if (_dist_castelo < 95 && _dist_castelo < _menor_distancia) {
+            _alvo_mais_perto = noone;
+            _tipo_alvo_magia = "castelo";
+            _dono_castelo_alvo = "inimigo";
+            _menor_distancia = _dist_castelo;
+        }
+    }
+
+    var _tem_alvo_magia = instance_exists(_alvo_mais_perto) || _tipo_alvo_magia == "castelo";
+    if (_tem_alvo_magia && obj_controlador.magias_usadas_este_turno < 2 && pode_pagar_custo(custo, "jogador")) {
         pagar_custo(custo, "jogador");
         obj_controlador.magias_usadas_este_turno += 1;
         switch (efeito_tipo) {
-			case "bola_fogo":
-        lancar_bola_de_fogo(_alvo_mais_perto, dado_efeito, chance_queimar);
-        break;
-			case "veneno":
-        aplicar_condicao(_alvo_mais_perto, "envenenado", -1, 1);
-        break;
-			case "gelo":
-        aplicar_condicao(_alvo_mais_perto, "congelado", 1, 0);
-        break;
-			case "choque":
-        aplicar_condicao(_alvo_mais_perto, "eletrocutado",1,0);
-        break;
-}
-        
+            case "bola_fogo":
+                lancar_bola_de_fogo(_alvo_mais_perto, dado_efeito, chance_queimar,
+                    _tipo_alvo_magia, _dono_castelo_alvo, "jogador");
+            break;
+            case "veneno": aplicar_condicao(_alvo_mais_perto, "envenenado", -1, 1); break;
+            case "gelo": aplicar_condicao(_alvo_mais_perto, "congelado", 1, 0); break;
+            case "choque": aplicar_condicao(_alvo_mais_perto, "eletrocutado", 1, 0); break;
+        }
+
         var _index = array_get_index(obj_controlador.mao, id);
         if (_index != -1) {
             array_delete(obj_controlador.mao, _index, 1);
@@ -248,7 +282,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         x = origem_x; y = origem_y;
         esta_na_mao = true;
     }
-	
+
 	} else if (categoria == "item_equipavel") {
 	    var _alvo = noone;
 	    var _menor_distancia = 9999;

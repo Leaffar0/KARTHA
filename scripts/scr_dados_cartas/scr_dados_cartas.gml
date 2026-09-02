@@ -34,8 +34,8 @@ function debug_combate(_msg) {
 
 #region Tabuleiro — grade e posições
 // Grade central da room: 3 lanes (colunas) por 5 posições (linhas).
-// posicao: 0 = base inimiga, 1 = retaguarda inimiga, 2 = MEIO (centro, onde o combate acontece),
-//          3 = retaguarda do jogador, 4 = base do jogador.
+// posicao: 0 = base inimiga, 1 = assalto do jogador, 2 = MEIO (centro do combate),
+//          3 = assalto do inimigo, 4 = base do jogador.
 // Identifica lane/posicao de cada obj_slot_batalha automaticamente pela posição na room.
 function organizar_grade_batalha() {
     var _linhas_y = [];
@@ -85,11 +85,31 @@ function posicao_entrada(_dono) {
 }
 
 function posicao_ataque() {
-    return 2; // o MEIO — onde as tropas param de andar sozinhas e começam a atacar
+    return 2; // o MEIO — tropas podem combater aqui, mas ainda não atingem o castelo
 }
 
 function direcao_avanco(_dono) {
     return (_dono == "jogador") ? -1 : 1;
+}
+
+// Para causar dano direto ao castelo, a tropa precisa sair do meio e avançar
+// mais uma casa. A regra é espelhada para jogador e inimigo.
+function posicao_assalto(_dono) {
+    return posicao_ataque() + direcao_avanco(_dono);
+}
+
+// Cada lado pode manter no máximo uma tropa em cada coluna, independentemente
+// da posição em que ela esteja. Tropas morrendo já não bloqueiam a coluna.
+function buscar_tropa_na_coluna(_lane, _dono, _ignorar = noone) {
+    var _resultado = noone;
+    with (obj_carta) {
+        if (id != _ignorar && travada && !morrendo && categoria == "tropa"
+            && lane_atual == _lane && dono == _dono) {
+            _resultado = id;
+            break;
+        }
+    }
+    return _resultado;
 }
 
 function total_posicoes_batalha() {
@@ -645,7 +665,8 @@ function criar_dados_armadilha_urso() {
         nome: "Armadilha de Urso",
         sprite_carta: spr_armadilha_de_urso,
         custo: noone,
-        dado_efeito: 6
+        dado_efeito: 6,
+        qtd_dados_efeito: 2
     };
 }
 
@@ -678,36 +699,12 @@ function dono_slot_armadilha(_slot) {
     return "jogador"; // posições 2 (meio), 3, 4 -- pode colocar armadilha
 }
 
-// Ativa uma carta de armadilha que está "pronta" (tropa em cima do slot vigiado agora).
-// Genérico: funciona pra qualquer carta armadilha que use dado_efeito (dano + sangrando).
-function ativar_armadilha(_carta_armadilha) {
+// Remove a armadilha usada do campo/mão e registra seu descarte.
+function consumir_armadilha_ativada(_carta_armadilha) {
     if (!instance_exists(_carta_armadilha)) return;
-    if (_carta_armadilha.armadilha_estado != "pronta") return;
 
-    var _slot_vigiado = buscar_slot(_carta_armadilha.armadilha_lane, _carta_armadilha.armadilha_posicao);
-    if (_slot_vigiado == noone || !_slot_vigiado.ocupado) return;
-
-    var _alvo = _slot_vigiado.carta_atual;
-    if (!instance_exists(_alvo)) return;
-
-    if (_alvo.imune_armadilha) {
-        debug_combate(_alvo.nome_carta + " é imune a armadilhas e evitou a " + _carta_armadilha.nome_carta + "!");
-        return;
-    }
-
-    criar_flash(_alvo.x, _alvo.y, 45); // <-- flash discreto no momento do disparo
-
-    var _dano = irandom_range(1, _carta_armadilha.dado_efeito);
-    _alvo.vida -= _dano;
-    aplicar_flash_dano(_alvo);
-    mostrar_dano_tropa(_alvo, _dano);
-    aplicar_condicao(_alvo, "sangrando", 1, 3);
-
-    debug_combate(_carta_armadilha.nome_carta + " ativada em " + _alvo.nome_carta + "! " + string(_dano) + " de dano.");
-
-    if (_alvo.vida <= 0) destruir_tropa(_alvo);
-
-    if (_carta_armadilha.armadilha_visual_id != noone && instance_exists(_carta_armadilha.armadilha_visual_id)) {
+    if (_carta_armadilha.armadilha_visual_id != noone
+        && instance_exists(_carta_armadilha.armadilha_visual_id)) {
         instance_destroy(_carta_armadilha.armadilha_visual_id);
     }
 
@@ -716,9 +713,110 @@ function ativar_armadilha(_carta_armadilha) {
         array_delete(obj_controlador.mao, _index, 1);
         organizar_mao();
     }
+
+    registrar_descarte(_carta_armadilha);
     instance_destroy(_carta_armadilha);
 }
 
+// A ativação continua manual: quando a armadilha fica pronta, o jogador clica nela.
+// O dano usa a quantidade de D6 configurada na carta e Sangramento depende da moeda.
+function ativar_armadilha(_carta_armadilha) {
+    if (!instance_exists(_carta_armadilha)) return;
+    if (_carta_armadilha.armadilha_estado != "pronta") return;
+
+    var _slot_vigiado = buscar_slot(_carta_armadilha.armadilha_lane, _carta_armadilha.armadilha_posicao);
+    if (_slot_vigiado == noone || !_slot_vigiado.ocupado) return;
+
+    var _alvo = _slot_vigiado.carta_atual;
+    if (!instance_exists(_alvo) || _alvo.dono == _carta_armadilha.dono) {
+        _carta_armadilha.armadilha_estado = "vigiando";
+        return;
+    }
+
+    if (_alvo.imune_armadilha || tem_habilidade(_alvo, "voar")) {
+        debug_combate(_alvo.nome_carta + " é imune e evitou a " + _carta_armadilha.nome_carta + "!");
+        mostrar_aviso_regra("Tropas com Voar não ativam esta armadilha", _alvo.x, _alvo.y);
+        _carta_armadilha.armadilha_estado = "vigiando";
+        return;
+    }
+
+    _carta_armadilha.armadilha_estado = "resolvendo";
+    _carta_armadilha.visible = false;
+    var _index_mao = array_get_index(obj_controlador.mao, _carta_armadilha.id);
+    if (_index_mao != -1) {
+        array_delete(obj_controlador.mao, _index_mao, 1);
+        organizar_mao();
+    }
+
+    criar_flash(_alvo.x, _alvo.y, 45);
+
+    var _qtd_dados = max(1, _carta_armadilha.qtd_dados_efeito);
+    var _dados_rolagem = {
+        armadilha: _carta_armadilha,
+        alvo: _alvo,
+        quantidade_dados: _qtd_dados,
+        dados_resolvidos: 0,
+        dano_total: 0
+    };
+
+    var _callback_dado = method(_dados_rolagem, function(_resultado) {
+        dano_total += _resultado;
+        dados_resolvidos += 1;
+        if (dados_resolvidos < quantidade_dados) return;
+
+        if (!instance_exists(alvo)) {
+            consumir_armadilha_ativada(armadilha);
+            return;
+        }
+
+        alvo.vida -= dano_total;
+        aplicar_flash_dano(alvo);
+        mostrar_dano_tropa(alvo, dano_total);
+        debug_combate("Armadilha de Urso causou " + string(dano_total) + " de dano com " + string(quantidade_dados) + "D6 em " + alvo.nome_carta + ".");
+
+        if (alvo.vida <= 0) {
+            destruir_tropa(alvo);
+            consumir_armadilha_ativada(armadilha);
+            return;
+        }
+
+        var _dados_moeda = { armadilha: armadilha, alvo: alvo };
+        jogar_moeda_visual(armadilha.x, armadilha.y, alvo.x, alvo.y - alvo.sprite_height/2 - 20,
+            method(_dados_moeda, function(_resultado_moeda) {
+                if (instance_exists(alvo)) {
+                    if (_resultado_moeda == 1) {
+                        var _aplicou = aplicar_sangramento(alvo);
+                        mostrar_feedback(_aplicou ? "CARA: SANGRANDO" : "CARA: CONDIÇÃO BLOQUEADA", alvo.x, alvo.y, _aplicou ? c_red : c_gray, 65);
+                        debug_combate(_aplicou ? alvo.nome_carta + " ficou SANGRANDO pela Armadilha de Urso!" : "Sangramento bloqueado por outra condição ativa.");
+                    } else {
+                        mostrar_feedback("COROA: SEM SANGRAMENTO", alvo.x, alvo.y, c_white, 55);
+                        debug_combate("Armadilha de Urso: coroa, Sangramento não foi aplicado.");
+                    }
+                }
+                consumir_armadilha_ativada(armadilha);
+            })
+        );
+    });
+
+    for (var i = 0; i < _qtd_dados; i++) {
+        var _resultado_dado = irandom_range(1, _carta_armadilha.dado_efeito);
+        var _offset_dado = (i - ((_qtd_dados - 1) / 2)) * 110;
+        var _atraso_dado = (i == 0) ? 0 : i * irandom_range(8, 15);
+        var _duracao_dado = 78 + irandom_range(-8, 18);
+        rolar_dado_visual(
+            _carta_armadilha.x + _offset_dado * 0.22,
+            _carta_armadilha.y,
+            _alvo.x + _offset_dado,
+            _alvo.y - _alvo.sprite_height/2 - 18,
+            _carta_armadilha.dado_efeito,
+            _resultado_dado,
+            _callback_dado,
+            0,
+            _atraso_dado,
+            _duracao_dado
+        );
+    }
+}
 #endregion
 
 #region Dados das cartas - Bençãos e Maldições
@@ -1011,6 +1109,7 @@ function comprar_carta_do_deck_por_funcao(_funcao_sorteada, _x_inicial, _y_inici
     } else if (_dados.categoria == "armadilha") {
         _carta.custo = _dados.custo;
         _carta.dado_efeito = _dados.dado_efeito;
+        _carta.qtd_dados_efeito = variable_struct_exists(_dados, "qtd_dados_efeito") ? _dados.qtd_dados_efeito : 1;
 
     } else if (_dados.categoria == "terreno") {
 	    _carta.custo = _dados.custo;
@@ -1169,14 +1268,14 @@ function iniciar_pulo_tropa(_carta, _novo_x, _novo_y, _entrada_no_campo = false)
 }
 
 // Move uma tropa 1 casa na direção dela. Retorna uma string dizendo o que aconteceu:
-// "movido", "ja_no_meio", "fora_do_tabuleiro", "invalido", "bloqueado" (aliado no caminho)
+// "movido", "ja_no_assalto", "fora_do_tabuleiro", "invalido", "bloqueado" (aliado no caminho)
 // ou "ataque_necessario" (tem inimigo na frente, precisa atacar em vez de mover).
 function mover_tropa(_carta, _direcao) {
     // A tropa precisa sobreviver até o próximo turno do próprio dono antes de avançar.
     if (_carta.turnos_no_campo < 1) return "recem_colocada";
 
-    if (_carta.posicao_atual == posicao_ataque() && _direcao == 1) {
-        return "ja_no_meio"; // ela já chegou no MEIO e fica ali até morrer
+    if (_carta.posicao_atual == posicao_assalto(_carta.dono) && _direcao == 1) {
+        return "ja_no_assalto"; // daqui ela já pode atingir construção/castelo
     }
 
     var _sentido = direcao_avanco(_carta.dono);
@@ -1194,10 +1293,14 @@ function mover_tropa(_carta, _direcao) {
         } else {
             // Uma tropa voadora atravessa uma tropa terrestre e pousa na próxima casa livre.
             if (tem_habilidade(_carta, "voar") && !tem_habilidade(_ocupante, "voar")) {
-                var _slot_apos_voo = buscar_slot(_carta.lane_atual, _nova_posicao + (_direcao * _sentido));
-                if (_slot_apos_voo != noone && !_slot_apos_voo.ocupado) {
+                var _posicao_apos_voo = _nova_posicao + (_direcao * _sentido);
+                var _passou_do_assalto = (_carta.dono == "jogador")
+                    ? (_posicao_apos_voo < posicao_assalto(_carta.dono))
+                    : (_posicao_apos_voo > posicao_assalto(_carta.dono));
+                var _slot_apos_voo = buscar_slot(_carta.lane_atual, _posicao_apos_voo);
+                if (_slot_apos_voo != noone && !_slot_apos_voo.ocupado && !_passou_do_assalto) {
                     _slot_destino = _slot_apos_voo;
-                    _nova_posicao += _direcao * _sentido;
+                    _nova_posicao = _posicao_apos_voo;
                 } else {
                     return "ataque_necessario";
                 }
@@ -1225,10 +1328,10 @@ function mover_tropa(_carta, _direcao) {
     return "movido";
 }
 
-// Move todas as tropas de um lado que ainda não chegaram no MEIO (usada no início de cada turno).
+// Move todas as tropas de um lado que ainda não chegaram à posição de assalto.
 function mover_tropas_automatico(_dono) {
     with (obj_carta) {
-        if (dono == _dono && travada && turnos_no_campo >= 1 && posicao_atual != posicao_ataque() && tropa_pode_agir(id)) {
+        if (dono == _dono && travada && turnos_no_campo >= 1 && posicao_atual != posicao_assalto(_dono) && tropa_pode_agir(id)) {
             mover_tropa(id, 1);
         }
     }
@@ -1426,6 +1529,34 @@ function rolar_dano_direto(_carta, _tipo_ataque) {
     return max(0, _dano);
 }
 
+// Versão visual do dano direto. Mantém grupos de Golpe Duplo afastados e
+// entrega ao callback o total dos dados já somado ao modificador.
+function rolar_dano_direto_visual(_carta, _tipo_ataque, _callback_final, _indice_ataque = 0, _total_ataques = 1) {
+    var _dado = (_tipo_ataque == "magica") ? _carta.dado_dano_magico : _carta.dado_dano;
+    var _quantidade = (_tipo_ataque == "magica") ? _carta.qtd_dados_dano_magico : _carta.qtd_dados_dano;
+    var _modificador = (_tipo_ataque == "magica") ? _carta.mod_dano_magico : _carta.mod_dano;
+    var _offset_grupo = (_indice_ataque - ((_total_ataques - 1) / 2)) * 250;
+    var _atraso_grupo = (_indice_ataque == 0) ? 0 : _indice_ataque * irandom_range(10, 16);
+
+    var _dados_diretos = { callback_final: _callback_final, modificador: _modificador };
+    var _callback_dados = method(_dados_diretos, function(_total_dados) {
+        var _finalizar = callback_final;
+        _finalizar(max(0, _total_dados + modificador));
+    });
+
+    rolar_varios_dados_visuais(
+        _carta.x + _offset_grupo * 0.12,
+        _carta.y,
+        _carta.x + _offset_grupo,
+        _carta.y + direcao_avanco(_carta.dono) * 115,
+        _quantidade,
+        _dado,
+        _callback_dados,
+        _modificador,
+        _atraso_grupo
+    );
+}
+
 // O dano direto entra numa fila visual. A vida só é reduzida no momento em que
 // o número vermelho alcança o indicador no HUD.
 function causar_dano_castelo(_dono, _dano) {
@@ -1499,7 +1630,8 @@ function processar_combate(_lado_atacante) {
     var _sentido = direcao_avanco(_lado_atacante);
 
     with (obj_slot_batalha) {
-        if (ocupado && carta_atual.dono == _lado_atacante && tropa_pode_agir(carta_atual)) {
+        if (ocupado && carta_atual.dono == _lado_atacante
+            && !carta_atual.atacou_este_turno && tropa_pode_agir(carta_atual)) {
             var _atacante = carta_atual;
             var _tem_alcance = tem_habilidade(_atacante, "alcance") || tem_habilidade(_atacante, "alcance_magico");
 			var _proxima_posicao = posicao + _sentido;
@@ -1519,26 +1651,36 @@ function processar_combate(_lado_atacante) {
 
 			var _pode_mirar_alvo = _slot_alvo != noone && _slot_alvo.ocupado && _slot_alvo.carta_atual.dono == _lado_defensor 
 			    && !_slot_alvo.carta_atual.sombra_ativa
+			    && !(posicao == posicao_assalto(_lado_atacante)
+			        && _slot_alvo.posicao == posicao_entrada(_lado_defensor)
+			        && !_slot_alvo.carta_atual.defendendo_castelo)
 			    && (!tem_habilidade(_slot_alvo.carta_atual, "voar") || tem_habilidade(_atacante, "voar") || _tem_alcance);
 
 			if (_pode_mirar_alvo) {
 				var _tipo_escolhido = ia_escolher_tipo_ataque(_atacante, _slot_alvo.carta_atual);
-
+                _atacante.atacou_este_turno = true;
 				rolar_combate(_atacante, _slot_alvo.carta_atual, _tipo_escolhido);
 
-            } else if (posicao == posicao_ataque()) {
-                // só chega aqui se estiver no MEIO e não tiver tropa na frente
+            } else if (posicao == posicao_assalto(_lado_atacante)) {
+                _atacante.atacou_este_turno = true;
+                // Dano direto só é permitido depois de avançar uma casa além do meio.
                 var _construcao_alvo = buscar_construcao(lane, _lado_defensor);
 
                 if (_construcao_alvo != noone) {
-                    var _dano_construcao = irandom_range(1, _atacante.dado_dano) + _atacante.mod_dano;
-                    _construcao_alvo.vida -= _dano_construcao;
-
-                    if (_construcao_alvo.vida <= 0) {
-                        _construcao_alvo.slot_atual.ocupado = false;
-                        _construcao_alvo.slot_atual.construcao_atual = noone;
-                        instance_destroy(_construcao_alvo);
-                    }
+                    var _tipo_construcao = ia_escolher_tipo_ataque_direto(_atacante);
+                    var _dados_construcao = { alvo: _construcao_alvo };
+                    rolar_dano_direto_visual(_atacante, _tipo_construcao,
+                        method(_dados_construcao, function(_dano_construcao) {
+                            if (!instance_exists(alvo)) return;
+                            alvo.vida -= _dano_construcao;
+                            mostrar_feedback("-" + string(_dano_construcao), alvo.x, alvo.y, c_red, 45);
+                            if (alvo.vida <= 0) {
+                                alvo.slot_atual.ocupado = false;
+                                alvo.slot_atual.construcao_atual = noone;
+                                instance_destroy(alvo);
+                            }
+                        })
+                    );
                 } else {
                     var _defensor_castelo = buscar_defensor_castelo(lane, _lado_defensor);
                     if (_defensor_castelo != noone) {
@@ -1546,20 +1688,24 @@ function processar_combate(_lado_atacante) {
                         rolar_combate(_atacante, _defensor_castelo, ia_escolher_tipo_ataque(_atacante, _defensor_castelo));
                     } else {
                         var _tipo_direto = ia_escolher_tipo_ataque_direto(_atacante);
-                        var _dano_direto = rolar_dano_direto(_atacante, _tipo_direto);
-                        causar_dano_castelo(_lado_defensor, _dano_direto);
+                        var _dados_castelo = { lado_defensor: _lado_defensor };
+                        rolar_dano_direto_visual(_atacante, _tipo_direto,
+                            method(_dados_castelo, function(_dano_direto) {
+                                causar_dano_castelo(lado_defensor, _dano_direto);
+                            })
+                        );
                     }
                 }
             }
-            // se não estiver no MEIO e não tiver tropa na frente: não faz nada, ela ainda vai avançar sozinha
+            // Sem alvo e fora do assalto: não ataca o castelo; ainda precisa avançar.
         }
     }
 }
 
 // Versão do combate pra UMA tropa só (usada pelo menu de ação do jogador).
 // Mesma cadeia de alvo que processar_combate(), só que pra 1 tropa específica.
-function processar_combate_tropa(_carta, _tipo_ataque) {
-    if (!instance_exists(_carta) || !_carta.travada || _carta.slot_atual == noone) return;
+function processar_combate_tropa(_carta, _tipo_ataque, _indice_ataque = 0, _total_ataques = 1) {
+    if (!instance_exists(_carta) || !_carta.travada || _carta.slot_atual == noone) return false;
 
     var _slot = _carta.slot_atual;
     var _lado_atacante = _carta.dono;
@@ -1569,7 +1715,7 @@ function processar_combate_tropa(_carta, _tipo_ataque) {
     if (_carta.iludido_por_imitacao) {
         _carta.iludido_por_imitacao = false;
         debug_combate(_carta.nome_carta + " está iludida e não atacou.");
-        return;
+        return true;
     }
 
     var _tem_alcance = tem_habilidade(_carta, "alcance") || tem_habilidade(_carta, "alcance_magico");
@@ -1583,42 +1729,62 @@ function processar_combate_tropa(_carta, _tipo_ataque) {
 
     var _pode_mirar_alvo = _slot_alvo != noone && _slot_alvo.ocupado && _slot_alvo.carta_atual.dono == _lado_defensor
         && !_slot_alvo.carta_atual.sombra_ativa
+        && !(_slot.posicao == posicao_assalto(_lado_atacante)
+            && _slot_alvo.posicao == posicao_entrada(_lado_defensor)
+            && !_slot_alvo.carta_atual.defendendo_castelo)
         && (!tem_habilidade(_slot_alvo.carta_atual, "voar") || tem_habilidade(_carta, "voar") || _tem_alcance);
 
     if (_pode_mirar_alvo) {
-        rolar_combate(_carta, _slot_alvo.carta_atual, _tipo_ataque);
-    } else if (_slot.posicao == posicao_ataque()) {
+        rolar_combate(_carta, _slot_alvo.carta_atual, _tipo_ataque, _indice_ataque, _total_ataques);
+        return true;
+    } else if (_slot.posicao == posicao_assalto(_lado_atacante)) {
         var _construcao_alvo = buscar_construcao(_slot.lane, _lado_defensor);
         var _dado_usado = (_tipo_ataque == "magica") ? _carta.dado_dano_magico : _carta.dado_dano;
         var _mod_usado = (_tipo_ataque == "magica") ? _carta.mod_dano_magico : _carta.mod_dano;
 
         if (_construcao_alvo != noone) {
-            var _dano_construcao = irandom_range(1, _dado_usado) + _mod_usado;
-            _construcao_alvo.vida -= _dano_construcao;
-
-            if (_construcao_alvo.vida <= 0) {
-                _construcao_alvo.slot_atual.ocupado = false;
-                _construcao_alvo.slot_atual.construcao_atual = noone;
-                instance_destroy(_construcao_alvo);
-            }
+            var _dados_construcao = { alvo: _construcao_alvo };
+            rolar_dano_direto_visual(_carta, _tipo_ataque,
+                method(_dados_construcao, function(_dano_construcao) {
+                    if (!instance_exists(alvo)) return;
+                    alvo.vida -= _dano_construcao;
+                    mostrar_feedback("-" + string(_dano_construcao), alvo.x, alvo.y, c_red, 45);
+                    if (alvo.vida <= 0) {
+                        alvo.slot_atual.ocupado = false;
+                        alvo.slot_atual.construcao_atual = noone;
+                        instance_destroy(alvo);
+                    }
+                }),
+                _indice_ataque,
+                _total_ataques
+            );
         } else {
             var _defensor_castelo = buscar_defensor_castelo(_slot.lane, _lado_defensor);
             if (_defensor_castelo != noone) {
                 debug_combate(_defensor_castelo.nome_carta + " defende o castelo!");
                 rolar_combate(_carta, _defensor_castelo, _tipo_ataque);
             } else {
-                var _dano_direto = rolar_dano_direto(_carta, _tipo_ataque);
-                causar_dano_castelo(_lado_defensor, _dano_direto);
+                var _dados_castelo = { lado_defensor: _lado_defensor };
+                rolar_dano_direto_visual(_carta, _tipo_ataque,
+                    method(_dados_castelo, function(_dano_direto) {
+                        causar_dano_castelo(lado_defensor, _dano_direto);
+                    }),
+                    _indice_ataque,
+                    _total_ataques
+                );
             }
         }
+        return true;
     } else {
         debug_combate(_carta.nome_carta + " não tem alvo na frente ainda (precisa avançar mais).");
+        mostrar_aviso_regra("Avance além do centro para atacar o castelo", _carta.x, _carta.y);
+        return false;
     }
 }
 
 // Inicia um combate entre 2 tropas: rola o D20 de acerto (visual) e, quando ele parar,
 // decide o resultado em processar_resultado_acerto().
-function rolar_combate(_atacante, _defensor, _tipo_ataque) {
+function rolar_combate(_atacante, _defensor, _tipo_ataque, _indice_ataque = 0, _total_ataques = 1) {
     debug_combate("=== ATAQUE (" + _tipo_ataque + "): " + _atacante.nome_carta + " vs " + _defensor.nome_carta + " ===");
 
     // Resultado 4 da Loucura: não se defende e o próximo ataque acerta sem D20.
@@ -1640,9 +1806,23 @@ function rolar_combate(_atacante, _defensor, _tipo_ataque) {
         tipo_ataque: _tipo_ataque
     };
 
-    rolar_dado_visual(_atacante.x, _atacante.y, _defensor.x, _defensor.y, 20, _dado_acerto, method(_dados_combate, function(_resultado) {
-        processar_resultado_acerto(_resultado, atacante, defensor, tipo_ataque);
-    }));
+    var _offset_golpe = (_indice_ataque - ((_total_ataques - 1) / 2)) * 110;
+    var _atraso_golpe = (_indice_ataque == 0) ? 0 : _indice_ataque * irandom_range(9, 15);
+    var _duracao_golpe = 78 + ((_total_ataques > 1) ? irandom_range(-7, 16) : 0);
+    rolar_dado_visual(
+        _atacante.x + _offset_golpe * 0.22,
+        _atacante.y,
+        _defensor.x + _offset_golpe,
+        _defensor.y,
+        20,
+        _dado_acerto,
+        method(_dados_combate, function(_resultado) {
+            processar_resultado_acerto(_resultado, atacante, defensor, tipo_ataque);
+        }),
+        0,
+        _atraso_golpe,
+        _duracao_golpe
+    );
 }
 
 function rolar_varios_dados(_quantidade, _tamanho_dado) {
@@ -1652,12 +1832,162 @@ function rolar_varios_dados(_quantidade, _tamanho_dado) {
     }
     return _total;
 }
+
+// Lança cada dado separadamente, preserva os resultados individuais e só chama
+// o callback final depois que todos pousarem. O atraso e a duração variam para
+// parecerem lançamentos físicos independentes.
+function rolar_varios_dados_visuais(_origem_x, _origem_y, _destino_x, _destino_y, _quantidade, _tamanho_dado, _callback_final, _modificador_exibido = 0, _atraso_grupo = 0) {
+    var _qtd = max(1, _quantidade);
+    if (_qtd == 1) {
+        var _resultado_unico = irandom_range(1, _tamanho_dado);
+        var _duracao_unico = 78 + ((_atraso_grupo > 0) ? irandom_range(-8, 18) : 0);
+        rolar_dado_visual(_origem_x, _origem_y, _destino_x, _destino_y,
+            _tamanho_dado, _resultado_unico, _callback_final, _modificador_exibido,
+            _atraso_grupo, _duracao_unico);
+        return;
+    }
+
+    var _grupo = {
+        quantidade: _qtd,
+        resolvidos: 0,
+        pousados: 0,
+        total: 0,
+        total_visual: 0,
+        resultados: [],
+        modificador: _modificador_exibido,
+        destino_x: _destino_x,
+        destino_y: _destino_y,
+        callback_final: _callback_final
+    };
+    var _callback_dado = method(_grupo, function(_resultado) {
+        total += _resultado;
+        resolvidos += 1;
+        if (resolvidos < quantidade) return;
+        var _finalizar = callback_final;
+        _finalizar(total);
+    });
+
+    var _espacamento = 110;
+    for (var i = 0; i < _qtd; i++) {
+        var _offset_x = (i - ((_qtd - 1) / 2)) * _espacamento;
+        var _atraso = _atraso_grupo + ((i == 0) ? 0 : i * irandom_range(8, 15));
+        var _duracao = 78 + irandom_range(-8, 18);
+        var _resultado = irandom_range(1, _tamanho_dado);
+        array_push(_grupo.resultados, _resultado);
+        _grupo.total_visual += _resultado;
+        var _dado_grupo = rolar_dado_visual(
+            _origem_x + _offset_x * 0.22,
+            _origem_y,
+            _destino_x + _offset_x,
+            _destino_y,
+            _tamanho_dado,
+            _resultado,
+            _callback_dado,
+            0,
+            _atraso,
+            _duracao
+        );
+        _dado_grupo.grupo_soma = _grupo;
+        _dado_grupo.grupo_soma_responsavel = (i == _qtd - 1);
+    }
+}
 	
+// Resolve o dano depois do acerto. No crítico, os dados originais podem ser
+// duplicados ou o resultado original pode ser multiplicado por dois. Modificadores
+// e defesa continuam sendo aplicados uma única vez, depois do dano original.
+function resolver_dano_de_acerto(_contexto, _modo_critico = "normal") {
+    var _atacante = _contexto.atacante;
+    var _defensor = _contexto.defensor;
+    if (!instance_exists(_atacante) || !instance_exists(_defensor)
+        || _atacante.morrendo || _defensor.morrendo) return;
+
+    var _quantidade = _contexto.qtd_usada;
+    var _multiplicador_resultado = 1;
+    if (_modo_critico == "dobrar_dados") _quantidade *= 2;
+    if (_modo_critico == "dobrar_resultado") _multiplicador_resultado = 2;
+
+    var _dados_dano = {
+        atacante: _atacante,
+        defensor: _defensor,
+        mod_usado: _contexto.mod_usado,
+        tipo_ataque: _contexto.tipo_ataque,
+        multiplicador_resultado: _multiplicador_resultado
+    };
+    var _mod_total_exibido = (_modo_critico == "dobrar_resultado")
+        ? 0 : (_contexto.mod_usado + bonus_cemiterio_dano(_atacante));
+
+    rolar_varios_dados_visuais(
+        _atacante.x, _atacante.y, _defensor.x, _defensor.y,
+        _quantidade, _contexto.dado_usado,
+        method(_dados_dano, function(_resultado) {
+            if (!instance_exists(atacante) || !instance_exists(defensor)) return;
+
+            iniciar_animacao_ataque(atacante, defensor, 18, 18);
+            aplicar_flash_dano(defensor);
+
+            var _dano_original = _resultado * multiplicador_resultado;
+            var _defesa_usada = (tipo_ataque == "magica") ? defensor.defesa_magica : defensor.defesa_fisica;
+            _defesa_usada += bonus_cemiterio_defesa(defensor);
+
+            var _dano_final = _dano_original + mod_usado + bonus_cemiterio_dano(atacante);
+            _dano_final = max(0, _dano_final - _defesa_usada - obj_controlador.terreno_bonus_defesa);
+            defensor.vida -= _dano_final;
+            mostrar_dano_tropa(defensor, _dano_final);
+
+            debug_combate(defensor.nome_carta + " tomou " + string(_dano_final) + " de dano " + tipo_ataque + "! Vida agora: " + string(defensor.vida));
+            if (defensor.vida <= 0) destruir_tropa(defensor);
+        }),
+        _mod_total_exibido
+    );
+}
+
+function abrir_proxima_escolha_critico() {
+    if (obj_controlador.critico_escolha_ativa || obj_controlador.rolagens_pendentes > 0) return;
+    while (array_length(obj_controlador.criticos_pendentes) > 0) {
+        var _contexto = obj_controlador.criticos_pendentes[0];
+        array_delete(obj_controlador.criticos_pendentes, 0, 1);
+        if (!instance_exists(_contexto.atacante) || !instance_exists(_contexto.defensor)) continue;
+        obj_controlador.critico_contexto = _contexto;
+        obj_controlador.critico_escolha_ativa = true;
+        obj_controlador.carta_menu_aberto = noone;
+        return;
+    }
+    obj_controlador.critico_contexto = noone;
+}
+
+function enfileirar_escolha_critico(_contexto) {
+    array_push(obj_controlador.criticos_pendentes, _contexto);
+    abrir_proxima_escolha_critico();
+}
+
+function resolver_escolha_critico(_modo) {
+    if (!obj_controlador.critico_escolha_ativa) return;
+    var _contexto = obj_controlador.critico_contexto;
+    obj_controlador.critico_escolha_ativa = false;
+    obj_controlador.critico_contexto = noone;
+    if (instance_exists(_contexto.atacante)) {
+        mostrar_feedback(_modo == "dobrar_dados" ? "CRÍTICO: +DADOS" : "CRÍTICO: RESULTADO ×2",
+            _contexto.atacante.x, _contexto.atacante.y - 45, c_yellow, 55);
+    }
+    resolver_dano_de_acerto(_contexto, _modo);
+    abrir_proxima_escolha_critico();
+}
+
+// A IA prefere a opção estável quando o dano médio já basta e tenta a opção
+// mais explosiva quando precisa superar muita vida/defesa.
+function ia_escolher_modo_critico(_contexto) {
+    var _media_original = _contexto.qtd_usada * ((_contexto.dado_usado + 1) / 2);
+    var _defesa = (_contexto.tipo_ataque == "magica") ? _contexto.defensor.defesa_magica : _contexto.defensor.defesa_fisica;
+    var _estimativa = _media_original * 2 + _contexto.mod_usado - _defesa;
+    return (_estimativa >= _contexto.defensor.vida) ? "dobrar_dados" : "dobrar_resultado";
+}
+
 // Regras do D20: 1-10 erra, 1 natural = contra-ataque do defensor, 11-19 acerta,
-// 20 natural = crítico (rola 2 dados de dano e soma).
+// 20 natural = crítico com escolha da forma de dobrar o dano original.
 function processar_resultado_acerto(_dado_acerto, _atacante, _defensor, _tipo_ataque) {
-    if (!instance_exists(_atacante) || !instance_exists(_defensor)) {
-        debug_combate("--> combate cancelado: atacante ou defensor não existe mais.");
+    if (!instance_exists(_atacante) || !instance_exists(_defensor)
+        || _atacante.morrendo || _defensor.morrendo) {
+        debug_combate("--> combate cancelado: atacante ou defensor não está mais apto.");
         return;
     }
     debug_combate("D20 rolou: " + string(_dado_acerto));
@@ -1671,7 +2001,6 @@ function processar_resultado_acerto(_dado_acerto, _atacante, _defensor, _tipo_at
         debug_combate("Erro crítico! Defensor vai contra-atacar.");
 
         // contra-ataque sempre usa o ataque físico do defensor (padrão)
-        var _dano_contra_dado = rolar_varios_dados(_defensor.qtd_dados_dano, _defensor.dado_dano);
 		var _mod_contra_exibido = _defensor.mod_dano + bonus_cemiterio_dano(_defensor);
 
 		var _dados_contra = {
@@ -1679,7 +2008,10 @@ function processar_resultado_acerto(_dado_acerto, _atacante, _defensor, _tipo_at
 		    defensor: _defensor
 		};
 
-		rolar_dado_visual(_defensor.x, _defensor.y, _atacante.x, _atacante.y, _defensor.dado_dano, _dano_contra_dado, method(_dados_contra, function(_resultado) {
+		rolar_varios_dados_visuais(
+            _defensor.x, _defensor.y, _atacante.x, _atacante.y,
+            _defensor.qtd_dados_dano, _defensor.dado_dano,
+            method(_dados_contra, function(_resultado) {
             if (!instance_exists(atacante) || !instance_exists(defensor)) return;
 
 			iniciar_animacao_ataque(defensor, atacante, 18, 18);
@@ -1696,7 +2028,9 @@ function processar_resultado_acerto(_dado_acerto, _atacante, _defensor, _tipo_at
             if (atacante.vida <= 0) {
                 destruir_tropa(atacante);
             }
-        }), _mod_contra_exibido);
+            }),
+            _mod_contra_exibido
+        );
         return;
     }
 
@@ -1719,37 +2053,29 @@ function processar_resultado_acerto(_dado_acerto, _atacante, _defensor, _tipo_at
         }
     }
 
-    var _num_dados = (_dado_acerto == 20) ? (_qtd_usada * 2) : _qtd_usada;
-	var _dano_dado = rolar_varios_dados(_num_dados, _dado_usado);
-	var _mod_total_exibido = _mod_usado + bonus_cemiterio_dano(_atacante);
+    var _contexto_dano = {
+        atacante: _atacante,
+        defensor: _alvo_real,
+        tipo_ataque: _tipo_ataque,
+        dado_usado: _dado_usado,
+        mod_usado: _mod_usado,
+        qtd_usada: _qtd_usada
+    };
 
-	var _dados_dano = {
-	    atacante: _atacante,
-	    defensor: _alvo_real,
-	    mod_usado: _mod_usado,
-	    tipo_ataque: _tipo_ataque
-	};
-
-	rolar_dado_visual(_atacante.x, _atacante.y, _alvo_real.x, _alvo_real.y, _dado_usado, _dano_dado, method(_dados_dano, function(_resultado) {
-        if (!instance_exists(atacante) || !instance_exists(defensor)) return;
-
-		iniciar_animacao_ataque(atacante, defensor, 18, 18);
-		aplicar_flash_dano(defensor);
-
-        var _defesa_usada = (tipo_ataque == "magica") ? defensor.defesa_magica : defensor.defesa_fisica;
-        _defesa_usada += bonus_cemiterio_defesa(defensor);
-
-        var _dano_final = _resultado + mod_usado + bonus_cemiterio_dano(atacante);
-        _dano_final = max(0, _dano_final - _defesa_usada - obj_controlador.terreno_bonus_defesa);
-        defensor.vida -= _dano_final;
-        mostrar_dano_tropa(defensor, _dano_final);
-
-        debug_combate(defensor.nome_carta + " tomou " + string(_dano_final) + " de dano " + tipo_ataque + "! Vida agora: " + string(defensor.vida));
-
-        if (defensor.vida <= 0) {
-            destruir_tropa(defensor);
+    if (_dado_acerto == 20) {
+        debug_combate("ACERTO CRÍTICO! Escolhendo como dobrar o dano original.");
+        if (_atacante.dono == "jogador") {
+            enfileirar_escolha_critico(_contexto_dano);
+        } else {
+            var _modo_ia = ia_escolher_modo_critico(_contexto_dano);
+            mostrar_feedback(_modo_ia == "dobrar_dados" ? "CRÍTICO: +DADOS" : "CRÍTICO: RESULTADO ×2",
+                _atacante.x, _atacante.y - 45, c_yellow, 55);
+            resolver_dano_de_acerto(_contexto_dano, _modo_ia);
         }
-    }), _mod_total_exibido);
+        return;
+    }
+
+    resolver_dano_de_acerto(_contexto_dano, "normal");
 }
 
 function destruir_tropa(_carta, _por_inimigo = true) {
@@ -1785,6 +2111,17 @@ function destruir_tropa(_carta, _por_inimigo = true) {
     _carta.morrendo = true;
     _carta.morte_timer = _carta.morte_duracao;
     _carta.condicao = noone;
+}
+
+// Registra cartas da mão abstrata da IA, que não possuem uma instância visual.
+function registrar_descarte_dados(_dados, _dono) {
+    var _destino = (_dono == "jogador") ? obj_controlador.descarte_jogador : obj_controlador.descarte_inimigo;
+    array_push(_destino, {
+        nome: _dados.nome,
+        categoria: _dados.categoria,
+        sprite: variable_struct_exists(_dados, "sprite_carta") && _dados.sprite_carta != noone ? _dados.sprite_carta : spr_carta_placeholder,
+        descricao: "Carta usada durante a partida."
+    });
 }
 
 // Itens e magias consumidos vão para o descarte; tropas derrotadas usam o cemitério.
@@ -1880,7 +2217,7 @@ function criar_tropa_no_slot(_dados, _slot, _dono) {
 #region Dado visual (D20 / dado de dano)
 // Cria um dado animado que desliza do atacante até o defensor, gira, e para no valor
 // já decidido (_resultado_final). Quando termina, chama _funcao_callback com o resultado.
-function rolar_dado_visual(_x, _y, _destino_x, _destino_y, _tamanho_dado, _resultado_final, _funcao_callback, _modificador_exibido = 0) {
+function rolar_dado_visual(_x, _y, _destino_x, _destino_y, _tamanho_dado, _resultado_final, _funcao_callback, _modificador_exibido = 0, _atraso_inicio = 0, _tempo_total = -1) {
     var _dado = instance_create_layer(_x, _y, "Instances", obj_dado);
     obj_controlador.rolagens_pendentes += 1;
 
@@ -1889,9 +2226,13 @@ function rolar_dado_visual(_x, _y, _destino_x, _destino_y, _tamanho_dado, _resul
     _dado.modificador_exibido = _modificador_exibido;
     _dado.destino_x = _destino_x;
     _dado.destino_y = _destino_y;
+    _dado.atraso_inicio = max(0, _atraso_inicio);
+    _dado.image_alpha = (_dado.atraso_inicio > 0) ? 0 : 1;
+    if (_tempo_total > 0) _dado.tempo_total_giro = _tempo_total;
     _dado.girando = true;
     _dado.tempo_girando = 0;
     _dado.callback = _funcao_callback;
+    return _dado;
 }
 #endregion
 
@@ -1929,9 +2270,60 @@ function jogar_moeda_visual(_origem_x, _origem_y, _destino_x, _destino_y, _funca
 #endregion
 
 #region Turnos — fluxo do jogador e da IA
+function rolar_disputa_inicial() {
+    if (obj_controlador.disputa_inicial_estado != "aguardando" || obj_controlador.rolagens_pendentes > 0) return;
+
+    obj_controlador.disputa_inicial_estado = "rolando";
+    obj_controlador.disputa_inicial_resultado_jogador = -1;
+    obj_controlador.disputa_inicial_resultado_inimigo = -1;
+
+    var _resultado_jogador = irandom_range(1, 20);
+    var _resultado_inimigo = irandom_range(1, 20);
+    var _controle_jogador = { controle: instance_find(obj_controlador, 0) };
+    var _controle_inimigo = { controle: instance_find(obj_controlador, 0) };
+    var _centro_x = room_width / 2;
+    // Os D20 pousam acima do painel de escolha para continuarem totalmente visíveis.
+    var _centro_y = 78;
+
+    rolar_dado_visual(room_width * 0.25, room_height - 70, _centro_x - 100, _centro_y,
+        20, _resultado_jogador, method(_controle_jogador, function(_resultado) {
+            if (!instance_exists(controle)) return;
+            controle.disputa_inicial_resultado_jogador = _resultado;
+            if (controle.disputa_inicial_resultado_inimigo >= 0) {
+                controle.disputa_inicial_estado = "resultado";
+                controle.disputa_inicial_timer = 55;
+            }
+        }));
+
+    rolar_dado_visual(room_width * 0.75, 70, _centro_x + 100, _centro_y,
+        20, _resultado_inimigo, method(_controle_inimigo, function(_resultado) {
+            if (!instance_exists(controle)) return;
+            controle.disputa_inicial_resultado_inimigo = _resultado;
+            if (controle.disputa_inicial_resultado_jogador >= 0) {
+                controle.disputa_inicial_estado = "resultado";
+                controle.disputa_inicial_timer = 55;
+            }
+        }), 0, irandom_range(6, 12), 78 + irandom_range(-5, 12));
+}
+
+function finalizar_disputa_inicial(_primeiro) {
+    obj_controlador.disputa_inicial_estado = "concluida";
+    obj_controlador.disputa_inicial_vencedor = "";
+    obj_controlador.partida_iniciada = true;
+    debug_combate((_primeiro == "jogador" ? "Jogador" : "Inimigo") + " foi escolhido para começar a partida.");
+
+    if (_primeiro == "jogador") {
+        obj_controlador.turno = "jogador";
+        anunciar_turno("jogador");
+    } else {
+        iniciar_turno_inimigo(false);
+    }
+}
+
 function passar_turno_jogador() {
     if (obj_controlador.turno != "jogador") return;
-    if (obj_controlador.rolagens_pendentes > 0) return;
+    if (obj_controlador.rolagens_pendentes > 0 || obj_controlador.critico_escolha_ativa
+        || array_length(obj_controlador.criticos_pendentes) > 0) return;
 
     obj_controlador.carta_menu_aberto = noone;
     obj_controlador.primeiro_turno_jogador = false; // <-- adicione aqui
@@ -1944,7 +2336,7 @@ function anunciar_turno(_dono) {
     obj_controlador.anuncio_turno_timer = obj_controlador.anuncio_turno_duracao;
 }
 
-function iniciar_turno_inimigo() {
+function iniciar_turno_inimigo(_comprar_no_inicio = true) {
     obj_controlador.turno = "inimigo";
     anunciar_turno("inimigo");
 
@@ -1957,7 +2349,7 @@ function iniciar_turno_inimigo() {
 
     processar_condicoes("inimigo");
     desvirar_recursos("inimigo");
-    comprar_carta_do_deck_ia();
+    if (_comprar_no_inicio) comprar_carta_do_deck_ia();
 
     obj_controlador.ia_ativa = true;
     obj_controlador.ia_etapa = 0;
@@ -1970,7 +2362,12 @@ function iniciar_turno_inimigo() {
 function processar_turno_ia() {
     if (!obj_controlador.ia_ativa) return;
     if (obj_controlador.rolagens_pendentes > 0) {
-        obj_controlador.ia_texto_acao = "resolvendo o ataque...";
+        obj_controlador.ia_texto_acao = "resolvendo efeitos...";
+        return;
+    }
+    if (ia_ativar_armadilhas_prontas()) {
+        obj_controlador.ia_texto_acao = "ativando uma armadilha...";
+        obj_controlador.ia_tempo_espera = 35;
         return;
     }
     if (obj_controlador.ia_tempo_espera > 0) {
@@ -1980,59 +2377,63 @@ function processar_turno_ia() {
 
     switch (obj_controlador.ia_etapa) {
         case 0:
-            obj_controlador.ia_texto_acao = "intenção: preparar recursos";
+            obj_controlador.ia_texto_acao = "intenção: preparar recursos e efeitos";
             ia_jogar_recursos();
+            ia_jogar_bencaos_maldicoes();
             obj_controlador.ia_etapa = 1;
             obj_controlador.ia_tempo_espera = 55;
         break;
-
         case 1:
-            obj_controlador.ia_texto_acao = "intenção: fortalecer o campo";
+            obj_controlador.ia_texto_acao = "intenção: controlar o campo";
             ia_jogar_construcao();
             ia_usar_construcoes();
+            ia_jogar_terreno();
             obj_controlador.ia_etapa = 2;
             obj_controlador.ia_tempo_espera = 55;
         break;
-
         case 2:
-            obj_controlador.ia_texto_acao = "intenção: avançar tropas";
-            mover_tropas_automatico("inimigo");
-            obj_controlador.ia_etapa = 3;
-            obj_controlador.ia_tempo_espera = 70;
-        break;
-
-        case 3:
-            obj_controlador.ia_texto_acao = "intenção: reforçar a estratégia";
+            obj_controlador.ia_texto_acao = "intenção: convocar uma tropa";
             ia_jogar_cartas();
-            obj_controlador.ia_etapa = 4;
-            obj_controlador.ia_tempo_espera = 70;
+            obj_controlador.ia_etapa = 3;
+            obj_controlador.ia_tempo_espera = 65;
         break;
-
+        case 3:
+            obj_controlador.ia_texto_acao = "intenção: usar itens e preparar defesas";
+            ia_jogar_itens();
+            ia_preparar_armadilha();
+            obj_controlador.ia_etapa = 4;
+            obj_controlador.ia_tempo_espera = 60;
+        break;
         case 4:
-            obj_controlador.ia_texto_acao = "intenção: usar habilidades";
+            obj_controlador.ia_texto_acao = "intenção: evoluir e usar habilidades";
             ia_evoluir_tropa();
             ia_usar_habilidades_tropas();
             obj_controlador.ia_etapa = 5;
             obj_controlador.ia_tempo_espera = 55;
         break;
-
         case 5:
-            obj_controlador.ia_texto_acao = "intenção: escolher alvos";
-            ia_jogar_magias();
+            obj_controlador.ia_texto_acao = "intenção: avançar tropas";
+            mover_tropas_automatico("inimigo");
+            ia_configurar_defesa_castelo();
             obj_controlador.ia_etapa = 6;
-            obj_controlador.ia_tempo_espera = 55;
+            obj_controlador.ia_tempo_espera = 70;
         break;
-
         case 6:
-            obj_controlador.ia_texto_acao = "intenção: atacar";
-            if (!obj_controlador.primeiro_turno_inimigo) {
-                processar_combate("inimigo");
+            obj_controlador.ia_texto_acao = "intenção: escolher magias e alvos";
+            if (ia_jogar_magias()) {
+                obj_controlador.ia_tempo_espera = 45;
+            } else {
+                obj_controlador.ia_etapa = 7;
+                obj_controlador.ia_tempo_espera = 35;
             }
-            obj_controlador.ia_etapa = 7;
+        break;
+        case 7:
+            obj_controlador.ia_texto_acao = "intenção: atacar";
+            if (!obj_controlador.primeiro_turno_inimigo) processar_combate("inimigo");
+            obj_controlador.ia_etapa = 8;
             obj_controlador.ia_tempo_espera = 45;
         break;
-
-        case 7:
+        case 8:
             expirar_condicoes("inimigo");
             obj_controlador.primeiro_turno_inimigo = false;
             obj_controlador.ia_ativa = false;
@@ -2134,6 +2535,7 @@ function ia_escolher_slot_entrada() {
 
     with (obj_slot_batalha) {
         if (posicao != posicao_entrada("inimigo") || ocupado) continue;
+        if (buscar_tropa_na_coluna(lane, "inimigo") != noone) continue;
 
         var _pontuacao = 8;
         var _bloqueio = buscar_slot(lane, 1);
@@ -2167,7 +2569,7 @@ function ia_pontuacao_alvo_magia(_dados, _alvo) {
     switch (_dados.nome) {
         case "Bola de Fogo":
             var _dano_medio = (_dados.dado_efeito + 1) / 2;
-            if (_alvo.vida <= _dano_medio) _pontuacao += 100; // prioriza eliminação provável
+            if (_alvo.vida <= _dano_medio) _pontuacao += 100;
             _pontuacao += (_alvo.vida_maxima - _alvo.vida) * 2;
         break;
         case "Veneno Mortal":
@@ -2185,58 +2587,83 @@ function ia_pontuacao_alvo_magia(_dados, _alvo) {
 }
 
 function ia_escolher_alvo_magia(_dados) {
-    var _melhor_alvo = noone;
-    var _melhor_pontuacao = -999999;
+    var _escolha = { tipo: "", alvo: noone, dono_castelo: "", pontuacao: -999999 };
 
     with (obj_carta) {
         if (!travada || dono != "jogador" || sombra_ativa) continue;
         var _pontuacao = ia_pontuacao_alvo_magia(_dados, id);
-
-        if (_pontuacao > _melhor_pontuacao) {
-            _melhor_pontuacao = _pontuacao;
-            _melhor_alvo = id;
+        if (_pontuacao > _escolha.pontuacao) {
+            _escolha.tipo = "tropa";
+            _escolha.alvo = id;
+            _escolha.pontuacao = _pontuacao;
         }
     }
-    return _melhor_alvo;
+
+    if (_dados.nome == "Bola de Fogo") {
+        var _media = (_dados.dado_efeito + 1) / 2;
+        with (obj_construcao) {
+            if (dono != "jogador") continue;
+            var _pontuacao_construcao = 45 + (vida_maxima - vida) * 3;
+            if (vida <= _media) _pontuacao_construcao += 120;
+            if (nome_construcao == "Hemodrenário") _pontuacao_construcao += 35;
+            if (_pontuacao_construcao > _escolha.pontuacao) {
+                _escolha.tipo = "construcao";
+                _escolha.alvo = id;
+                _escolha.pontuacao = _pontuacao_construcao;
+            }
+        }
+
+        var _pontuacao_castelo = 70 + (20 - obj_controlador.vida_jogador) * 4;
+        if (obj_controlador.vida_jogador <= _dados.dado_efeito) _pontuacao_castelo += 1000;
+        if (_pontuacao_castelo > _escolha.pontuacao) {
+            _escolha.tipo = "castelo";
+            _escolha.alvo = noone;
+            _escolha.dono_castelo = "jogador";
+            _escolha.pontuacao = _pontuacao_castelo;
+        }
+    }
+    return _escolha;
 }
 
-// Usa no máximo uma magia por turno, sempre no alvo de maior valor tático.
+// Usa no máximo uma magia por turno e considera tropas, construções e castelo
+// quando a carta escolhida for Bola de Fogo.
 function ia_jogar_magias() {
-    if (obj_controlador.primeiro_turno_inimigo) return;
+    if (obj_controlador.primeiro_turno_inimigo || obj_controlador.magias_usadas_este_turno >= 2) return false;
 
     var _melhor_indice = -1;
-    var _melhor_alvo = noone;
+    var _melhor_escolha = noone;
     var _melhor_pontuacao = -999999;
-
     for (var i = 0; i < array_length(obj_controlador.mao_inimigo); i++) {
         var _dados = obj_controlador.mao_inimigo[i]();
         if (_dados.categoria != "magica" || !pode_pagar_custo(_dados.custo, "inimigo")) continue;
-
-        var _alvo = ia_escolher_alvo_magia(_dados);
-        if (_alvo == noone) continue;
-
-        var _pontuacao = ia_pontuacao_alvo_magia(_dados, _alvo);
-        if (_pontuacao > _melhor_pontuacao) {
-            _melhor_pontuacao = _pontuacao;
-            _melhor_indice = i;
-            _melhor_alvo = _alvo;
-        }
+        var _escolha = ia_escolher_alvo_magia(_dados);
+        if (_escolha.tipo == "" || _escolha.pontuacao <= _melhor_pontuacao) continue;
+        _melhor_pontuacao = _escolha.pontuacao;
+        _melhor_indice = i;
+        _melhor_escolha = _escolha;
     }
-
-    if (_melhor_indice == -1 || !instance_exists(_melhor_alvo)) return;
+    if (_melhor_indice == -1 || !is_struct(_melhor_escolha)) return false;
 
     var _magia = obj_controlador.mao_inimigo[_melhor_indice]();
     pagar_custo(_magia.custo, "inimigo");
     array_delete(obj_controlador.mao_inimigo, _melhor_indice, 1);
+    registrar_descarte_dados(_magia, "inimigo");
 
     switch (_magia.nome) {
-        case "Bola de Fogo": lancar_bola_de_fogo(_melhor_alvo, _magia.dado_efeito, _magia.chance_queimar); break;
-        case "Veneno Mortal": aplicar_condicao(_melhor_alvo, "envenenado", -1, 1); break;
-        case "Congelante": aplicar_condicao(_melhor_alvo, "congelado", 1, 0); break;
-        case "Choque Elétrico": aplicar_condicao(_melhor_alvo, "eletrocutado", 1, 0); break;
+        case "Bola de Fogo":
+            lancar_bola_de_fogo(_melhor_escolha.alvo, _magia.dado_efeito, _magia.chance_queimar,
+                _melhor_escolha.tipo, _melhor_escolha.dono_castelo, "inimigo");
+        break;
+        case "Veneno Mortal": aplicar_condicao(_melhor_escolha.alvo, "envenenado", -1, 1); break;
+        case "Congelante": aplicar_condicao(_melhor_escolha.alvo, "congelado", 1, 0); break;
+        case "Choque Elétrico": aplicar_condicao(_melhor_escolha.alvo, "eletrocutado", 1, 0); break;
     }
 
-    debug_combate("IA usou " + _magia.nome + " em " + _melhor_alvo.nome_carta + ".");
+    var _nome_alvo = (_melhor_escolha.tipo == "castelo") ? "castelo do jogador"
+        : ((_melhor_escolha.tipo == "construcao") ? _melhor_escolha.alvo.nome_construcao : _melhor_escolha.alvo.nome_carta);
+    obj_controlador.magias_usadas_este_turno += 1;
+    debug_combate("IA usou " + _magia.nome + " em " + _nome_alvo + ".");
+    return true;
 }
 
 function ia_valor_tropa_campo(_carta) {
@@ -2306,6 +2733,19 @@ function ia_tropa_ameacada(_carta) {
     return false;
 }
 
+// Decide se uma tropa na base deve interceptar ataques ao castelo. A IA protege
+// o castelo quando ele já sofreu dano ou quando a tropa sobreviveria a um golpe médio.
+function ia_configurar_defesa_castelo() {
+    with (obj_carta) {
+        if (!travada || dono != "inimigo") continue;
+        if (posicao_atual != posicao_entrada("inimigo")) {
+            defendendo_castelo = false;
+            continue;
+        }
+        defendendo_castelo = obj_controlador.vida_inimigo <= 15 || vida >= 6;
+    }
+}
+
 // Habilidades são usadas apenas quando têm impacto imediato ou proteção concreta.
 function ia_usar_habilidades_tropas() {
     if (obj_controlador.primeiro_turno_inimigo) return;
@@ -2316,7 +2756,7 @@ function ia_usar_habilidades_tropas() {
         var _habilidade = tem_habilidade_ativa(id);
         switch (_habilidade) {
             case "golpe_duplo":
-                if (!atacou_este_turno && (ia_alvo_atingivel(id) != noone || posicao_atual == posicao_ataque())) {
+                if (!atacou_este_turno && (ia_alvo_atingivel(id) != noone || posicao_atual == posicao_assalto("inimigo"))) {
                     usar_habilidade(id);
                 }
             break;
@@ -2341,6 +2781,251 @@ function ia_usar_habilidades_tropas() {
     }
 }
 
+function ia_consumir_carta_da_mao(_indice, _dados) {
+    pagar_custo(_dados.custo, "inimigo");
+    array_delete(obj_controlador.mao_inimigo, _indice, 1);
+    registrar_descarte_dados(_dados, "inimigo");
+}
+
+function ia_jogar_bencaos_maldicoes() {
+    for (var i = array_length(obj_controlador.mao_inimigo) - 1; i >= 0; i--) {
+        var _dados = obj_controlador.mao_inimigo[i]();
+        if ((_dados.categoria != "bencao" && _dados.categoria != "maldicao")
+            || !pode_pagar_custo(_dados.custo, "inimigo")) continue;
+        var _sucesso = (_dados.categoria == "bencao")
+            ? adicionar_bencao("inimigo", _dados.efeito)
+            : adicionar_maldicao("inimigo", _dados.efeito);
+        if (!_sucesso) continue;
+        pagar_custo(_dados.custo, "inimigo");
+        array_delete(obj_controlador.mao_inimigo, i, 1);
+        iniciar_animacao_bencao_maldicao(_dados.categoria, _dados.nome);
+        debug_combate("IA ativou " + _dados.nome + ".");
+    }
+}
+
+function ia_jogar_terreno() {
+    if (obj_controlador.primeiro_turno_inimigo || obj_controlador.terrenos_jogados_este_turno >= 1) return;
+    for (var i = 0; i < array_length(obj_controlador.mao_inimigo); i++) {
+        var _dados = obj_controlador.mao_inimigo[i]();
+        if (_dados.categoria != "terreno" || !pode_pagar_custo(_dados.custo, "inimigo")) continue;
+
+        pagar_custo(_dados.custo, "inimigo");
+        array_delete(obj_controlador.mao_inimigo, i, 1);
+        obj_controlador.terrenos_jogados_este_turno += 1;
+        obj_controlador.terreno_bonus_defesa = _dados.bonus_defesa_global;
+        obj_controlador.terreno_ativo = variable_struct_exists(_dados, "efeito_terreno") ? _dados.efeito_terreno : "";
+        obj_controlador.terreno_anuncio_texto = string_upper(_dados.nome);
+        obj_controlador.terreno_anuncio_timer = obj_controlador.terreno_anuncio_duracao;
+
+        var _slot_terreno = instance_find(obj_slot_terreno, 0);
+        if (_slot_terreno != noone) {
+            if (_slot_terreno.ocupado && instance_exists(_slot_terreno.terreno_atual)) instance_destroy(_slot_terreno.terreno_atual);
+            var _visual = instance_create_layer(room_width / 2, 20, "Instances", obj_terreno_ativo);
+            _visual.sprite_index = (_dados.sprite_carta != noone) ? _dados.sprite_carta : spr_carta_placeholder;
+            _visual.escala_base = global.TERRENO_LARGURA_ALVO / sprite_get_height(_visual.sprite_index);
+            _visual.destino_x = _slot_terreno.x;
+            _visual.destino_y = _slot_terreno.y;
+            _visual.origem_x = room_width / 2;
+            _visual.origem_y = 20;
+            _slot_terreno.ocupado = true;
+            _slot_terreno.terreno_atual = _visual.id;
+        }
+        debug_combate("IA colocou o terreno " + _dados.nome + ".");
+        return;
+    }
+}
+
+function ia_melhor_tropa_propria(_exigir_mochila = false, _inteligencia_minima = -999) {
+    var _melhor = noone;
+    var _valor = -999999;
+    with (obj_carta) {
+        if (!travada || dono != "inimigo") continue;
+        if (_exigir_mochila && mochila <= 0) continue;
+        if (nivel_inteligencia < _inteligencia_minima) continue;
+        var _pontuacao = ia_valor_tropa_campo(id);
+        if (_pontuacao > _valor) {
+            _valor = _pontuacao;
+            _melhor = id;
+        }
+    }
+    return _melhor;
+}
+
+function ia_melhor_tropa_ferida() {
+    var _melhor = noone;
+    var _vida_faltando = 0;
+    with (obj_carta) {
+        if (!travada || dono != "inimigo") continue;
+        var _faltando = vida_maxima - vida;
+        if (_faltando > _vida_faltando) {
+            _vida_faltando = _faltando;
+            _melhor = id;
+        }
+    }
+    return _melhor;
+}
+
+function ia_melhor_alvo_corrosao() {
+    var _melhor = noone;
+    var _valor = -999999;
+    with (obj_carta) {
+        if (!travada || dono != "jogador" || condicao != noone) continue;
+        var _pontuacao = ia_valor_tropa_campo(id);
+        if (_pontuacao > _valor) {
+            _valor = _pontuacao;
+            _melhor = id;
+        }
+    }
+    return _melhor;
+}
+
+function ia_jogar_itens() {
+    if (obj_controlador.primeiro_turno_inimigo) return;
+    var _usos = 0;
+    while (_usos < 3) {
+        var _usou = false;
+        for (var i = 0; i < array_length(obj_controlador.mao_inimigo); i++) {
+            var _dados = obj_controlador.mao_inimigo[i]();
+            if ((_dados.categoria != "item_equipavel" && _dados.categoria != "item_consumivel")
+                || !pode_pagar_custo(_dados.custo, "inimigo")) continue;
+
+            if (_dados.categoria == "item_equipavel") {
+                var _requisito = variable_struct_exists(_dados, "requisito_inteligencia") ? _dados.requisito_inteligencia : 0;
+                var _alvo_equipar = ia_melhor_tropa_propria(true, _requisito);
+                if (_alvo_equipar == noone) continue;
+                if (variable_struct_exists(_dados, "sobrescreve_dado_dano") && _dados.sobrescreve_dado_dano > 0) {
+                    _alvo_equipar.dado_dano = _dados.sobrescreve_dado_dano;
+                    _alvo_equipar.mod_dano = variable_struct_exists(_dados, "sobrescreve_mod_dano") ? _dados.sobrescreve_mod_dano : 0;
+                } else {
+                    _alvo_equipar.mod_dano += variable_struct_exists(_dados, "bonus_mod_dano") ? _dados.bonus_mod_dano : 0;
+                    _alvo_equipar.defesa_fisica += variable_struct_exists(_dados, "bonus_defesa") ? _dados.bonus_defesa : 0;
+                }
+                _alvo_equipar.mochila -= 1;
+                ia_consumir_carta_da_mao(i, _dados);
+                debug_combate("IA equipou " + _dados.nome + " em " + _alvo_equipar.nome_carta + ".");
+                _usou = true;
+            } else {
+                var _efeito = variable_struct_exists(_dados, "efeito_tipo") ? _dados.efeito_tipo : "cura";
+                var _executou = false;
+                if (string_pos("buscar_", _efeito) == 1) {
+                    var _tipo_recurso = string_delete(_efeito, 1, string_length("buscar_"));
+                    _executou = buscar_recurso_no_deck(_tipo_recurso, "inimigo");
+                } else if (_efeito == "comprar_cartas") {
+                    comprar_varias_cartas(_dados.quantidade_efeito, "inimigo");
+                    _executou = true;
+                } else if (_efeito == "aplicar_corrosao") {
+                    var _alvo_corrosao = ia_melhor_alvo_corrosao();
+                    if (_alvo_corrosao != noone) {
+                        aplicar_corrosao(_alvo_corrosao);
+                        _executou = true;
+                    }
+                } else if (_efeito == "revirar_sangue") {
+                    _executou = revirar_recurso("sangue", "inimigo");
+                } else if (_efeito == "aumentar_intelig") {
+                    var _alvo_inteligencia = ia_melhor_tropa_propria();
+                    if (_alvo_inteligencia != noone) {
+                        _alvo_inteligencia.nivel_inteligencia += _dados.quantidade_efeito;
+                        _executou = true;
+                    }
+                } else {
+                    var _alvo_cura = ia_melhor_tropa_ferida();
+                    if (_alvo_cura != noone) {
+                        _alvo_cura.vida = min(_alvo_cura.vida_maxima, _alvo_cura.vida + _dados.cura);
+                        _executou = true;
+                    }
+                }
+                if (!_executou) continue;
+                ia_consumir_carta_da_mao(i, _dados);
+                debug_combate("IA usou " + _dados.nome + ".");
+                _usou = true;
+            }
+
+            if (_usou) {
+                _usos += 1;
+                obj_controlador.itens_usados_este_turno += 1;
+                break;
+            }
+        }
+        if (!_usou) break;
+    }
+}
+
+function ia_slot_tem_armadilha(_lane, _posicao) {
+    var _encontrou = false;
+    with (obj_carta) {
+        if (categoria == "armadilha" && dono == "inimigo" && armadilha_estado != ""
+            && armadilha_lane == _lane && armadilha_posicao == _posicao) {
+            _encontrou = true;
+            break;
+        }
+    }
+    return _encontrou;
+}
+
+function ia_preparar_armadilha() {
+    var _indice = -1;
+    var _dados = noone;
+    for (var i = 0; i < array_length(obj_controlador.mao_inimigo); i++) {
+        var _teste = obj_controlador.mao_inimigo[i]();
+        if (_teste.categoria == "armadilha" && pode_pagar_custo(_teste.custo, "inimigo")) {
+            _indice = i;
+            _dados = _teste;
+            break;
+        }
+    }
+    if (_indice == -1) return;
+
+    var _slot_escolhido = noone;
+    var _melhor_pontuacao = -999999;
+    with (obj_slot_batalha) {
+        if (posicao > posicao_ataque() || ia_slot_tem_armadilha(lane, posicao)) continue;
+        var _lane_armadilha = lane;
+        var _posicao_armadilha = posicao;
+        var _pontuacao = 5 - _posicao_armadilha;
+        with (obj_carta) {
+            if (travada && dono == "jogador" && lane_atual == _lane_armadilha) {
+                _pontuacao += 30 - abs(posicao_atual - _posicao_armadilha) * 5;
+            }
+        }
+        if (_pontuacao > _melhor_pontuacao) {
+            _melhor_pontuacao = _pontuacao;
+            _slot_escolhido = id;
+        }
+    }
+    if (_slot_escolhido == noone) return;
+
+    pagar_custo(_dados.custo, "inimigo");
+    array_delete(obj_controlador.mao_inimigo, _indice, 1);
+    var _armadilha = instance_create_layer(_slot_escolhido.x, _slot_escolhido.y, "Instances", obj_carta);
+    _armadilha.nome_carta = _dados.nome;
+    _armadilha.categoria = "armadilha";
+    _armadilha.dono = "inimigo";
+    _armadilha.sprite_index = (_dados.sprite_carta != noone) ? _dados.sprite_carta : spr_carta_placeholder;
+    _armadilha.dado_efeito = _dados.dado_efeito;
+    _armadilha.qtd_dados_efeito = variable_struct_exists(_dados, "qtd_dados_efeito") ? _dados.qtd_dados_efeito : 1;
+    _armadilha.armadilha_lane = _slot_escolhido.lane;
+    _armadilha.armadilha_posicao = _slot_escolhido.posicao;
+    _armadilha.armadilha_estado = "vigiando";
+    _armadilha.esta_na_mao = false;
+    _armadilha.travada = false;
+    _armadilha.visible = false;
+    debug_combate("IA preparou uma armadilha oculta.");
+}
+
+function ia_ativar_armadilhas_prontas() {
+    if (obj_controlador.rolagens_pendentes > 0) return false;
+    var _pronta = noone;
+    with (obj_carta) {
+        if (categoria == "armadilha" && dono == "inimigo" && armadilha_estado == "pronta") {
+            _pronta = id;
+            break;
+        }
+    }
+    if (_pronta == noone) return false;
+    ativar_armadilha(_pronta);
+    return true;
+}
+
 function ia_jogar_cartas() {
     var _indice_mao_escolhido = ia_escolher_indice_tropa();
     var _slot_escolhido = ia_escolher_slot_entrada();
@@ -2353,7 +3038,8 @@ function ia_jogar_cartas() {
         if (_cartas_jogadas >= _max_cartas) continue;
 		if (id != _slot_escolhido) continue;
 
-        if (posicao == posicao_entrada("inimigo") && !ocupado) {
+        if (posicao == posicao_entrada("inimigo") && !ocupado
+            && buscar_tropa_na_coluna(lane, "inimigo") == noone) {
             if (array_length(obj_controlador.mao_inimigo) > 0) {
 
                 var _indice_mao = _indice_mao_escolhido;
@@ -2501,7 +3187,7 @@ function ia_jogar_recursos() {
 }
 
 function ia_jogar_construcao() {
-    if (random(1) > 0.3) return; // 30% de chance de tentar construir por turno
+    if (obj_controlador.construcoes_jogadas_este_turno >= 1) return;
 
     // filtra na mão da IA só as cartas de construção disponíveis
     var _indices_construcao = [];
@@ -2545,6 +3231,7 @@ function ia_jogar_construcao() {
 
         _slot_livre.ocupado = true;
         _slot_livre.construcao_atual = _construcao.id;
+        obj_controlador.construcoes_jogadas_este_turno += 1;
         break; // já construiu, para de tentar
     }
 }
@@ -2953,11 +3640,56 @@ function expirar_condicoes(_dono) {
 #endregion
 
 #region Magias — efeitos específicos
-function aplicar_efeito_bola_fogo(_alvo, _dado_efeito, _chance_queimar) {
-    var _dano = irandom_range(1, _dado_efeito);
+function obter_posicao_castelo(_dono) {
+    var _soma_x = 0;
+    var _soma_y = 0;
+    var _quantidade = 0;
+    with (obj_slot_construcao) {
+        if (dono == _dono) {
+            _soma_x += x;
+            _soma_y += y;
+            _quantidade += 1;
+        }
+    }
+    if (_quantidade <= 0) {
+        return { x: room_width / 2, y: (_dono == "inimigo") ? 20 : room_height - 20 };
+    }
+    var _media_x = _soma_x / _quantidade;
+    var _media_y = _soma_y / _quantidade;
+    return {
+        x: _media_x,
+        y: (_dono == "inimigo") ? max(18, _media_y - 42) : min(room_height - 18, _media_y + 42)
+    };
+}
+
+function destruir_construcao(_construcao) {
+    if (!instance_exists(_construcao)) return;
+    if (_construcao.slot_atual != noone) {
+        _construcao.slot_atual.ocupado = false;
+        _construcao.slot_atual.construcao_atual = noone;
+    }
+    instance_destroy(_construcao);
+}
+
+function aplicar_efeito_bola_fogo(_alvo, _dado_efeito, _chance_queimar, _tipo_alvo = "tropa", _dono_castelo = "", _dano_rolado = -1) {
+    var _dano = (_dano_rolado >= 0) ? _dano_rolado : irandom_range(1, _dado_efeito);
+
+    if (_tipo_alvo == "castelo") {
+        debug_combate("Bola de Fogo causou " + string(_dano) + " de dano ao castelo do " + _dono_castelo + "!");
+        causar_dano_castelo(_dono_castelo, _dano);
+        return;
+    }
+
+    if (!instance_exists(_alvo)) return;
+    if (_tipo_alvo == "construcao") {
+        debug_combate(_alvo.nome_construcao + " tomou " + string(_dano) + " de Bola de Fogo!");
+        _alvo.vida -= _dano;
+        mostrar_feedback("-" + string(_dano), _alvo.x, _alvo.y, c_red, 45);
+        if (_alvo.vida <= 0) destruir_construcao(_alvo);
+        return;
+    }
 
     debug_combate(_alvo.nome_carta + " tomou " + string(_dano) + " de Bola de Fogo!");
-
     _alvo.vida -= _dano;
     aplicar_flash_dano(_alvo);
     mostrar_dano_tropa(_alvo, _dano);
@@ -2966,48 +3698,64 @@ function aplicar_efeito_bola_fogo(_alvo, _dado_efeito, _chance_queimar) {
         destruir_tropa(_alvo);
         return;
     }
+    if (_chance_queimar <= 0) return;
 
     var _dados_moeda = { alvo: _alvo };
-
-    // origem: perto da sua mão (seu lado da tela) -- destino: em cima do alvo
     var _origem_x = _alvo.x;
     var _origem_y = obj_controlador.mao_y;
     var _escala_visual_alvo = _alvo.escala_base * (_alvo.travada ? _alvo.escala_no_campo : 1);
     var _altura_visual_alvo = global.CARTA_ALTURA * _escala_visual_alvo;
-    var _altura_visual_moeda = global.MOEDA_LARGURA; // a moeda é quadrada, largura = altura
-
     var _destino_x = _alvo.x;
-    var _destino_y = _alvo.y - _altura_visual_alvo/2 - (_altura_visual_moeda/2) + 20; // "+20" desce ela um pouco
+    var _destino_y = _alvo.y - _altura_visual_alvo/2 - global.MOEDA_LARGURA/2 + 20;
 
     jogar_moeda_visual(_origem_x, _origem_y, _destino_x, _destino_y, method(_dados_moeda, function(_resultado) {
-        if (!instance_exists(alvo)) return;
-
-        if (_resultado == 1) {
-            aplicar_condicao(alvo, "queimado", 3, 2);
-        }
+        if (instance_exists(alvo) && _resultado == 1) aplicar_condicao(alvo, "queimado", 3, 2);
     }));
 }
-	
-// Dispara a Bola de Fogo de um ponto fixo (meio da tela, embaixo) até o alvo, em arco.
-// O dano/queimadura só é aplicado DEPOIS que ela impacta (via callback).
-function lancar_bola_de_fogo(_alvo, _dado_efeito, _chance_queimar) {
-    if (!instance_exists(_alvo)) return;
+
+// Aceita tropa, construção ou castelo. O D8 aparece após o impacto e somente
+// tropas podem receber a condição Queimado.
+function lancar_bola_de_fogo(_alvo, _dado_efeito, _chance_queimar, _tipo_alvo = "tropa", _dono_castelo = "", _dono_lancador = "jogador") {
+    if (_tipo_alvo != "castelo" && !instance_exists(_alvo)) return;
+
+    var _posicao_alvo;
+    if (_tipo_alvo == "castelo") _posicao_alvo = obter_posicao_castelo(_dono_castelo);
+    else _posicao_alvo = { x: _alvo.x, y: _alvo.y };
 
     var _origem_x = room_width / 2;
-    var _origem_y = obj_controlador.mao_y; // mesma altura da mão do jogador (embaixo)
-
+    var _origem_y = (_dono_lancador == "jogador") ? obj_controlador.mao_y : 25;
     var _projetil = instance_create_layer(_origem_x, _origem_y, "Instances", obj_bola_fogo_projetil);
+    obj_controlador.rolagens_pendentes += 1;
     _projetil.origem_x = _origem_x;
     _projetil.origem_y = _origem_y;
-    _projetil.destino_x = _alvo.x;
-    _projetil.destino_y = _alvo.y;
-
+    _projetil.destino_x = _posicao_alvo.x;
+    _projetil.destino_y = _posicao_alvo.y;
     _projetil.som_voo = audio_play_sound(snd_bola_fogo_voo, 1, 0, .5, 0, random_range(.95, 1.05));
 
-    var _dados_impacto = { alvo: _alvo, dado_efeito: _dado_efeito, chance_queimar: _chance_queimar };
+    var _dados_impacto = {
+        alvo: _alvo,
+        dado_efeito: _dado_efeito,
+        chance_queimar: _chance_queimar,
+        tipo_alvo: _tipo_alvo,
+        dono_castelo: _dono_castelo,
+        alvo_x: _posicao_alvo.x,
+        alvo_y: _posicao_alvo.y
+    };
     _projetil.callback_impacto = method(_dados_impacto, function() {
-        if (!instance_exists(alvo)) return;
-        aplicar_efeito_bola_fogo(alvo, dado_efeito, chance_queimar);
+        obj_controlador.rolagens_pendentes = max(0, obj_controlador.rolagens_pendentes - 1);
+        if (tipo_alvo != "castelo" && !instance_exists(alvo)) return;
+        var _dados_dano = {
+            alvo: alvo,
+            dado_efeito: dado_efeito,
+            chance_queimar: chance_queimar,
+            tipo_alvo: tipo_alvo,
+            dono_castelo: dono_castelo
+        };
+        var _resultado = irandom_range(1, dado_efeito);
+        rolar_dado_visual(alvo_x, alvo_y - 45, alvo_x, alvo_y, dado_efeito, _resultado,
+            method(_dados_dano, function(_dano) {
+                aplicar_efeito_bola_fogo(alvo, dado_efeito, chance_queimar, tipo_alvo, dono_castelo, _dano);
+            }));
     });
 }
 #endregion
@@ -3158,7 +3906,8 @@ function obter_opcoes_menu(_carta) {
     }
 
     if (!_carta.moveu_este_turno) {
-        if (_carta.turnos_no_campo < 1) array_push(_opcoes, "Mover [próximo turno]");
+        if (_carta.posicao_atual == posicao_assalto(_carta.dono)) array_push(_opcoes, "Mover [posição de assalto]");
+        else if (_carta.turnos_no_campo < 1) array_push(_opcoes, "Mover [próximo turno]");
         else array_push(_opcoes, "Mover");
     } else {
         array_push(_opcoes, "Mover [já usado]");
@@ -3192,16 +3941,13 @@ function executar_opcao_menu(_carta, _opcao) {
     switch (_opcao) {
         case "Atacar":
             var _tipo = (_carta.dado_dano_magico > 0 && _carta.dado_dano == 0) ? "magica" : "fisica";
-            processar_combate_tropa(_carta, _tipo);
-            _carta.atacou_este_turno = true;
+            _carta.atacou_este_turno = processar_combate_tropa(_carta, _tipo);
             break;
         case "Atacar (Física)":
-            processar_combate_tropa(_carta, "fisica");
-            _carta.atacou_este_turno = true;
+            _carta.atacou_este_turno = processar_combate_tropa(_carta, "fisica");
             break;
         case "Atacar (Mágica)":
-            processar_combate_tropa(_carta, "magica");
-            _carta.atacou_este_turno = true;
+            _carta.atacou_este_turno = processar_combate_tropa(_carta, "magica");
             break;
         case "Mover":
             var _resultado = mover_tropa(_carta, 1);
@@ -3370,8 +4116,9 @@ function habilidade_golpe_duplo(_carta) {
     debug_combate(_carta.nome_carta + " usa GOLPE DUPLO!");
 
     var _tipo = (_carta.dado_dano_magico > 0 && _carta.dado_dano == 0) ? "magica" : "fisica";
-    processar_combate_tropa(_carta, _tipo);
-    processar_combate_tropa(_carta, _tipo);
+    var _ataque_iniciado = processar_combate_tropa(_carta, _tipo, 0, 2);
+    if (!_ataque_iniciado) return;
+    processar_combate_tropa(_carta, _tipo, 1, 2);
 
     _carta.atacou_este_turno = true;
     _carta.habilidade_usada_este_turno = true;

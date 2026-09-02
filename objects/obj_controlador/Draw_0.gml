@@ -17,7 +17,8 @@ if (tropa_selecionada != noone && instance_exists(tropa_selecionada)) {
 
     var _posicao_frente = _selecionada.posicao_atual + direcao_avanco(_selecionada.dono);
     var _slot_frente = buscar_slot(_selecionada.lane_atual, _posicao_frente);
-    var _pode_mover_visual = !_selecionada.moveu_este_turno && _selecionada.turnos_no_campo >= 1;
+    var _na_posicao_assalto = _selecionada.posicao_atual == posicao_assalto(_selecionada.dono);
+    var _pode_mover_visual = !_selecionada.moveu_este_turno && _selecionada.turnos_no_campo >= 1 && !_na_posicao_assalto;
     var _pode_atacar_visual = !_selecionada.atacou_este_turno && !(primeiro_turno_jogador);
 
     if (_slot_frente != noone) {
@@ -26,9 +27,12 @@ if (tropa_selecionada != noone && instance_exists(tropa_selecionada)) {
         if (_slot_frente.ocupado && _slot_frente.carta_atual.dono != _selecionada.dono && _pode_atacar_visual) {
             _cor_alvo = c_red;
             _texto_alvo = "ATACAR";
+        } else if (!_slot_frente.ocupado && _na_posicao_assalto && _pode_atacar_visual) {
+            _cor_alvo = c_red;
+            _texto_alvo = "ATACAR CASTELO";
         } else if (!_slot_frente.ocupado && _pode_mover_visual) {
             _cor_alvo = c_lime;
-            _texto_alvo = "MOVER";
+            _texto_alvo = (_selecionada.posicao_atual == posicao_ataque()) ? "AVANÇAR PARA ASSALTO" : "MOVER";
         }
 
         draw_set_alpha(0.25 + _pulso_selecao * 0.25);
@@ -39,13 +43,6 @@ if (tropa_selecionada != noone && instance_exists(tropa_selecionada)) {
         draw_set_valign(fa_bottom);
         draw_set_color(_cor_alvo);
         draw_text_transformed(_slot_frente.x, _slot_frente.y - 38, _texto_alvo, 0.4, 0.4, 0);
-        draw_set_halign(fa_left);
-        draw_set_valign(fa_top);
-    } else if (_selecionada.posicao_atual == posicao_ataque() && _pode_atacar_visual) {
-        draw_set_halign(fa_center);
-        draw_set_valign(fa_bottom);
-        draw_set_color(c_red);
-        draw_text_transformed(_selecionada.x, _selecionada.y - _meia_altura_selecao - 8, "ATACAR CASTELO", 0.4, 0.4, 0);
         draw_set_halign(fa_left);
         draw_set_valign(fa_top);
     }

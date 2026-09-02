@@ -35,6 +35,7 @@ condicao_turnos_restantes = 0; // -1 = dura pra sempre (até morrer ou ser curad
 condicao_dano_por_turno = 0;
 
 dado_efeito = 0;
+qtd_dados_efeito = 1;
 chance_queimar = 0;
 
 // Armadilha: ciclo de vida "vigiando slot -> pronta pra ativar -> consumida"

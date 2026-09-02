@@ -93,35 +93,6 @@ if (travada && defendendo_castelo) {
     draw_set_alpha(1);
 }
 
-// Etiqueta curta para estados que impedem ou modificam ações.
-if (travada && categoria == "tropa" && !morrendo) {
-    var _estado_texto = "";
-    var _estado_cor = c_gray;
-    if (condicao != noone && condicao != "imune_queimado") {
-        _estado_texto = string_upper(string_replace_all(condicao, "_", " "));
-        _estado_cor = (condicao == "congelado") ? c_aqua : ((condicao == "paralisado") ? c_yellow : c_red);
-    } else if (turnos_no_campo < 1) {
-        _estado_texto = "NOVA";
-    } else if (atacou_este_turno && moveu_este_turno) {
-        _estado_texto = "AGIU";
-    } else if (atacou_este_turno) {
-        _estado_texto = "ATACOU";
-    } else if (moveu_este_turno) {
-        _estado_texto = "MOVEU";
-    } else if (habilidade_usada_este_turno) {
-        _estado_texto = "HAB. USADA";
-    }
-    if (_estado_texto != "") {
-        draw_set_halign(fa_center);
-        draw_set_valign(fa_top);
-        draw_set_color(_estado_cor);
-        draw_text_transformed(_x_desenho, _y_desenho + sprite_height * 0.54, _estado_texto, 0.32, 0.32, 0);
-        draw_set_halign(fa_left);
-        draw_set_valign(fa_top);
-        draw_set_color(c_white);
-    }
-}
-
 #endregion
 
 #region Nome e atributos
@@ -203,4 +174,24 @@ if (condicao != noone && condicao != "imune_queimado") {
 }
 
 draw_set_alpha(1);
+#endregion
+
+
+#region Alvos da Bola de Fogo
+if (arrastando && categoria == "magica" && efeito_tipo == "bola_fogo") {
+    draw_set_alpha(0.7);
+    draw_set_color(c_red);
+    with (obj_construcao) {
+        if (dono == "inimigo") draw_circle(x, y, 38, true);
+    }
+    var _castelo = obter_posicao_castelo("inimigo");
+    draw_circle(_castelo.x, _castelo.y, 46, true);
+    draw_set_halign(fa_center);
+    draw_set_valign(fa_bottom);
+    draw_text_transformed(_castelo.x, _castelo.y - 48, "CASTELO", 0.55, 0.55, 0);
+    draw_set_halign(fa_left);
+    draw_set_valign(fa_top);
+    draw_set_alpha(1);
+    draw_set_color(c_white);
+}
 #endregion

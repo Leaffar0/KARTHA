@@ -4,10 +4,10 @@
 
 #region Watchdog de segurança
 // Se rolagens_pendentes ficar travado (algum dado/moeda não decrementou por bug),
-// força o reset depois de 5 segundos pra nunca deixar o "Passar Turno" travado pra sempre.
+// força o reset depois de 10 segundos pra nunca deixar o "Passar Turno" travado pra sempre.
 if (rolagens_pendentes > 0) {
     rolagens_pendentes_timer += 1;
-    if (rolagens_pendentes_timer > 300) {
+    if (rolagens_pendentes_timer > 600) {
         show_debug_message("AVISO: rolagens_pendentes travado em " + string(rolagens_pendentes) + ", forçando reset.");
         rolagens_pendentes = 0;
         rolagens_pendentes_timer = 0;
@@ -73,6 +73,68 @@ if (tutorial_ativo) {
     }
     exit;
 }
+
+// Antes da primeira ação, os dois lados jogam D20. Empates são rolados novamente;
+// quem vencer escolhe qual lado começa.
+if (disputa_inicial_estado != "concluida") {
+    var _iniciativa_cx = _tutorial_largura_gui / 2;
+    var _iniciativa_cy = _tutorial_altura_gui / 2;
+
+    if (disputa_inicial_estado == "aguardando") {
+        disputa_inicial_timer -= 1;
+        if (disputa_inicial_timer <= 0 && rolagens_pendentes <= 0) rolar_disputa_inicial();
+    } else if (disputa_inicial_estado == "resultado" && rolagens_pendentes <= 0) {
+        disputa_inicial_timer -= 1;
+        if (disputa_inicial_timer <= 0) {
+            if (disputa_inicial_resultado_jogador == disputa_inicial_resultado_inimigo) {
+                disputa_inicial_estado = "aguardando";
+                disputa_inicial_timer = 35;
+                disputa_inicial_resultado_jogador = -1;
+                disputa_inicial_resultado_inimigo = -1;
+            } else if (disputa_inicial_resultado_jogador > disputa_inicial_resultado_inimigo) {
+                disputa_inicial_vencedor = "jogador";
+                disputa_inicial_estado = "escolha_jogador";
+            } else {
+                disputa_inicial_vencedor = "inimigo";
+                disputa_inicial_estado = "escolha_inimigo";
+                disputa_inicial_timer = 65;
+            }
+        }
+    } else if (disputa_inicial_estado == "escolha_jogador") {
+        var _escolher_jogador = mouse_check_button_pressed(mb_left)
+            && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _iniciativa_cx - 215, _iniciativa_cy + 55, _iniciativa_cx - 15, _iniciativa_cy + 105);
+        var _escolher_inimigo = mouse_check_button_pressed(mb_left)
+            && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _iniciativa_cx + 15, _iniciativa_cy + 55, _iniciativa_cx + 215, _iniciativa_cy + 105);
+        if (_escolher_jogador) finalizar_disputa_inicial("jogador");
+        else if (_escolher_inimigo) finalizar_disputa_inicial("inimigo");
+    } else if (disputa_inicial_estado == "escolha_inimigo") {
+        disputa_inicial_timer -= 1;
+        if (disputa_inicial_timer <= 0) finalizar_disputa_inicial("inimigo");
+    }
+    exit;
+}
+
+// Só abre a próxima escolha quando todos os dados da ação anterior terminarem.
+if (!critico_escolha_ativa && array_length(criticos_pendentes) > 0 && rolagens_pendentes <= 0) {
+    abrir_proxima_escolha_critico();
+}
+
+// O crítico pausa novas interações até o jogador escolher a forma do dano.
+if (critico_escolha_ativa) {
+    var _critico_cx = _tutorial_largura_gui / 2;
+    var _critico_cy = _tutorial_altura_gui / 2;
+    var _clicou_dois_dados = mouse_check_button_pressed(mb_left)
+        && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _critico_cx - 225, _critico_cy + 55, _critico_cx - 15, _critico_cy + 112);
+    var _clicou_dobrar_resultado = mouse_check_button_pressed(mb_left)
+        && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _critico_cx + 15, _critico_cy + 55, _critico_cx + 225, _critico_cy + 112);
+    if (_clicou_dois_dados) resolver_escolha_critico("dobrar_dados");
+    else if (_clicou_dobrar_resultado) resolver_escolha_critico("dobrar_resultado");
+    exit;
+}
+
+// Armadilhas preparadas pela IA continuam secretas e são resolvidas assim que
+// uma tropa do jogador entra no espaço vigiado. As armadilhas do jogador permanecem manuais.
+if (partida_iniciada && turno == "jogador" && ia_ativar_armadilhas_prontas()) exit;
 
 // Confirmação do descarte manual: a carta só sai da mão após a escolha do jogador.
 if (confirmacao_descarte_ativa) {

@@ -38,6 +38,32 @@ if (!girando && progresso_revelacao > 0) {
     draw_set_alpha(1);
     draw_set_color(c_white); // reseta pro padrão, pra não vazar cor pra outros desenhos
 }
+
+// Quando todos os dados do grupo pousam, um deles desenha a soma uma única vez.
+if (grupo_soma_responsavel && is_struct(grupo_soma)
+    && grupo_soma.pousados >= grupo_soma.quantidade) {
+    var _texto_soma = "";
+    for (var _i_soma = 0; _i_soma < array_length(grupo_soma.resultados); _i_soma++) {
+        if (_i_soma > 0) _texto_soma += " + ";
+        _texto_soma += string(grupo_soma.resultados[_i_soma]);
+    }
+    if (grupo_soma.modificador != 0) {
+        _texto_soma += (grupo_soma.modificador > 0 ? " + " : " - ") + string(abs(grupo_soma.modificador));
+    }
+    _texto_soma += " = " + string(grupo_soma.total_visual + grupo_soma.modificador);
+
+    var _soma_y = grupo_soma.destino_y + (sprite_height * escala_base_dado / 2) + 38;
+    draw_set_halign(fa_center);
+    draw_set_valign(fa_top);
+    draw_set_color(c_black);
+    draw_text(grupo_soma.destino_x - 1, _soma_y - 1, _texto_soma);
+    draw_text(grupo_soma.destino_x + 1, _soma_y - 1, _texto_soma);
+    draw_text(grupo_soma.destino_x - 1, _soma_y + 1, _texto_soma);
+    draw_text(grupo_soma.destino_x + 1, _soma_y + 1, _texto_soma);
+    draw_set_color(c_yellow);
+    draw_text(grupo_soma.destino_x, _soma_y, _texto_soma);
+    draw_set_color(c_white);
+}
 draw_set_halign(fa_left);
 draw_set_valign(fa_top);
 gpu_set_texfilter(true);

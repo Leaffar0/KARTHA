@@ -8,6 +8,7 @@ depth = -2000;
 girando = false;
 tempo_girando = 0;
 tempo_total_giro = 78;
+atraso_inicio = 0;
 
 tamanho_dado = 6;
 valor_final = 1;
@@ -25,4 +26,9 @@ escala_base_dado = 3;
 tempo_pouso = 0;
 duracao_pouso = 12;
 progresso_revelacao = 0;
+
+// Dados lançados juntos compartilham este grupo para mostrar a soma ao pousar.
+grupo_soma = noone;
+grupo_soma_responsavel = false;
+grupo_soma_pouso_registrado = false;
 // destino_x e destino_y já devem existir (vindos de rolar_dado_visual)

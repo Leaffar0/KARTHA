@@ -68,7 +68,7 @@ mao_inimigo_inicial_comprada = false;
 #endregion
 
 #region Turno e vida
-turno = "jogador";
+turno = "preparacao";
 vida_jogador = 20;
 vida_inimigo = 20;
 fila_dano_castelo = [];
@@ -96,8 +96,22 @@ ia_etapa = 0;
 ia_tempo_espera = 0;
 ia_texto_acao = "";
 anuncio_turno_texto = "SEU TURNO";
-anuncio_turno_timer = 75;
+anuncio_turno_timer = 0;
 anuncio_turno_duracao = 75;
+
+// A partida só começa depois que os dois lados disputarem a iniciativa no D20.
+disputa_inicial_estado = "aguardando";
+disputa_inicial_resultado_jogador = -1;
+disputa_inicial_resultado_inimigo = -1;
+disputa_inicial_timer = 30;
+disputa_inicial_vencedor = "";
+partida_iniciada = false;
+
+// Críticos do jogador abrem uma escolha. A fila também cobre dois críticos
+// quase simultâneos, como pode acontecer durante Golpe Duplo.
+critico_escolha_ativa = false;
+criticos_pendentes = [];
+critico_contexto = noone;
 #endregion
 
 #region Recursos
@@ -166,9 +180,11 @@ tutorial_ativo = false;
 tutorial_pagina = 0;
 tutorial_paginas = [
     { titulo: "BEM-VINDO A KARTHA", texto: "O objetivo é reduzir a vida do castelo inimigo a zero. Use suas cartas para formar tropas, criar recursos e controlar as três fileiras." },
+    { titulo: "QUEM COMEÇA", texto: "No início, você e o inimigo jogam um D20. Em caso de empate, os dois jogam novamente. Quem conseguir o maior resultado escolhe qual lado fará o primeiro turno." },
     { titulo: "SEU TURNO", texto: "Compre cartas, coloque até um recurso e jogue suas cartas pagando o custo indicado. Recursos usados ficam virados até o próximo turno." },
-    { titulo: "TROPAS E MOVIMENTO", texto: "Tropas entram na base da sua fileira. Uma tropa recém-colocada só pode se mover no próximo turno dela. Assim, chegar ao centro exige planejamento." },
-    { titulo: "COMBATE E CASTELO", texto: "No centro, a tropa ataca inimigos à frente. Sem tropa ou construção na fileira, ela ataca o castelo. Uma tropa na base pode escolher Defender Castelo para interceptar esse dano." },
+    { titulo: "TROPAS E MOVIMENTO", texto: "Cada jogador pode ter no máximo 1 tropa em cada coluna. Se tentar colocar outra na mesma coluna, a carta volta para a mão e aparece o aviso COLUNA OCUPADA. Uma tropa recém-colocada só pode se mover no próximo turno dela." },
+    { titulo: "COMBATE E CASTELO", texto: "Chegar ao centro não permite atingir o castelo. No centro, a tropa combate inimigos à frente; para atacar uma construção, o castelo ou a vida adversária, precisa avançar mais uma casa até a posição de assalto. Em um 20 natural, escolha entre dobrar os dados originais ou dobrar o resultado deles; modificadores são aplicados depois." },
+    { titulo: "BOLA DE FOGO", texto: "Arraste a Bola de Fogo sobre uma tropa inimiga, construção inimiga ou sobre o marcador CASTELO. Ela joga seu D8 após o impacto. Somente tropas podem receber Queimado." },
     { titulo: "AÇÕES E EVOLUÇÃO", texto: "Clique numa tropa no campo para atacar, mover, usar habilidade, evoluir ou defender. Evoluções exigem que a tropa tenha sobrevivido pelo menos um turno." },
     { titulo: "INFORMAÇÕES DA PARTIDA", texto: "Use HISTÓRICO para rever ações recentes e CEMITÉRIO para ver as tropas derrotadas. Você pode abrir este tutorial novamente a qualquer momento pelo botão TUTORIAL ou com F1." }
 ];

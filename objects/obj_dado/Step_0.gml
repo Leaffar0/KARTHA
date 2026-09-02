@@ -1,4 +1,10 @@
 if (girando) {
+    if (atraso_inicio > 0) {
+        atraso_inicio -= 1;
+        if (atraso_inicio <= 0) image_alpha = 1;
+        exit;
+    }
+
     tempo_girando += 1;
 
     // Tween ease-out: sai rápido da origem e desacelera naturalmente antes de pousar.
@@ -33,6 +39,10 @@ if (girando) {
         image_index = (valor_final - 1) mod sprite_get_number(sprite_index);
         tempo_pouso = duracao_pouso;
         progresso_revelacao = 0;
+        if (is_struct(grupo_soma) && !grupo_soma_pouso_registrado) {
+            grupo_soma_pouso_registrado = true;
+            grupo_soma.pousados += 1;
+        }
         alarm[0] = 90;
     }
 } else {

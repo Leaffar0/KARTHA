@@ -1,21 +1,52 @@
 #region Informações da partida
 draw_set_font(Fontenil);
 
-var _escala_impacto_vida = 1 + (dano_castelo_impacto_timer / 10) * 0.28;
-var _cor_vida = (dano_castelo_impacto_timer > 0) ? c_red : c_white;
-draw_set_color(_cor_vida);
-draw_text_transformed(20, 20, "Vida jogador: " + string(vida_jogador), _escala_impacto_vida, _escala_impacto_vida, 0);
-draw_text_transformed(20, 50, "Vida inimigo: " + string(vida_inimigo), _escala_impacto_vida, _escala_impacto_vida, 0);
-draw_set_color(c_white);
-draw_text(20, 80, (turno == "jogador") ? "Seu turno" : "Turno do inimigo");
+var _cor_vida_jogador = make_color_rgb(45, 125, 255);
+var _cor_vida_inimigo = make_color_rgb(225, 55, 55);
+var _barra_x1 = 20;
+var _barra_x2 = 250;
+var _barra_altura = 22;
+var _barra_jogador_y1 = 16;
+var _barra_inimigo_y1 = 48;
+var _proporcao_jogador = clamp(vida_jogador / 20, 0, 1);
+var _proporcao_inimigo = clamp(vida_inimigo / 20, 0, 1);
+var _pulso_jogador = (dano_castelo_impacto_timer > 0 && dano_castelo_dono == "jogador") ? 2 : 0;
+var _pulso_inimigo = (dano_castelo_impacto_timer > 0 && dano_castelo_dono == "inimigo") ? 2 : 0;
 
-if (turno == "jogador") {
-    var _status_recurso = recurso_colocado_no_turno ? "usado" : "disponível";
-    draw_set_color(recurso_colocado_no_turno ? c_gray : c_lime);
-    draw_text(20, 108, "Recurso: " + _status_recurso + "  |  Cartas: " + string(cartas_jogadas_no_turno) + "/" + string(max_cartas_por_turno));
-    draw_set_color(c_white);
-    draw_text(20, 134, "Evoluções: " + string(evolucoes_jogador_este_turno) + "/" + string(max_evolucoes_por_turno));
-}
+// Fundo, preenchimento e contorno das duas barras de castelo.
+draw_set_color(c_black);
+draw_roundrect(_barra_x1 - _pulso_jogador, _barra_jogador_y1 - _pulso_jogador,
+    _barra_x2 + _pulso_jogador, _barra_jogador_y1 + _barra_altura + _pulso_jogador, false);
+draw_roundrect(_barra_x1 - _pulso_inimigo, _barra_inimigo_y1 - _pulso_inimigo,
+    _barra_x2 + _pulso_inimigo, _barra_inimigo_y1 + _barra_altura + _pulso_inimigo, false);
+draw_set_color(_cor_vida_jogador);
+draw_roundrect(_barra_x1, _barra_jogador_y1,
+    _barra_x1 + (_barra_x2 - _barra_x1) * _proporcao_jogador, _barra_jogador_y1 + _barra_altura, false);
+draw_set_color(_cor_vida_inimigo);
+draw_roundrect(_barra_x1, _barra_inimigo_y1,
+    _barra_x1 + (_barra_x2 - _barra_x1) * _proporcao_inimigo, _barra_inimigo_y1 + _barra_altura, false);
+draw_set_color(c_white);
+draw_roundrect(_barra_x1 - _pulso_jogador, _barra_jogador_y1 - _pulso_jogador,
+    _barra_x2 + _pulso_jogador, _barra_jogador_y1 + _barra_altura + _pulso_jogador, true);
+draw_roundrect(_barra_x1 - _pulso_inimigo, _barra_inimigo_y1 - _pulso_inimigo,
+    _barra_x2 + _pulso_inimigo, _barra_inimigo_y1 + _barra_altura + _pulso_inimigo, true);
+
+// Números permanecem dentro das barras para não perder precisão.
+draw_set_halign(fa_center);
+draw_set_valign(fa_middle);
+draw_set_color(c_black);
+draw_text_transformed((_barra_x1 + _barra_x2) / 2 + 1, _barra_jogador_y1 + _barra_altura / 2 + 1,
+    "Jogador  " + string(vida_jogador) + "/20", 0.72, 0.72, 0);
+draw_text_transformed((_barra_x1 + _barra_x2) / 2 + 1, _barra_inimigo_y1 + _barra_altura / 2 + 1,
+    "Inimigo  " + string(vida_inimigo) + "/20", 0.72, 0.72, 0);
+draw_set_color(c_white);
+draw_text_transformed((_barra_x1 + _barra_x2) / 2, _barra_jogador_y1 + _barra_altura / 2,
+    "Jogador  " + string(vida_jogador) + "/20", 0.72, 0.72, 0);
+draw_text_transformed((_barra_x1 + _barra_x2) / 2, _barra_inimigo_y1 + _barra_altura / 2,
+    "Inimigo  " + string(vida_inimigo) + "/20", 0.72, 0.72, 0);
+draw_set_halign(fa_left);
+draw_set_valign(fa_top);
+draw_text(20, 82, (turno == "preparacao") ? "Disputa inicial" : ((turno == "jogador") ? "Seu turno" : "Turno do inimigo"));
 
 var _hud_largura = display_get_gui_width();
 var _hud_direita_x1 = _hud_largura - 205 + hud_deslocamento_direita;
@@ -649,6 +680,107 @@ if (vida_jogador <= 0 || vida_inimigo <= 0) {
     draw_roundrect(_fim_x - 120, _fim_y + 85, _fim_x + 120, _fim_y + 130, true);
     draw_text(_fim_x, _fim_y + 107, "REINICIAR PARTIDA");
     draw_set_font(-1);
+    draw_set_halign(fa_left);
+    draw_set_valign(fa_top);
+}
+#endregion
+
+
+#region Escolha de iniciativa
+if (disputa_inicial_estado != "concluida" && !tutorial_ativo && !(instance_exists(obj_livro) && obj_livro.preview_ativo)) {
+    var _ini_largura = display_get_gui_width();
+    var _ini_altura = display_get_gui_height();
+    var _ini_cx = _ini_largura / 2;
+    var _ini_cy = _ini_altura / 2;
+
+    draw_set_alpha(disputa_inicial_estado == "rolando" ? 0.18 : 0.76);
+    draw_set_color(c_black);
+    draw_rectangle(0, 0, _ini_largura, _ini_altura, false);
+    draw_set_alpha(1);
+    draw_set_color(c_black);
+    draw_roundrect(_ini_cx - 285, _ini_cy - 155, _ini_cx + 285, _ini_cy + 145, false);
+    draw_set_color(c_white);
+    draw_roundrect(_ini_cx - 285, _ini_cy - 155, _ini_cx + 285, _ini_cy + 145, true);
+    draw_set_halign(fa_center);
+    draw_set_valign(fa_middle);
+    draw_set_font(fnt_vitoria);
+    draw_set_color(c_yellow);
+    draw_text(_ini_cx, _ini_cy - 108, "DISPUTA DE INICIATIVA");
+    draw_set_font(Fontenil);
+    draw_set_color(c_aqua);
+    draw_text(_ini_cx - 120, _ini_cy - 38, "VOCÊ\n" + (disputa_inicial_resultado_jogador >= 0 ? string(disputa_inicial_resultado_jogador) : "D20"));
+    draw_set_color(c_red);
+    draw_text(_ini_cx + 120, _ini_cy - 38, "INIMIGO\n" + (disputa_inicial_resultado_inimigo >= 0 ? string(disputa_inicial_resultado_inimigo) : "D20"));
+    draw_set_color(c_white);
+
+    if (disputa_inicial_estado == "aguardando" || disputa_inicial_estado == "rolando") {
+        draw_text(_ini_cx, _ini_cy + 25, "Os dois lados estão jogando um D20...");
+    } else if (disputa_inicial_estado == "resultado") {
+        var _texto_resultado_ini = (disputa_inicial_resultado_jogador == disputa_inicial_resultado_inimigo)
+            ? "EMPATE — NOVA ROLAGEM" : "O maior resultado escolhe quem começa";
+        draw_text(_ini_cx, _ini_cy + 25, _texto_resultado_ini);
+    } else if (disputa_inicial_estado == "escolha_jogador") {
+        draw_set_color(c_yellow);
+        draw_text(_ini_cx, _ini_cy + 18, "VOCÊ VENCEU. QUEM COMEÇA?");
+        draw_set_color(c_black);
+        draw_roundrect(_ini_cx - 215, _ini_cy + 55, _ini_cx - 15, _ini_cy + 105, false);
+        draw_roundrect(_ini_cx + 15, _ini_cy + 55, _ini_cx + 215, _ini_cy + 105, false);
+        draw_set_color(c_white);
+        draw_roundrect(_ini_cx - 215, _ini_cy + 55, _ini_cx - 15, _ini_cy + 105, true);
+        draw_roundrect(_ini_cx + 15, _ini_cy + 55, _ini_cx + 215, _ini_cy + 105, true);
+        draw_text(_ini_cx - 115, _ini_cy + 80, "EU COMEÇO");
+        draw_text(_ini_cx + 115, _ini_cy + 80, "INIMIGO COMEÇA");
+    } else if (disputa_inicial_estado == "escolha_inimigo") {
+        draw_set_color(c_red);
+        draw_text(_ini_cx, _ini_cy + 25, "O INIMIGO VENCEU E ESTÁ ESCOLHENDO...");
+    }
+
+    draw_set_font(-1);
+    draw_set_color(c_white);
+    draw_set_halign(fa_left);
+    draw_set_valign(fa_top);
+}
+#endregion
+
+#region Escolha de dano crítico
+if (critico_escolha_ativa && is_struct(critico_contexto) && !tutorial_ativo && !pausa_ativa) {
+    var _crit_largura = display_get_gui_width();
+    var _crit_altura = display_get_gui_height();
+    var _crit_cx = _crit_largura / 2;
+    var _crit_cy = _crit_altura / 2;
+    var _crit_qtd = critico_contexto.qtd_usada;
+    var _crit_dado = critico_contexto.dado_usado;
+    var _crit_nome = instance_exists(critico_contexto.atacante) ? critico_contexto.atacante.nome_carta : "Tropa";
+
+    draw_set_alpha(0.74);
+    draw_set_color(c_black);
+    draw_rectangle(0, 0, _crit_largura, _crit_altura, false);
+    draw_set_alpha(1);
+    draw_set_color(c_black);
+    draw_roundrect(_crit_cx - 285, _crit_cy - 155, _crit_cx + 285, _crit_cy + 150, false);
+    draw_set_color(c_yellow);
+    draw_roundrect(_crit_cx - 285, _crit_cy - 155, _crit_cx + 285, _crit_cy + 150, true);
+    draw_set_halign(fa_center);
+    draw_set_valign(fa_middle);
+    draw_set_font(fnt_vitoria);
+    draw_text(_crit_cx, _crit_cy - 105, "ACERTO CRÍTICO!");
+    draw_set_font(Fontenil);
+    draw_set_color(c_white);
+    draw_text(_crit_cx, _crit_cy - 62, _crit_nome + " — escolha o dano original");
+
+    draw_set_color(c_black);
+    draw_roundrect(_crit_cx - 225, _crit_cy + 55, _crit_cx - 15, _crit_cy + 112, false);
+    draw_roundrect(_crit_cx + 15, _crit_cy + 55, _crit_cx + 225, _crit_cy + 112, false);
+    draw_set_color(c_white);
+    draw_roundrect(_crit_cx - 225, _crit_cy + 55, _crit_cx - 15, _crit_cy + 112, true);
+    draw_roundrect(_crit_cx + 15, _crit_cy + 55, _crit_cx + 225, _crit_cy + 112, true);
+    draw_text(_crit_cx - 120, _crit_cy + 76, "DOBRAR OS DADOS");
+    draw_text(_crit_cx - 120, _crit_cy + 96, string(_crit_qtd * 2) + "D" + string(_crit_dado));
+    draw_text(_crit_cx + 120, _crit_cy + 76, "DOBRAR O RESULTADO");
+    draw_text(_crit_cx + 120, _crit_cy + 96, string(_crit_qtd) + "D" + string(_crit_dado) + " × 2");
+
+    draw_set_font(-1);
+    draw_set_color(c_white);
     draw_set_halign(fa_left);
     draw_set_valign(fa_top);
 }
