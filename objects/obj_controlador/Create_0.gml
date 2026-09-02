@@ -186,6 +186,7 @@ tutorial_paginas = [
     { titulo: "COMBATE E CASTELO", texto: "Chegar ao centro não permite atingir o castelo. No centro, a tropa combate inimigos à frente; para atacar uma construção, o castelo ou a vida adversária, precisa avançar mais uma casa até a posição de assalto. Em um 20 natural, escolha entre dobrar os dados originais ou dobrar o resultado deles; modificadores são aplicados depois." },
     { titulo: "BOLA DE FOGO", texto: "Arraste a Bola de Fogo sobre uma tropa inimiga, construção inimiga ou sobre o marcador CASTELO. Ela joga seu D8 após o impacto. Somente tropas podem receber Queimado." },
     { titulo: "AÇÕES E EVOLUÇÃO", texto: "Clique numa tropa no campo para atacar, mover, usar habilidade, evoluir ou defender. Evoluções exigem que a tropa tenha sobrevivido pelo menos um turno." },
+    { titulo: "EFEITOS ATIVOS", texto: "Cada lado pode manter até 2 bênçãos e 2 maldições. Elas aparecem em quatro espaços próprios do tabuleiro: dourado para bênção e vermelho para maldição. Passe o mouse sobre uma carta ativa para ler seu efeito." },
     { titulo: "INFORMAÇÕES DA PARTIDA", texto: "Use HISTÓRICO para rever ações recentes e CEMITÉRIO para ver as tropas derrotadas. Você pode abrir este tutorial novamente a qualquer momento pelo botão TUTORIAL ou com F1." }
 ];
 abrir_livro_pendente = variable_global_exists("abrir_livro_menu") && global.abrir_livro_menu;

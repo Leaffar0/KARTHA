@@ -1,3 +1,82 @@
+#region Tooltip compacto dos efeitos ativos
+// Os espaços são desenhados pelo obj_tabuleiro, atrás das cartas. Aqui fica apenas o tooltip.
+var _tooltip_efeito_entrada = noone;
+var _tooltip_efeito_categoria = "";
+var _tooltip_efeito_dono = "";
+var _tooltip_efeito_largura_slot = 42;
+var _tooltip_efeito_altura_slot = 58;
+var _tooltip_efeito_espaco_slot = 4;
+
+for (var _tooltip_lado = 0; _tooltip_lado < 2; _tooltip_lado++) {
+    var _tooltip_dono_atual = (_tooltip_lado == 0) ? "jogador" : "inimigo";
+    var _tooltip_painel_x = (_tooltip_lado == 0) ? 302 : 678;
+    var _tooltip_painel_y = (_tooltip_lado == 0) ? 487 : 225;
+    var _tooltip_bencaos = (_tooltip_lado == 0) ? bencaos_jogador : bencaos_inimigo;
+    var _tooltip_maldicoes = (_tooltip_lado == 0) ? maldicoes_jogador : maldicoes_inimigo;
+
+    for (var _tooltip_slot = 0; _tooltip_slot < 4; _tooltip_slot++) {
+        var _tooltip_categoria_atual = (_tooltip_slot < 2) ? "bencao" : "maldicao";
+        var _tooltip_indice = _tooltip_slot mod 2;
+        var _tooltip_lista = (_tooltip_categoria_atual == "bencao") ? _tooltip_bencaos : _tooltip_maldicoes;
+        if (_tooltip_indice >= array_length(_tooltip_lista)) continue;
+
+        var _tooltip_x1_slot = _tooltip_painel_x + _tooltip_slot * (_tooltip_efeito_largura_slot + _tooltip_efeito_espaco_slot);
+        var _tooltip_y1_slot = _tooltip_painel_y - _tooltip_efeito_altura_slot / 2;
+        if (point_in_rectangle(mouse_x, mouse_y, _tooltip_x1_slot, _tooltip_y1_slot,
+            _tooltip_x1_slot + _tooltip_efeito_largura_slot, _tooltip_y1_slot + _tooltip_efeito_altura_slot)) {
+            _tooltip_efeito_entrada = _tooltip_lista[_tooltip_indice];
+            _tooltip_efeito_categoria = _tooltip_categoria_atual;
+            _tooltip_efeito_dono = _tooltip_dono_atual;
+        }
+    }
+}
+
+if (_tooltip_efeito_entrada != noone) {
+    var _tooltip_efeito_nome = is_struct(_tooltip_efeito_entrada)
+        ? _tooltip_efeito_entrada.nome
+        : ((_tooltip_efeito_categoria == "bencao") ? "Bênção ativa" : "Maldição ativa");
+    var _tooltip_efeito_codigo = is_struct(_tooltip_efeito_entrada)
+        ? _tooltip_efeito_entrada.efeito : _tooltip_efeito_entrada;
+    var _tooltip_efeito_descricao = "Efeito passivo ativo.";
+    switch (_tooltip_efeito_codigo) {
+        case "cura_ao_morrer":
+            _tooltip_efeito_descricao = "Tropa morreu: recupera 1 de vida.";
+            break;
+        case "perde_vida_ao_morrer":
+            _tooltip_efeito_descricao = "Morta pelo oponente: perde 1 de vida.";
+            break;
+    }
+
+    var _tooltip_efeito_x1 = (_tooltip_efeito_dono == "jogador") ? 302 : 678;
+    var _tooltip_efeito_y1 = (_tooltip_efeito_dono == "jogador") ? 420 : 261;
+    var _tooltip_efeito_x2 = _tooltip_efeito_x1 + 170;
+    var _tooltip_efeito_y2 = _tooltip_efeito_y1 + 36;
+    var _tooltip_efeito_cor = (_tooltip_efeito_categoria == "bencao")
+        ? make_color_rgb(235, 195, 65) : make_color_rgb(190, 45, 70);
+
+    draw_set_alpha(0.92);
+    draw_set_color(c_black);
+    draw_roundrect(_tooltip_efeito_x1, _tooltip_efeito_y1, _tooltip_efeito_x2, _tooltip_efeito_y2, false);
+    draw_set_alpha(1);
+    draw_set_color(_tooltip_efeito_cor);
+    draw_roundrect(_tooltip_efeito_x1, _tooltip_efeito_y1, _tooltip_efeito_x2, _tooltip_efeito_y2, true);
+    draw_set_font(Fontenil);
+    draw_set_halign(fa_left);
+    draw_set_valign(fa_top);
+    draw_text_transformed(_tooltip_efeito_x1 + 6, _tooltip_efeito_y1 + 4,
+        string_copy(_tooltip_efeito_nome, 1, 28), 0.34, 0.34, 0);
+    draw_set_color(c_white);
+    draw_text_transformed(_tooltip_efeito_x1 + 6, _tooltip_efeito_y1 + 18,
+        _tooltip_efeito_descricao, 0.27, 0.27, 0);
+}
+
+draw_set_font(-1);
+draw_set_alpha(1);
+draw_set_color(c_white);
+draw_set_halign(fa_left);
+draw_set_valign(fa_top);
+#endregion
+
 #region Indicadores da tropa selecionada
 if (tropa_selecionada != noone && instance_exists(tropa_selecionada)) {
     var _selecionada = tropa_selecionada;

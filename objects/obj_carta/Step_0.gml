@@ -587,7 +587,9 @@ if (arrastando && mouse_check_button_released(mb_left)) {
     var _distancia_arrastada = point_distance(x, y, arrastar_inicio_x, arrastar_inicio_y);
     
     if (_distancia_arrastada > 80 && pode_pagar_custo(custo, "jogador")) {
-        var _sucesso = (categoria == "bencao") ? adicionar_bencao("jogador", efeito_passivo) : adicionar_maldicao("jogador", efeito_passivo);
+        var _sucesso = (categoria == "bencao")
+            ? adicionar_bencao("jogador", efeito_passivo, nome_carta, sprite_index)
+            : adicionar_maldicao("jogador", efeito_passivo, nome_carta, sprite_index);
         
         if (_sucesso) {
             pagar_custo(custo, "jogador");

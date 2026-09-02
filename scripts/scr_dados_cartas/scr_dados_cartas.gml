@@ -868,17 +868,27 @@ function lista_maldicoes(_dono) {
     return (_dono == "jogador") ? obj_controlador.maldicoes_jogador : obj_controlador.maldicoes_inimigo;
 }
 
-function adicionar_bencao(_dono, _efeito) {
+function adicionar_bencao(_dono, _efeito, _nome = "", _sprite = noone) {
     var _lista = lista_bencaos(_dono);
     if (array_length(_lista) >= obj_controlador.max_bencaos_maldicoes) return false;
-    array_push(_lista, _efeito);
+    array_push(_lista, {
+        categoria: "bencao",
+        efeito: _efeito,
+        nome: (_nome == "") ? "Bênção ativa" : _nome,
+        sprite: _sprite
+    });
     return true;
 }
 
-function adicionar_maldicao(_dono, _efeito) {
+function adicionar_maldicao(_dono, _efeito, _nome = "", _sprite = noone) {
     var _lista = lista_maldicoes(_dono);
     if (array_length(_lista) >= obj_controlador.max_bencaos_maldicoes) return false;
-    array_push(_lista, _efeito);
+    array_push(_lista, {
+        categoria: "maldicao",
+        efeito: _efeito,
+        nome: (_nome == "") ? "Maldição ativa" : _nome,
+        sprite: _sprite
+    });
     return true;
 }
 
@@ -888,7 +898,8 @@ function aplicar_efeitos_morte(_carta, _por_inimigo) {
     var _bencaos = lista_bencaos(_dono);
     
     for (var i = 0; i < array_length(_bencaos); i++) {
-        if (_bencaos[i] == "cura_ao_morrer") {
+        var _efeito_bencao = is_struct(_bencaos[i]) ? _bencaos[i].efeito : _bencaos[i];
+        if (_efeito_bencao == "cura_ao_morrer") {
             if (_dono == "jogador") {
                 obj_controlador.vida_jogador += 1;
             } else {
@@ -902,7 +913,8 @@ function aplicar_efeitos_morte(_carta, _por_inimigo) {
     if (_por_inimigo) {
         var _maldicoes = lista_maldicoes(_dono);
         for (var i = 0; i < array_length(_maldicoes); i++) {
-            if (_maldicoes[i] == "perde_vida_ao_morrer") {
+            var _efeito_maldicao = is_struct(_maldicoes[i]) ? _maldicoes[i].efeito : _maldicoes[i];
+            if (_efeito_maldicao == "perde_vida_ao_morrer") {
                 causar_dano_castelo(_dono, 1);
                 debug_combate("Maldição da Perda causou 1 de dano!");
             }
@@ -2793,8 +2805,8 @@ function ia_jogar_bencaos_maldicoes() {
         if ((_dados.categoria != "bencao" && _dados.categoria != "maldicao")
             || !pode_pagar_custo(_dados.custo, "inimigo")) continue;
         var _sucesso = (_dados.categoria == "bencao")
-            ? adicionar_bencao("inimigo", _dados.efeito)
-            : adicionar_maldicao("inimigo", _dados.efeito);
+            ? adicionar_bencao("inimigo", _dados.efeito, _dados.nome, _dados.sprite_carta)
+            : adicionar_maldicao("inimigo", _dados.efeito, _dados.nome, _dados.sprite_carta);
         if (!_sucesso) continue;
         pagar_custo(_dados.custo, "inimigo");
         array_delete(obj_controlador.mao_inimigo, i, 1);
@@ -3047,13 +3059,13 @@ function ia_jogar_cartas() {
                 var _dados = _funcao_sorteada();
 
 				if (_dados.categoria == "bencao") {
-				    if (adicionar_bencao("inimigo", _dados.efeito)) {
+				    if (adicionar_bencao("inimigo", _dados.efeito, _dados.nome, _dados.sprite_carta)) {
 				        array_delete(obj_controlador.mao_inimigo, _indice_mao, 1);
 				    }
 				    continue;
 				}
 				if (_dados.categoria == "maldicao") {
-				    if (adicionar_maldicao("inimigo", _dados.efeito)) {
+				    if (adicionar_maldicao("inimigo", _dados.efeito, _dados.nome, _dados.sprite_carta)) {
 				        array_delete(obj_controlador.mao_inimigo, _indice_mao, 1);
 				    }
 				    continue;

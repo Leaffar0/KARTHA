@@ -54,7 +54,6 @@
     {"id":{"name":"fnt_vitoria","path":"fonts/fnt_vitoria/fnt_vitoria.yy",},},
     {"id":{"name":"Fontenil","path":"fonts/Fontenil/Fontenil.yy",},},
     {"id":{"name":"obj_bola_fogo_projetil","path":"objects/obj_bola_fogo_projetil/obj_bola_fogo_projetil.yy",},},
-    {"id":{"name":"obj_botao_passar","path":"objects/obj_botao_passar/obj_botao_passar.yy",},},
     {"id":{"name":"obj_camera","path":"objects/obj_camera/obj_camera.yy",},},
     {"id":{"name":"obj_carta","path":"objects/obj_carta/obj_carta.yy",},},
     {"id":{"name":"obj_construcao","path":"objects/obj_construcao/obj_construcao.yy",},},
