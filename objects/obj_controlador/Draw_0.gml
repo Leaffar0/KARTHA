@@ -129,15 +129,35 @@ if (tropa_selecionada != noone && instance_exists(tropa_selecionada)) {
 }
 #endregion
 
+#region Escolhas de alvo
+if (digestao_selecao_ativa && instance_exists(digestao_origem)) {
+    draw_set_halign(fa_center); draw_set_valign(fa_bottom); draw_set_color(c_lime);
+    draw_text_transformed(digestao_origem.x, digestao_origem.y - 55, "DIGESTÃO: escolha o alvo", 0.42, 0.42, 0);
+    with (obj_carta) if (alvo_valido_digestao(other.digestao_origem, id)) {
+        draw_set_alpha(0.35); draw_set_color(c_lime); draw_circle(x, y, 34, false); draw_set_alpha(1);
+    }
+}
+if (troca_item_selecao_ativa && instance_exists(troca_item_origem)) {
+    draw_set_halign(fa_center); draw_set_valign(fa_bottom); draw_set_color(c_aqua);
+    draw_text_transformed(troca_item_origem.x, troca_item_origem.y - 55, "TRANSFERIR: escolha a tropa", 0.42, 0.42, 0);
+    with (obj_carta) if (id != other.troca_item_origem && travada && dono == "jogador" && mochila > 0 && !troca_item_usada_este_turno) {
+        draw_set_alpha(0.35); draw_set_color(c_aqua); draw_circle(x, y, 34, false); draw_set_alpha(1);
+    }
+}
+draw_set_halign(fa_left); draw_set_valign(fa_top); draw_set_color(c_white); draw_set_alpha(1);
+#endregion
+
 #region Menu contextual da carta
 if (carta_menu_aberto != noone && instance_exists(carta_menu_aberto) && menu_escala > 0.01) {
+    // Fontenil contém os glifos acentuados usados pelas opções em português.
+    draw_set_font(Fontenil);
 	
     var _carta = carta_menu_aberto;
     var _opcoes = obter_opcoes_menu(_carta);
     var _n = array_length(_opcoes);
     
-    var _largura_opcao = 100;
-    var _altura_opcao = 20;
+    var _largura_opcao = 120;
+    var _altura_opcao = 23;
     var _espaco_opcao = 6;
     var _altura_total = _n * _altura_opcao + (_n - 1) * _espaco_opcao;
     
@@ -202,7 +222,7 @@ if (carta_menu_aberto != noone && instance_exists(carta_menu_aberto) && menu_esc
         if (menu_escala > 0.7) {
 		    draw_set_halign(fa_center);
 		    draw_set_valign(fa_middle);
-		    var _escala_texto_opcao = _opcao_indisponivel ? 0.32 : 0.5;
+		    var _escala_texto_opcao = _opcao_indisponivel ? 0.40 : 0.60;
 		    draw_text_transformed((_x1 + _x2)/2, (_y1 + _y2)/2, _opcoes[i], _escala_texto_opcao, _escala_texto_opcao, 0);
 		}
         draw_set_alpha(1);

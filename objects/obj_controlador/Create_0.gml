@@ -98,12 +98,20 @@ ia_texto_acao = "";
 anuncio_turno_texto = "SEU TURNO";
 anuncio_turno_timer = 0;
 anuncio_turno_duracao = 75;
+onda_turno_timer = 0;
+onda_turno_duracao = 42;
+visao_veu_revelacao_timer = 0;
+animacoes_item = [];
+fim_animacao_timer = 0;
+fim_animacao_duracao = 90;
 
 // A partida só começa depois que os dois lados disputarem a iniciativa no D20.
-disputa_inicial_estado = "aguardando";
+disputa_inicial_estado = "preparando_dado";
 disputa_inicial_resultado_jogador = -1;
 disputa_inicial_resultado_inimigo = -1;
-disputa_inicial_timer = 30;
+disputa_inicial_timer = 18;
+dado_iniciativa_id = noone;
+disputa_inicial_primeiro_escolhido = "";
 disputa_inicial_vencedor = "";
 partida_iniciada = false;
 
@@ -138,6 +146,15 @@ menu_escala = 0;
 opcao_hover_index = -1;
 tooltip_escala = 0;
 tropa_selecionada = noone;
+digestao_selecao_ativa = false;
+digestao_origem = noone;
+visao_veu_ativa = false;
+visao_veu_origem = noone;
+visao_veu_opcoes = [];
+troca_item_selecao_ativa = false;
+troca_item_origem = noone;
+recurso_retirado_no_turno = false;
+recurso_retirado_no_turno_inimigo = false;
 pausa_ativa = false;
 opcoes_pausa_ativa = false;
 carregar_configuracoes();
@@ -180,13 +197,16 @@ tutorial_ativo = false;
 tutorial_pagina = 0;
 tutorial_paginas = [
     { titulo: "BEM-VINDO A KARTHA", texto: "O objetivo é reduzir a vida do castelo inimigo a zero. Use suas cartas para formar tropas, criar recursos e controlar as três fileiras." },
-    { titulo: "QUEM COMEÇA", texto: "No início, você e o inimigo jogam um D20. Em caso de empate, os dois jogam novamente. Quem conseguir o maior resultado escolhe qual lado fará o primeiro turno." },
+    { titulo: "QUEM COMEÇA", texto: "No início, pegue o D20 sobre a mesa, mova e solte para arremessá-lo. O inimigo joga o dele automaticamente. Em caso de empate, arremesse novamente. Quem vencer escolhe qual lado começa; depois, clique no deck para receber sua mão e iniciar a partida." },
     { titulo: "SEU TURNO", texto: "Compre cartas, coloque até um recurso e jogue suas cartas pagando o custo indicado. Recursos usados ficam virados até o próximo turno." },
     { titulo: "TROPAS E MOVIMENTO", texto: "Cada jogador pode ter no máximo 1 tropa em cada coluna. Se tentar colocar outra na mesma coluna, a carta volta para a mão e aparece o aviso COLUNA OCUPADA. Uma tropa recém-colocada só pode se mover no próximo turno dela." },
     { titulo: "COMBATE E CASTELO", texto: "Chegar ao centro não permite atingir o castelo. No centro, a tropa combate inimigos à frente; para atacar uma construção, o castelo ou a vida adversária, precisa avançar mais uma casa até a posição de assalto. Em um 20 natural, escolha entre dobrar os dados originais ou dobrar o resultado deles; modificadores são aplicados depois." },
     { titulo: "BOLA DE FOGO", texto: "Arraste a Bola de Fogo sobre uma tropa inimiga, construção inimiga ou sobre o marcador CASTELO. Ela joga seu D8 após o impacto. Somente tropas podem receber Queimado." },
     { titulo: "AÇÕES E EVOLUÇÃO", texto: "Clique numa tropa no campo para atacar, mover, usar habilidade, evoluir ou defender. Evoluções exigem que a tropa tenha sobrevivido pelo menos um turno." },
     { titulo: "EFEITOS ATIVOS", texto: "Cada lado pode manter até 2 bênçãos e 2 maldições. Elas aparecem em quatro espaços próprios do tabuleiro: dourado para bênção e vermelho para maldição. Passe o mouse sobre uma carta ativa para ler seu efeito." },
+    { titulo: "CONDIÇÕES", texto: "Uma tropa só mantém uma condição por vez. Confusão dá desvantagem e permite contra-ataque em qualquer erro; Adormecer joga uma moeda no início do turno; Berserker dobra apenas o dano original, dá vantagem e +4 DEF. Apodrecer e Regeneração jogam um único D4, que define duração e valor por turno." },
+    { titulo: "ITENS E RECURSOS", texto: "No menu de uma tropa equipada, você pode devolver o último item à mão ou transferi-lo para uma tropa aliada com espaço. Cada tropa envolvida troca no máximo uma vez por turno. Clique com o botão direito em um recurso para devolvê-lo à mão; só 1 recurso pode ser retirado por turno." },
+    { titulo: "HABILIDADES ESPECIAIS", texto: "Digestão escolhe uma tropa adjacente com menos de 4 de vida ou usa a vítima recém-abatida. Roubo joga D10 quando a tropa é atacada por uma arma: no 10, toma o item se houver espaço. Carniça Frenética paga 2 Sangues e prepara o próximo ataque. Visão do Véu revela a mão inimiga e oferece duas escolhas." },
     { titulo: "INFORMAÇÕES DA PARTIDA", texto: "Use HISTÓRICO para rever ações recentes e CEMITÉRIO para ver as tropas derrotadas. Você pode abrir este tutorial novamente a qualquer momento pelo botão TUTORIAL ou com F1." }
 ];
 abrir_livro_pendente = variable_global_exists("abrir_livro_menu") && global.abrir_livro_menu;

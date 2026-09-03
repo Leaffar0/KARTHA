@@ -32,3 +32,17 @@ grupo_soma = noone;
 grupo_soma_responsavel = false;
 grupo_soma_pouso_registrado = false;
 // destino_x e destino_y já devem existir (vindos de rolar_dado_visual)
+
+
+// Modo especial usado somente na disputa de iniciativa.
+interativo_iniciativa = false;
+ocultar_resultado_ate_rolar = false;
+iniciativa_arrastando = false;
+iniciativa_mesa_x = x;
+iniciativa_mesa_y = y;
+iniciativa_inicio_x = x;
+iniciativa_inicio_y = y;
+iniciativa_mouse_anterior_x = x;
+iniciativa_mouse_anterior_y = y;
+iniciativa_velocidade_x = 0;
+iniciativa_velocidade_y = 0;

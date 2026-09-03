@@ -6,7 +6,7 @@ draw_set_color(c_white);
 draw_self();
 
 // Não entrega nenhuma informação durante o voo: o resultado surge só após o impacto.
-if (!girando && progresso_revelacao > 0) {
+if (!girando && progresso_revelacao > 0 && !ocultar_resultado_ate_rolar) {
     draw_set_alpha(progresso_revelacao);
     draw_set_halign(fa_center);
     draw_set_valign(fa_top);
@@ -63,6 +63,14 @@ if (grupo_soma_responsavel && is_struct(grupo_soma)
     draw_set_color(c_yellow);
     draw_text(grupo_soma.destino_x, _soma_y, _texto_soma);
     draw_set_color(c_white);
+}
+if (interativo_iniciativa) {
+    draw_set_halign(fa_center);
+    draw_set_valign(fa_bottom);
+    draw_set_color(c_black);
+    draw_text(x + 1, y - sprite_height * image_yscale * 0.62 + 1, "D20 — PEGUE E ARREMESSE");
+    draw_set_color(c_yellow);
+    draw_text(x, y - sprite_height * image_yscale * 0.62, "D20 — PEGUE E ARREMESSE");
 }
 draw_set_halign(fa_left);
 draw_set_valign(fa_top);

@@ -3,8 +3,9 @@ draw_set_font(Fontenil);
 
 var _cor_vida_jogador = make_color_rgb(45, 125, 255);
 var _cor_vida_inimigo = make_color_rgb(225, 55, 55);
-var _barra_x1 = 20;
-var _barra_x2 = 250;
+var _tremor_castelo = (dano_castelo_impacto_timer > 0) ? sin(dano_castelo_impacto_timer * 4.7) * dano_castelo_impacto_timer * 0.55 : 0;
+var _barra_x1 = 20 + _tremor_castelo;
+var _barra_x2 = 250 + _tremor_castelo;
 var _barra_altura = 22;
 var _barra_jogador_y1 = 16;
 var _barra_inimigo_y1 = 48;
@@ -44,6 +45,17 @@ draw_text_transformed((_barra_x1 + _barra_x2) / 2, _barra_jogador_y1 + _barra_al
     "Jogador  " + string(vida_jogador) + "/20", 0.72, 0.72, 0);
 draw_text_transformed((_barra_x1 + _barra_x2) / 2, _barra_inimigo_y1 + _barra_altura / 2,
     "Inimigo  " + string(vida_inimigo) + "/20", 0.72, 0.72, 0);
+// Rachaduras rápidas atravessam a barra atingida no instante do impacto.
+if (dano_castelo_impacto_timer > 0) {
+    var _rachadura_y = (dano_castelo_dono == "jogador") ? _barra_jogador_y1 : _barra_inimigo_y1;
+    var _rachadura_x = _barra_x1 + (_barra_x2 - _barra_x1) * 0.72;
+    draw_set_color(c_white); draw_set_alpha(dano_castelo_impacto_timer / 10);
+    draw_line(_rachadura_x, _rachadura_y, _rachadura_x - 7, _rachadura_y + 8);
+    draw_line(_rachadura_x - 7, _rachadura_y + 8, _rachadura_x + 3, _rachadura_y + 14);
+    draw_line(_rachadura_x + 3, _rachadura_y + 14, _rachadura_x - 4, _rachadura_y + 22);
+    draw_set_alpha(1);
+}
+
 draw_set_halign(fa_left);
 draw_set_valign(fa_top);
 draw_text(20, 82, (turno == "preparacao") ? "Disputa inicial" : ((turno == "jogador") ? "Seu turno" : "Turno do inimigo"));
@@ -83,6 +95,11 @@ if (anuncio_turno_timer > 0) {
     var _largura_turno = display_get_gui_width();
     var _altura_turno = display_get_gui_height();
     var _cor_turno = (turno == "jogador") ? c_aqua : c_red;
+    // Uma faixa luminosa varre o tabuleiro antes do título do turno.
+    var _onda_x = lerp(-180, _largura_turno + 180, _progresso_turno);
+    draw_set_alpha(_alpha_turno * 0.20); draw_set_color(_cor_turno);
+    draw_triangle(_onda_x - 150, 0, _onda_x + 70, 0, _onda_x - 50, _altura_turno, false);
+    draw_triangle(_onda_x + 70, 0, _onda_x + 150, _altura_turno, _onda_x - 50, _altura_turno, false);
     draw_set_font(fnt_vitoria);
     draw_set_halign(fa_center);
     draw_set_valign(fa_middle);
@@ -317,33 +334,7 @@ if (dano_castelo_ativo) {
 }
 #endregion
 
-#region Avisos de regra - camada final do HUD
-with (obj_texto_flutuante) {
-    var _gui_x = x;
-    var _gui_y = y;
-    var _camera = view_camera[0];
-    if (_camera != -1) {
-        _gui_x = (x - camera_get_view_x(_camera)) * display_get_gui_width() / camera_get_view_width(_camera);
-        _gui_y = (y - camera_get_view_y(_camera)) * display_get_gui_height() / camera_get_view_height(_camera);
-    }
-
-    var _progresso_aviso = vida_texto / vida_texto_max;
-    var _alpha_aviso = (_progresso_aviso < 0.15) ? (_progresso_aviso / 0.15) : ((_progresso_aviso > 0.6) ? (1 - ((_progresso_aviso - 0.6) / 0.4)) : 1);
-    draw_set_font(Fontenil);
-    draw_set_alpha(_alpha_aviso);
-    draw_set_color(c_black);
-    draw_set_halign(fa_center);
-    draw_set_valign(fa_middle);
-    draw_text(_gui_x + 2, _gui_y + 2, texto);
-    draw_set_color(cor_texto);
-    draw_text(_gui_x, _gui_y, texto);
-}
-draw_set_font(-1);
-draw_set_color(c_white);
-draw_set_alpha(1);
-draw_set_halign(fa_left);
-draw_set_valign(fa_top);
-#endregion
+// Avisos de regra possuem Draw GUI próprio e são renderizados acima deste HUD.
 
 #region Histórico e cemitério
 var _hud_largura = display_get_gui_width();
@@ -652,6 +643,20 @@ if (pausa_ativa) {
 }
 #endregion
 
+#region Itens em movimento
+for (var _i_voo = 0; _i_voo < array_length(animacoes_item); _i_voo++) {
+    var _voo = animacoes_item[_i_voo];
+    var _voo_p = clamp(_voo.timer / _voo.duracao, 0, 1);
+    var _voo_s = _voo_p * _voo_p * (3 - 2 * _voo_p);
+    var _voo_x = lerp(_voo.origem_x, _voo.destino_x, _voo_s);
+    var _voo_y = lerp(_voo.origem_y, _voo.destino_y, _voo_s) - sin(_voo_p * pi) * 55;
+    var _voo_esc = 0.34 + sin(_voo_p * pi) * 0.10;
+    draw_set_alpha(sin(_voo_p * pi) * 0.92);
+    draw_sprite_ext(_voo.sprite, 0, _voo_x, _voo_y, _voo_esc, _voo_esc, _voo_p * 360, _voo.cor, 1);
+}
+draw_set_alpha(1); draw_set_color(c_white);
+#endregion
+
 #region Tela final da partida
 if (vida_jogador <= 0 || vida_inimigo <= 0) {
     var _fim_largura = display_get_gui_width();
@@ -668,7 +673,11 @@ if (vida_jogador <= 0 || vida_inimigo <= 0) {
     draw_set_halign(fa_center);
     draw_set_valign(fa_middle);
     draw_set_color(_venceu ? c_yellow : c_red);
-    draw_text(_fim_x, _fim_y - 35, _venceu ? "VOCÊ VENCEU" : "VOCÊ PERDEU");
+    var _fim_p = clamp(fim_animacao_timer / 28, 0, 1);
+    var _fim_escala = 1 + (1 - _fim_p) * 1.4 + sin(_fim_p * pi) * 0.10;
+    draw_set_alpha(_fim_p);
+    draw_text_transformed(_fim_x, _fim_y - 35, _venceu ? "VOCÊ VENCEU" : "VOCÊ PERDEU", _fim_escala, _fim_escala, 0);
+    draw_set_alpha(1);
     draw_set_font(Fontenil);
     draw_set_color(c_white);
     draw_text(_fim_x, _fim_y, "O castelo " + (_venceu ? "inimigo caiu." : "foi destruído."));
@@ -693,7 +702,8 @@ if (disputa_inicial_estado != "concluida" && !tutorial_ativo && !(instance_exist
     var _ini_cx = _ini_largura / 2;
     var _ini_cy = _ini_altura / 2;
 
-    draw_set_alpha(disputa_inicial_estado == "rolando" ? 0.18 : 0.76);
+    var _abertura_mesa_visivel = (disputa_inicial_estado == "aguardando_deck" || disputa_inicial_estado == "distribuindo" || disputa_inicial_estado == "preparando_dado" || disputa_inicial_estado == "aguardando_arremesso" || disputa_inicial_estado == "rolando");
+    draw_set_alpha(_abertura_mesa_visivel ? 0.18 : 0.76);
     draw_set_color(c_black);
     draw_rectangle(0, 0, _ini_largura, _ini_altura, false);
     draw_set_alpha(1);
@@ -705,7 +715,7 @@ if (disputa_inicial_estado != "concluida" && !tutorial_ativo && !(instance_exist
     draw_set_valign(fa_middle);
     draw_set_font(fnt_vitoria);
     draw_set_color(c_yellow);
-    draw_text(_ini_cx, _ini_cy - 108, "DISPUTA DE INICIATIVA");
+    draw_text(_ini_cx, _ini_cy - 108, disputa_inicial_estado == "aguardando_deck" ? "PREPARE SUA MÃO" : "DISPUTA DE INICIATIVA");
     draw_set_font(Fontenil);
     draw_set_color(c_aqua);
     draw_text(_ini_cx - 120, _ini_cy - 38, "VOCÊ\n" + (disputa_inicial_resultado_jogador >= 0 ? string(disputa_inicial_resultado_jogador) : "D20"));
@@ -713,8 +723,18 @@ if (disputa_inicial_estado != "concluida" && !tutorial_ativo && !(instance_exist
     draw_text(_ini_cx + 120, _ini_cy - 38, "INIMIGO\n" + (disputa_inicial_resultado_inimigo >= 0 ? string(disputa_inicial_resultado_inimigo) : "D20"));
     draw_set_color(c_white);
 
-    if (disputa_inicial_estado == "aguardando" || disputa_inicial_estado == "rolando") {
-        draw_text(_ini_cx, _ini_cy + 25, "Os dois lados estão jogando um D20...");
+    if (disputa_inicial_estado == "aguardando_deck") {
+        draw_set_color(c_yellow);
+        draw_text(_ini_cx, _ini_cy + 25, "CLIQUE NO DECK PARA RECEBER SUAS CARTAS");
+    } else if (disputa_inicial_estado == "distribuindo") {
+        draw_text(_ini_cx, _ini_cy + 25, "Distribuindo a mão inicial...");
+    } else if (disputa_inicial_estado == "preparando_dado") {
+        draw_text(_ini_cx, _ini_cy + 25, "Preparando um novo D20 sobre a mesa...");
+    } else if (disputa_inicial_estado == "aguardando_arremesso") {
+        draw_set_color(c_yellow);
+        draw_text(_ini_cx, _ini_cy + 25, "PEGUE O D20, MOVA E SOLTE PARA ARREMESSAR");
+    } else if (disputa_inicial_estado == "rolando") {
+        draw_text(_ini_cx, _ini_cy + 25, "Os dois D20 estão rolando...");
     } else if (disputa_inicial_estado == "resultado") {
         var _texto_resultado_ini = (disputa_inicial_resultado_jogador == disputa_inicial_resultado_inimigo)
             ? "EMPATE — NOVA ROLAGEM" : "O maior resultado escolhe quem começa";
@@ -739,6 +759,36 @@ if (disputa_inicial_estado != "concluida" && !tutorial_ativo && !(instance_exist
     draw_set_color(c_white);
     draw_set_halign(fa_left);
     draw_set_valign(fa_top);
+}
+#endregion
+
+#region Visão do Véu
+if (visao_veu_ativa && instance_exists(visao_veu_origem) && !tutorial_ativo && !pausa_ativa) {
+    var _veu_w = display_get_gui_width(); var _veu_h = display_get_gui_height();
+    var _veu_cx = _veu_w / 2; var _veu_cy = _veu_h / 2;
+    draw_set_alpha(0.78); draw_set_color(c_black); draw_rectangle(0, 0, _veu_w, _veu_h, false); draw_set_alpha(1);
+    draw_set_color(c_black); draw_roundrect(_veu_cx - 300, _veu_cy - 165, _veu_cx + 300, _veu_cy + 185, false);
+    draw_set_color(c_aqua); draw_roundrect(_veu_cx - 300, _veu_cy - 165, _veu_cx + 300, _veu_cy + 185, true);
+    draw_set_halign(fa_center); draw_set_valign(fa_middle); draw_set_font(fnt_vitoria);
+    draw_text(_veu_cx, _veu_cy - 135, "VISÃO DO VÉU"); draw_set_font(Fontenil); draw_set_color(c_white);
+    draw_text(_veu_cx, _veu_cy - 112, "Mão inimiga revelada — clique numa armadilha para destruí-la");
+    for (var i = 0; i < array_length(visao_veu_opcoes); i++) {
+        var _revela_local = clamp((visao_veu_revelacao_timer - i * 7) / 12, 0, 1);
+        if (_revela_local <= 0) continue;
+        var _col = i mod 3; var _lin = floor(i / 3);
+        var _x1 = _veu_cx - 270 + _col * 180; var _y1 = _veu_cy - 95 + _lin * 30;
+        var _meia_revela = 85 * _revela_local;
+        _x1 = _x1 + 85 - _meia_revela;
+        draw_set_color(visao_veu_opcoes[i].armadilha ? c_maroon : make_color_rgb(45,45,45));
+        draw_rectangle(_x1, _y1, _x1 + _meia_revela * 2, _y1 + 24, false);
+        draw_set_color(visao_veu_opcoes[i].armadilha ? c_yellow : c_gray);
+        draw_rectangle(_x1, _y1, _x1 + _meia_revela * 2, _y1 + 24, true);
+        if (_revela_local > 0.58) draw_text_transformed(_x1 + _meia_revela, _y1 + 12, visao_veu_opcoes[i].nome, 0.34, 0.34, 0);
+    }
+    draw_set_color(c_black); draw_roundrect(_veu_cx - 190, _veu_cy + 125, _veu_cx + 190, _veu_cy + 170, false);
+    draw_set_color(c_aqua); draw_roundrect(_veu_cx - 190, _veu_cy + 125, _veu_cx + 190, _veu_cy + 170, true);
+    draw_set_color(c_white); draw_text(_veu_cx, _veu_cy + 147, "PROTEGER DA PRÓXIMA ARMADILHA");
+    draw_set_font(-1); draw_set_halign(fa_left); draw_set_valign(fa_top); draw_set_color(c_white);
 }
 #endregion
 

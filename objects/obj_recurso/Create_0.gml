@@ -1,6 +1,7 @@
 depth = -100;
 dono = "jogador";
 virado = false;
+slot_atual = noone;
 escala_recurso = 1;
 
 // Entrada no campo e rotação suave ao gastar/desvirar o recurso.

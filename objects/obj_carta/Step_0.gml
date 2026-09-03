@@ -11,9 +11,10 @@ if (morrendo) {
 if (armadilha_estado == "vigiando" || armadilha_estado == "pronta") {
     var _slot_vigiado = buscar_slot(armadilha_lane, armadilha_posicao);
     var _alvo_vigiado = (_slot_vigiado != noone && _slot_vigiado.ocupado) ? _slot_vigiado.carta_atual : noone;
+    // A armadilha reconhece a entrada primeiro; Voar e Visão do Véu são
+    // resolvidos na ativação, permitindo consumir uma proteção de uso único.
     var _tem_inimigo_valido = instance_exists(_alvo_vigiado)
         && _alvo_vigiado.dono != dono
-        && !_alvo_vigiado.imune_armadilha
         && !tem_habilidade(_alvo_vigiado, "voar");
 
     armadilha_estado = _tem_inimigo_valido ? "pronta" : "vigiando";
@@ -33,13 +34,13 @@ if (arrastando && mouse_check_button_released(mb_left)) {
     arrastando = false;
     
     if (obj_controlador.vida_jogador <= 0 || obj_controlador.vida_inimigo <= 0) {
-        x = origem_x; y = origem_y;
+        iniciar_retorno_carta(id);
         esta_na_mao = true;
         exit;
     }
     
 	if (obj_controlador.turno != "jogador") {
-	    x = origem_x; y = origem_y;
+	    iniciar_retorno_carta(id);
 	    esta_na_mao = true;
 	    exit;
 	}
@@ -57,7 +58,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
 	if (dono == "jogador" && obj_controlador.primeiro_turno_jogador && categoria_bloqueada_primeiro_turno(categoria)) {
 	    debug_combate("Primeiro turno: não pode usar " + categoria + " ainda.");
 	    mostrar_aviso_regra("Não pode usar " + categoria + " no primeiro turno", x, y);
-	    x = origem_x; y = origem_y;
+	    iniciar_retorno_carta(id);
 	    esta_na_mao = true;
     exit;
 }
@@ -65,24 +66,24 @@ if (arrastando && mouse_check_button_released(mb_left)) {
     if ((categoria == "item_equipavel" || categoria == "item_consumivel") && obj_controlador.itens_usados_este_turno >= 3) {
         debug_combate("Limite de 3 itens por turno atingido.");
         mostrar_aviso_regra("Limite de 3 itens por turno", x, y);
-        x = origem_x; y = origem_y;
+        iniciar_retorno_carta(id);
         esta_na_mao = true;
         exit;
     }
 
     if (categoria == "magica" && obj_controlador.magias_usadas_este_turno >= 2) {
         mostrar_aviso_regra("Limite de 2 magias por turno", x, y);
-        x = origem_x; y = origem_y; esta_na_mao = true;
+        iniciar_retorno_carta(id); esta_na_mao = true;
         exit;
     }
     if (categoria == "construcao" && obj_controlador.construcoes_jogadas_este_turno >= 1) {
         mostrar_aviso_regra("Limite de 1 construção por turno", x, y);
-        x = origem_x; y = origem_y; esta_na_mao = true;
+        iniciar_retorno_carta(id); esta_na_mao = true;
         exit;
     }
     if (categoria == "terreno" && obj_controlador.terrenos_jogados_este_turno >= 1) {
         mostrar_aviso_regra("Limite de 1 terreno por turno", x, y);
-        x = origem_x; y = origem_y; esta_na_mao = true;
+        iniciar_retorno_carta(id); esta_na_mao = true;
         exit;
     }
 	
@@ -141,7 +142,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
                     mostrar_aviso_regra("A base desta coluna está ocupada", _slot_mais_perto.x, _slot_mais_perto.y);
                 }
             }
-            x = origem_x; y = origem_y;
+            iniciar_retorno_carta(id);
             esta_na_mao = true;
         }
         
@@ -170,11 +171,11 @@ if (arrastando && mouse_check_button_released(mb_left)) {
                 }
                 instance_destroy(id); // a carta "vira" o recurso, ela mesma some
             } else {
-                x = origem_x; y = origem_y;
+                iniciar_retorno_carta(id);
                 esta_na_mao = true;
             }
         } else {
-            x = origem_x; y = origem_y;
+            iniciar_retorno_carta(id);
             esta_na_mao = true;
         }
     } else if (categoria == "construcao") {
@@ -214,7 +215,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         mostrar_feedback("USADA", x, y, c_gray, 30);
         instance_destroy(id);
     } else {
-        x = origem_x; y = origem_y;
+        iniciar_retorno_carta(id);
         esta_na_mao = true;
     }
 	
@@ -266,9 +267,10 @@ if (arrastando && mouse_check_button_released(mb_left)) {
                 lancar_bola_de_fogo(_alvo_mais_perto, dado_efeito, chance_queimar,
                     _tipo_alvo_magia, _dono_castelo_alvo, "jogador");
             break;
-            case "veneno": aplicar_condicao(_alvo_mais_perto, "envenenado", -1, 1); break;
-            case "gelo": aplicar_condicao(_alvo_mais_perto, "congelado", 1, 0); break;
-            case "choque": aplicar_condicao(_alvo_mais_perto, "eletrocutado", 1, 0); break;
+            case "veneno": aplicar_envenenado(_alvo_mais_perto); break;
+            case "gelo": aplicar_congelado(_alvo_mais_perto); break;
+            case "choque": aplicar_eletrocutado(_alvo_mais_perto); break;
+            default: aplicar_condicao_por_chave(_alvo_mais_perto, efeito_tipo); break;
         }
 
         var _index = array_get_index(obj_controlador.mao, id);
@@ -279,57 +281,35 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         registrar_descarte(id);
         instance_destroy(id);
     } else {
-        x = origem_x; y = origem_y;
+        iniciar_retorno_carta(id);
         esta_na_mao = true;
     }
 
 	} else if (categoria == "item_equipavel") {
-	    var _alvo = noone;
-	    var _menor_distancia = 9999;
-    
-	    with (obj_carta) {
-	        if (id == other.id) continue;
-	        if (!travada || dono != "jogador") continue;
-	        if (mochila <= 0) continue; // mochila cheia, não aceita mais itens
-	        if (nivel_inteligencia < other.requisito_inteligencia_item) continue; // não atende ao requisito
-        
-	        var _dist = point_distance(x, y, other.x, other.y);
-	        if (_dist < 60 && _dist < _menor_distancia) {
-	            _menor_distancia = _dist;
-	            _alvo = id;
-	        }
-	    }
-    
-	    if (_alvo != noone && pode_pagar_custo(custo, "jogador")) {
-	        pagar_custo(custo, "jogador");
-            obj_controlador.itens_usados_este_turno += 1;
-        
-	        if (sobrescreve_dado_dano_item > 0) {
-	            // Arma alternativa: reescreve o ataque físico da tropa (ex: Espada Quebrada)
-	            _alvo.dado_dano = sobrescreve_dado_dano_item;
-	            _alvo.mod_dano = sobrescreve_mod_dano_item;
-	            debug_combate(_alvo.nome_carta + " equipou " + nome_carta + " e agora ataca com 1D" + string(sobrescreve_dado_dano_item) + "!");
-	        } else {
-	            // Item comum: só soma bônus (Espada Enferrujada, Elmo de Ferro, etc)
-	            _alvo.mod_dano += bonus_mod_dano_item;
-	            _alvo.defesa_fisica += bonus_defesa_item;
-	        }
-        
-	        _alvo.mochila -= 1;
-        
-	        var _index = array_get_index(obj_controlador.mao, id);
-	        if (_index != -1) {
-	            array_delete(obj_controlador.mao, _index, 1);
-	            organizar_mao();
-	        }
-	        mostrar_feedback("USADA", x, y, c_gray, 30);
-        registrar_descarte(id);
-	        instance_destroy(id);
-	    } else {
-	        x = origem_x; y = origem_y;
-	        esta_na_mao = true;
-	    }
-    
+    var _alvo = noone;
+    var _menor_distancia = 9999;
+    with (obj_carta) {
+        if (id == other.id || !travada || dono != "jogador" || mochila <= 0 || troca_item_usada_este_turno) continue;
+        if (nivel_inteligencia < other.requisito_inteligencia_item) continue;
+        var _dist = point_distance(x, y, other.x, other.y);
+        if (_dist < 60 && _dist < _menor_distancia) { _menor_distancia = _dist; _alvo = id; }
+    }
+    if (_alvo != noone && pode_pagar_custo(custo, "jogador")) {
+        pagar_custo(custo, "jogador");
+        obj_controlador.itens_usados_este_turno += 1;
+        var _dados_item = criar_dados_item_equipado(nome_carta, sprite_index, funcao_dados_origem,
+            bonus_mod_dano_item, bonus_defesa_item, sobrescreve_dado_dano_item, sobrescreve_mod_dano_item);
+        equipar_item_dados(_alvo, _dados_item);
+        criar_animacao_item(sprite_index, x, y, _alvo.x, _alvo.y, c_aqua);
+        _alvo.troca_item_usada_este_turno = true;
+        var _index = array_get_index(obj_controlador.mao, id);
+        if (_index != -1) { array_delete(obj_controlador.mao, _index, 1); organizar_mao(); }
+        mostrar_feedback("EQUIPADO", _alvo.x, _alvo.y - 40, c_aqua, 35);
+        instance_destroy(id);
+    } else {
+        iniciar_retorno_carta(id); esta_na_mao = true;
+    }
+
 } else if (categoria == "item_consumivel") {
     if (string_pos("buscar_", efeito_tipo) == 1) {
         // --- Sangue Suga, Poção de Mãna (já existente) ---
@@ -349,11 +329,11 @@ if (arrastando && mouse_check_button_released(mb_left)) {
                 registrar_descarte(id);
                 instance_destroy(id);
             } else {
-                x = origem_x; y = origem_y;
+                iniciar_retorno_carta(id);
                 esta_na_mao = true;
             }
         } else {
-            x = origem_x; y = origem_y;
+            iniciar_retorno_carta(id);
             esta_na_mao = true;
         }
 
@@ -375,7 +355,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
             registrar_descarte(id);
             instance_destroy(id);
         } else {
-            x = origem_x; y = origem_y;
+            iniciar_retorno_carta(id);
             esta_na_mao = true;
         }
 
@@ -409,7 +389,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
             registrar_descarte(id);
             instance_destroy(id);
         } else {
-            x = origem_x; y = origem_y;
+            iniciar_retorno_carta(id);
             esta_na_mao = true;
         }
 
@@ -431,11 +411,11 @@ if (arrastando && mouse_check_button_released(mb_left)) {
                 instance_destroy(id);
             } else {
                 debug_combate("Frasco de Sangue: nenhum sangue virado pra reverter.");
-                x = origem_x; y = origem_y;
+                iniciar_retorno_carta(id);
                 esta_na_mao = true;
             }
         } else {
-            x = origem_x; y = origem_y;
+            iniciar_retorno_carta(id);
             esta_na_mao = true;
         }
 
@@ -478,7 +458,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
             registrar_descarte(id);
             instance_destroy(id);
         } else {
-            x = origem_x; y = origem_y;
+            iniciar_retorno_carta(id);
             esta_na_mao = true;
         }
     }
@@ -531,7 +511,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         x = origem_x;
         y = origem_y;
     } else {
-        x = origem_x; y = origem_y;
+        iniciar_retorno_carta(id);
         esta_na_mao = true;
     }
 
@@ -579,7 +559,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         }
         instance_destroy(id);
     } else {
-        x = origem_x; y = origem_y;
+        iniciar_retorno_carta(id);
         esta_na_mao = true;
     }
 		
@@ -603,11 +583,11 @@ if (arrastando && mouse_check_button_released(mb_left)) {
             instance_destroy(id);
         } else {
             debug_combate("Já tem " + string(obj_controlador.max_bencaos_maldicoes) + " " + categoria + "s ativas!");
-            x = origem_x; y = origem_y;
+            iniciar_retorno_carta(id);
             esta_na_mao = true;
         }
     } else {
-        x = origem_x; y = origem_y;
+        iniciar_retorno_carta(id);
         esta_na_mao = true;
     }
 }
@@ -666,6 +646,7 @@ if (pulando) {
         escala_animacao = 1;
         rotacao_animacao = 0;
         pulso_pouso_timer = pulso_pouso_duracao;
+        impacto_colocacao_timer = impacto_colocacao_duracao;
         if (pulo_poeira_ao_pousar) {
             criar_poeira(x, y + sprite_height / 2, sprite_width);
             pulo_poeira_ao_pousar = false;
@@ -689,9 +670,11 @@ if (pulando) {
 #endregion
 
 #region Flash de dano
-if (dano_flash_timer > 0) {
-    dano_flash_timer -= 1;
-}
+if (dano_flash_timer > 0) dano_flash_timer -= 1;
+if (defesa_impacto_timer > 0) defesa_impacto_timer -= 1;
+recuo_dano_x = lerp(recuo_dano_x, 0, 0.20);
+recuo_dano_y = lerp(recuo_dano_y, 0, 0.20);
+if (impacto_colocacao_timer > 0) impacto_colocacao_timer--;
 #endregion
 
 #region Organização visual da mão e hover
@@ -703,10 +686,43 @@ if (esta_na_mao && !arrastando && !travada) {
     origem_x = destino_x;
     origem_y = destino_y;
     
-    x += (destino_x - x) * velocidade_movimento;
-    y += (destino_y - y) * velocidade_movimento;
+    if (compra_animando) {
+        if (compra_atraso > 0) {
+            compra_atraso--;
+            x = compra_origem_x;
+            y = compra_origem_y;
+            depth = -5000 - compra_atraso;
+        } else {
+        compra_progresso += 1 / compra_duracao;
+        var _p_compra = clamp(compra_progresso, 0, 1);
+        var _s_compra = 1 - power(1 - _p_compra, 3);
+        x = lerp(compra_origem_x, destino_x, _s_compra);
+        y = lerp(compra_origem_y, destino_y, _s_compra) - sin(_p_compra * pi) * 75;
+        rotacao_animacao = sin(_p_compra * pi) * 18 + (1 - _s_compra) * -12;
+        escala_animacao = lerp(0.70, 1, _s_compra) * (1 + sin(_p_compra * pi) * 0.12);
+        depth = -5000;
+        if (_p_compra >= 1) {
+            compra_animando = false;
+            x = destino_x; y = destino_y;
+            rotacao_animacao = 0;
+            escala_animacao = 1;
+            pulso_pouso_timer = pulso_pouso_duracao;
+        }
+        }
+    } else {
+        var _velocidade_retorno = (retorno_invalido_timer > 0) ? 0.28 : velocidade_movimento;
+        x += (destino_x - x) * _velocidade_retorno;
+        y += (destino_y - y) * _velocidade_retorno;
+        if (retorno_invalido_timer > 0) {
+            var _forca_retorno = retorno_invalido_timer / retorno_invalido_duracao;
+            rotacao_animacao = sin(retorno_invalido_timer * 1.65) * 7 * _forca_retorno;
+            retorno_invalido_timer--;
+        } else {
+            rotacao_animacao = lerp(rotacao_animacao, 0, 0.24);
+        }
+    }
     
-    if (hover_ativo_externo) {
+    if (hover_ativo_externo && !compra_animando && retorno_invalido_timer <= 0) {
         escala_alvo = 1.25;
         hover_ativo = true;
         y_offset_alvo = -30;
@@ -715,6 +731,9 @@ if (esta_na_mao && !arrastando && !travada) {
         escala_alvo = 1;
         hover_ativo = false;
         y_offset_alvo = 0;
+        // Recupera a ordem do leque depois de um arrasto cancelado ou inválido.
+        var _indice_profundidade = array_get_index(obj_controlador.mao, id);
+        if (!compra_animando && _indice_profundidade >= 0) depth = array_length(obj_controlador.mao) - _indice_profundidade;
     }
     
     var _rotacao_desejada = hover_ativo ? 0 : rotacao_alvo;
@@ -727,8 +746,36 @@ if (esta_na_mao && !arrastando && !travada) {
 
 #region Arrasto ativo
 if (arrastando) {
+    // Reforça a camada superior durante todo o arrasto, inclusive enquanto outras cartas animam.
+    depth = -100000;
+    // A posição real fica no cursor; só o desenho ganha atraso, mantendo o drop preciso.
+    var _delta_mouse_x = mouse_x - arrasto_mouse_anterior_x;
+    var _delta_mouse_y = mouse_y - arrasto_mouse_anterior_y;
+    arrasto_velocidade_x = lerp(arrasto_velocidade_x, _delta_mouse_x, 0.34);
+    arrasto_velocidade_y = lerp(arrasto_velocidade_y, _delta_mouse_y, 0.34);
+    arrasto_mouse_anterior_x = mouse_x;
+    arrasto_mouse_anterior_y = mouse_y;
+
+    var _velocidade_arrasto = point_distance(0, 0, arrasto_velocidade_x, arrasto_velocidade_y);
+    var _offset_alvo_x = clamp(-arrasto_velocidade_x * 0.55, -16, 16);
+    var _offset_alvo_y = clamp(-arrasto_velocidade_y * 0.38 - 7, -18, 8);
+    var _rotacao_alvo_arrasto = clamp(arrasto_velocidade_x * 0.72, -11, 11);
+    var _escala_alvo_arrasto = 1.08 + min(0.045, _velocidade_arrasto * 0.0025);
+
+    arrasto_offset_visual_x = lerp(arrasto_offset_visual_x, _offset_alvo_x, 0.26);
+    arrasto_offset_visual_y = lerp(arrasto_offset_visual_y, _offset_alvo_y, 0.26);
+    arrasto_rotacao = lerp(arrasto_rotacao, _rotacao_alvo_arrasto, 0.22);
+    arrasto_escala = lerp(arrasto_escala, _escala_alvo_arrasto, 0.20);
     x = mouse_x;
     y = mouse_y;
+} else {
+    // Ao soltar, os resíduos visuais voltam suavemente ao repouso.
+    arrasto_velocidade_x = lerp(arrasto_velocidade_x, 0, 0.28);
+    arrasto_velocidade_y = lerp(arrasto_velocidade_y, 0, 0.28);
+    arrasto_offset_visual_x = lerp(arrasto_offset_visual_x, 0, 0.32);
+    arrasto_offset_visual_y = lerp(arrasto_offset_visual_y, 0, 0.32);
+    arrasto_rotacao = lerp(arrasto_rotacao, 0, 0.30);
+    arrasto_escala = lerp(arrasto_escala, 1, 0.30);
 }
 #endregion
 

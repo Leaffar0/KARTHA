@@ -1,3 +1,4 @@
+if (obj_controlador.visao_veu_ativa || obj_controlador.digestao_selecao_ativa || obj_controlador.troca_item_selecao_ativa) exit;
 if (!travada || dono != "jogador") exit;
 if (obj_controlador.turno != "jogador") exit;
 if (obj_controlador.rolagens_pendentes > 0) exit;
@@ -9,8 +10,8 @@ if (obj_controlador.carta_menu_aberto != noone && obj_controlador.carta_menu_abe
     var _opcoes_menu = obter_opcoes_menu(_carta_menu);
     var _n_menu = array_length(_opcoes_menu);
     
-    var _largura_opcao = 80;
-    var _altura_opcao = 20;
+    var _largura_opcao = 120;
+    var _altura_opcao = 23;
     var _espaco_opcao = 6;
     var _altura_total_menu = _n_menu * _altura_opcao + (_n_menu - 1) * _espaco_opcao;
     

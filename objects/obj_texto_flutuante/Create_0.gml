@@ -4,4 +4,5 @@ vida_texto = 0;
 vida_texto_max = 50; // quantos frames o efeito dura no total
 velocidade_subida = 0.8;
 oscilacao_intensidade = 3;
-visible = false; // o controlador desenha estes avisos na camada GUI superior
+visible = true;
+depth = -1000000; // sempre acima de cartas, dados e menus

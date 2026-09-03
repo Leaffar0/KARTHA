@@ -7,3 +7,5 @@ lane_atual = 0;
 slot_atual = noone;
 habilidade_usada_este_turno = false;
 tem_habilidade_construcao = false; // marca se essa construção tem poder ativo
+entrada_visual_timer = 24;
+entrada_visual_duracao = 24;

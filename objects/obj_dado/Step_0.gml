@@ -1,3 +1,55 @@
+// D20 físico da iniciativa: pode ser pego e precisa ser arremessado.
+if (interativo_iniciativa) {
+    var _meia_dado_x = sprite_width * image_xscale * 0.55;
+    var _meia_dado_y = sprite_height * image_yscale * 0.55;
+    if (!iniciativa_arrastando && mouse_check_button_pressed(mb_left)
+        && point_in_rectangle(mouse_x, mouse_y, x - _meia_dado_x, y - _meia_dado_y, x + _meia_dado_x, y + _meia_dado_y)) {
+        iniciativa_arrastando = true;
+        iniciativa_inicio_x = x;
+        iniciativa_inicio_y = y;
+        iniciativa_mouse_anterior_x = mouse_x;
+        iniciativa_mouse_anterior_y = mouse_y;
+        iniciativa_velocidade_x = 0;
+        iniciativa_velocidade_y = 0;
+        depth = -100000;
+    }
+
+    if (iniciativa_arrastando) {
+        var _dx_dado = mouse_x - iniciativa_mouse_anterior_x;
+        var _dy_dado = mouse_y - iniciativa_mouse_anterior_y;
+        iniciativa_velocidade_x = lerp(iniciativa_velocidade_x, _dx_dado, 0.45);
+        iniciativa_velocidade_y = lerp(iniciativa_velocidade_y, _dy_dado, 0.45);
+        iniciativa_mouse_anterior_x = mouse_x;
+        iniciativa_mouse_anterior_y = mouse_y;
+        x += (mouse_x - x) * 0.72;
+        y += (mouse_y - y) * 0.72;
+        image_angle += _dx_dado * 2.4;
+        image_index = irandom_range(0, sprite_get_number(sprite_index) - 1);
+        image_xscale = lerp(image_xscale, escala_base_dado * 1.10, 0.28);
+        image_yscale = lerp(image_yscale, escala_base_dado * 1.10, 0.28);
+
+        if (mouse_check_button_released(mb_left)) {
+            iniciativa_arrastando = false;
+            var _velocidade_dado = point_distance(0, 0, iniciativa_velocidade_x, iniciativa_velocidade_y);
+            var _distancia_dado = point_distance(iniciativa_inicio_x, iniciativa_inicio_y, x, y);
+            if (_velocidade_dado >= 1.5 || _distancia_dado >= 26) {
+                lancar_dado_disputa_inicial(id, max(_velocidade_dado, _distancia_dado / 10));
+            } else {
+                x = iniciativa_mesa_x;
+                y = iniciativa_mesa_y;
+                image_angle = 0;
+                image_xscale = escala_base_dado;
+                image_yscale = escala_base_dado;
+                depth = -2000;
+            }
+        }
+    } else {
+        y = iniciativa_mesa_y + sin(current_time / 180) * 3;
+        image_angle = sin(current_time / 260) * 4;
+    }
+    exit;
+}
+
 if (girando) {
     if (atraso_inicio > 0) {
         atraso_inicio -= 1;

@@ -19,6 +19,17 @@ if (rolagens_pendentes > 0) {
 
 atualizar_animacao_dano_castelo();
 
+// Atualizações visuais independentes da lógica: continuam durante modais e fim da partida.
+if (onda_turno_timer > 0) onda_turno_timer--;
+if (visao_veu_ativa) visao_veu_revelacao_timer++;
+for (var _i_anim_item = array_length(animacoes_item) - 1; _i_anim_item >= 0; _i_anim_item--) {
+    animacoes_item[_i_anim_item].timer++;
+    if (animacoes_item[_i_anim_item].timer >= animacoes_item[_i_anim_item].duracao) {
+        array_delete(animacoes_item, _i_anim_item, 1);
+    }
+}
+if (vida_jogador <= 0 || vida_inimigo <= 0) fim_animacao_timer = min(fim_animacao_duracao, fim_animacao_timer + 1);
+
 // Opção vinda da tela inicial: abre o livro assim que a instância da room existir.
 if (abrir_livro_pendente && instance_exists(obj_livro)) {
     obj_livro.preview_ativo = true;
@@ -74,23 +85,23 @@ if (tutorial_ativo) {
     exit;
 }
 
-// Antes da primeira ação, os dois lados jogam D20. Empates são rolados novamente;
-// quem vencer escolhe qual lado começa.
+// Abertura interativa: primeiro arremesse o D20; após a escolha, compre a mão.
 if (disputa_inicial_estado != "concluida") {
     var _iniciativa_cx = _tutorial_largura_gui / 2;
     var _iniciativa_cy = _tutorial_altura_gui / 2;
 
-    if (disputa_inicial_estado == "aguardando") {
-        disputa_inicial_timer -= 1;
-        if (disputa_inicial_timer <= 0 && rolagens_pendentes <= 0) rolar_disputa_inicial();
+    if (disputa_inicial_estado == "preparando_dado") {
+        disputa_inicial_timer--;
+        if (disputa_inicial_timer <= 0 && rolagens_pendentes <= 0) preparar_dado_disputa_inicial();
     } else if (disputa_inicial_estado == "resultado" && rolagens_pendentes <= 0) {
-        disputa_inicial_timer -= 1;
+        disputa_inicial_timer--;
         if (disputa_inicial_timer <= 0) {
             if (disputa_inicial_resultado_jogador == disputa_inicial_resultado_inimigo) {
-                disputa_inicial_estado = "aguardando";
+                disputa_inicial_estado = "preparando_dado";
                 disputa_inicial_timer = 35;
                 disputa_inicial_resultado_jogador = -1;
                 disputa_inicial_resultado_inimigo = -1;
+                dado_iniciativa_id = noone;
             } else if (disputa_inicial_resultado_jogador > disputa_inicial_resultado_inimigo) {
                 disputa_inicial_vencedor = "jogador";
                 disputa_inicial_estado = "escolha_jogador";
@@ -108,8 +119,48 @@ if (disputa_inicial_estado != "concluida") {
         if (_escolher_jogador) finalizar_disputa_inicial("jogador");
         else if (_escolher_inimigo) finalizar_disputa_inicial("inimigo");
     } else if (disputa_inicial_estado == "escolha_inimigo") {
-        disputa_inicial_timer -= 1;
+        disputa_inicial_timer--;
         if (disputa_inicial_timer <= 0) finalizar_disputa_inicial("inimigo");
+    } else if (disputa_inicial_estado == "aguardando_deck") {
+        var _deck_inicial = instance_find(obj_deck, 0);
+        if (_deck_inicial != noone && mouse_check_button_pressed(mb_left)
+            && point_in_rectangle(mouse_x, mouse_y,
+                _deck_inicial.x - _deck_inicial.sprite_width * 0.65,
+                _deck_inicial.y - _deck_inicial.sprite_height * 0.65,
+                _deck_inicial.x + _deck_inicial.sprite_width * 0.65,
+                _deck_inicial.y + _deck_inicial.sprite_height * 0.65)) {
+            comprar_mao_inicial();
+            comprar_mao_inicial_ia();
+            disputa_inicial_estado = "distribuindo";
+            disputa_inicial_timer = quantidade_inicial * 7 + 45;
+        }
+    } else if (disputa_inicial_estado == "distribuindo") {
+        disputa_inicial_timer--;
+        if (disputa_inicial_timer <= 0) {
+            finalizar_disputa_inicial(disputa_inicial_primeiro_escolhido);
+        }
+    }
+    exit;
+}
+
+// Visão do Véu bloqueia as demais ações até escolher uma armadilha revelada
+// ou a proteção contra a próxima armadilha.
+if (visao_veu_ativa) {
+    var _veu_cx = _tutorial_largura_gui / 2;
+    var _veu_cy = _tutorial_altura_gui / 2;
+    if (keyboard_check_pressed(vk_escape)) resolver_visao_veu_escolha(-1);
+    else if (mouse_check_button_pressed(mb_left)) {
+        var _escolheu_veu = false;
+        for (var i = 0; i < array_length(visao_veu_opcoes); i++) {
+            var _col = i mod 3;
+            var _lin = floor(i / 3);
+            var _x1 = _veu_cx - 270 + _col * 180;
+            var _y1 = _veu_cy - 95 + _lin * 30;
+            if (visao_veu_opcoes[i].armadilha && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _x1, _y1, _x1 + 170, _y1 + 24)) {
+                resolver_visao_veu_escolha(i); _escolheu_veu = true; break;
+            }
+        }
+        if (!_escolheu_veu && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _veu_cx - 190, _veu_cy + 125, _veu_cx + 190, _veu_cy + 170)) resolver_visao_veu_escolha(-1);
     }
     exit;
 }
@@ -295,6 +346,20 @@ if (turno == "inimigo" && ia_ativa) {
     exit;
 }
 
+// Espaço encerra o turno do jogador. Escolhas simples de alvo são canceladas;
+// rolagens e a escolha de crítico precisam terminar antes para não cortar efeitos.
+if (turno == "jogador" && partida_iniciada && keyboard_check_pressed(vk_space)) {
+    if (rolagens_pendentes > 0 || critico_escolha_ativa || array_length(criticos_pendentes) > 0) {
+        mostrar_aviso_regra("Aguarde a rolagem terminar", mouse_x, mouse_y);
+    } else {
+        digestao_selecao_ativa = false; digestao_origem = noone;
+        troca_item_selecao_ativa = false; troca_item_origem = noone;
+        carta_preview = noone; carta_menu_aberto = noone; tropa_selecionada = noone;
+        passar_turno_jogador();
+    }
+    exit;
+}
+
 #region Atalhos de teclado (debug/teste)
 if (keyboard_check_pressed(vk_escape)) {
     var _fechou_algum_preview = false;
@@ -396,6 +461,34 @@ if (carta_preview != noone) {
 }
 #endregion
 
+// Modos de escolha iniciados por habilidades e ações do menu.
+if (digestao_selecao_ativa) {
+    if (!instance_exists(digestao_origem) || keyboard_check_pressed(vk_escape) || mouse_check_button_pressed(mb_right)) {
+        digestao_selecao_ativa = false; digestao_origem = noone;
+    } else if (mouse_check_button_pressed(mb_left)) {
+        var _alvo_digestao = instance_position(mouse_x, mouse_y, obj_carta);
+        if (alvo_valido_digestao(digestao_origem, _alvo_digestao)) {
+            resolver_digestao(digestao_origem, _alvo_digestao);
+            digestao_selecao_ativa = false; digestao_origem = noone; tropa_selecionada = noone; carta_menu_aberto = noone;
+        } else mostrar_aviso_regra("Escolha tropa adjacente com menos de 4 de vida", mouse_x, mouse_y);
+    }
+    exit;
+}
+
+if (troca_item_selecao_ativa) {
+    if (!instance_exists(troca_item_origem) || keyboard_check_pressed(vk_escape) || mouse_check_button_pressed(mb_right)) {
+        troca_item_selecao_ativa = false; troca_item_origem = noone;
+    } else if (mouse_check_button_pressed(mb_left)) {
+        var _destino_item = instance_position(mouse_x, mouse_y, obj_carta);
+        if (instance_exists(_destino_item) && _destino_item != troca_item_origem && _destino_item.travada
+            && _destino_item.dono == "jogador" && _destino_item.mochila > 0 && !_destino_item.troca_item_usada_este_turno) {
+            transferir_item_equipado(troca_item_origem, _destino_item, array_length(troca_item_origem.itens_equipados) - 1);
+            troca_item_selecao_ativa = false; troca_item_origem = noone; tropa_selecionada = noone; carta_menu_aberto = noone;
+        } else mostrar_aviso_regra("Escolha uma tropa aliada com espaço na mochila", mouse_x, mouse_y);
+    }
+    exit;
+}
+
 // A tropa destacada só existe enquanto ela continuar válida e no turno do jogador.
 if (tropa_selecionada != noone && (!instance_exists(tropa_selecionada)
     || !tropa_selecionada.travada || tropa_selecionada.dono != "jogador" || turno != "jogador")) {
@@ -441,9 +534,19 @@ if (mouse_check_button_pressed(mb_left)) {
         with (hover_atual) {
             arrastando = true;
             esta_na_mao = false;
+            // Profundidade exclusiva: nenhuma carta da mão ou em animação passa na frente.
+            depth = -100000;
             rotacao_atual = 0;
             escala_atual = 1;
             y_offset_atual = 0;
+            arrasto_mouse_anterior_x = mouse_x;
+            arrasto_mouse_anterior_y = mouse_y;
+            arrasto_velocidade_x = 0;
+            arrasto_velocidade_y = 0;
+            arrasto_offset_visual_x = 0;
+            arrasto_offset_visual_y = 0;
+            arrasto_rotacao = 0;
+            arrasto_escala = 1.04;
 			arrastar_inicio_x = x;
 			arrastar_inicio_y = y;
 
@@ -495,8 +598,8 @@ if (carta_menu_aberto != noone && instance_exists(carta_menu_aberto) && menu_esc
     var _opcoes = obter_opcoes_menu(_carta);
     var _n = array_length(_opcoes);
 
-    var _largura_opcao = 100;
-    var _altura_opcao = 20;
+    var _largura_opcao = 120;
+    var _altura_opcao = 23;
     var _espaco_opcao = 6;
     var _altura_total = _n * _altura_opcao + (_n - 1) * _espaco_opcao;
 
