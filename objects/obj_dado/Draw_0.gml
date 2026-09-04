@@ -12,28 +12,29 @@ if (!girando && progresso_revelacao > 0 && !ocultar_resultado_ate_rolar) {
     draw_set_valign(fa_top);
 
     var _texto_resultado = "D" + string(tamanho_dado) + ": " + string(valor_final);
+    if (rotulo_resultado != "") _texto_resultado = rotulo_resultado + " — " + _texto_resultado;
     if (modificador_exibido != 0) {
         var _sinal = (modificador_exibido > 0) ? "+" : "";
         _texto_resultado += " " + _sinal + string(modificador_exibido) + " = " + string(valor_final + modificador_exibido);
     }
 
     var _texto_x = x;
-    var _texto_y = y + (sprite_height * image_yscale / 2) + 10;
+    var _texto_y = y + (sprite_height * image_yscale / 2) + offset_texto_resultado;
 
     // Borda preta: desenha o texto deslocado em 8 direções ao redor
     draw_set_color(c_black);
-    draw_text(_texto_x - 1, _texto_y - 1, _texto_resultado);
-    draw_text(_texto_x,     _texto_y - 1, _texto_resultado);
-    draw_text(_texto_x + 1, _texto_y - 1, _texto_resultado);
-    draw_text(_texto_x - 1, _texto_y,     _texto_resultado);
-    draw_text(_texto_x + 1, _texto_y,     _texto_resultado);
-    draw_text(_texto_x - 1, _texto_y + 1, _texto_resultado);
-    draw_text(_texto_x,     _texto_y + 1, _texto_resultado);
-    draw_text(_texto_x + 1, _texto_y + 1, _texto_resultado);
+    draw_text_transformed(_texto_x - 1, _texto_y - 1, _texto_resultado, escala_texto_resultado, escala_texto_resultado, 0);
+    draw_text_transformed(_texto_x, _texto_y - 1, _texto_resultado, escala_texto_resultado, escala_texto_resultado, 0);
+    draw_text_transformed(_texto_x + 1, _texto_y - 1, _texto_resultado, escala_texto_resultado, escala_texto_resultado, 0);
+    draw_text_transformed(_texto_x - 1, _texto_y, _texto_resultado, escala_texto_resultado, escala_texto_resultado, 0);
+    draw_text_transformed(_texto_x + 1, _texto_y, _texto_resultado, escala_texto_resultado, escala_texto_resultado, 0);
+    draw_text_transformed(_texto_x - 1, _texto_y + 1, _texto_resultado, escala_texto_resultado, escala_texto_resultado, 0);
+    draw_text_transformed(_texto_x, _texto_y + 1, _texto_resultado, escala_texto_resultado, escala_texto_resultado, 0);
+    draw_text_transformed(_texto_x + 1, _texto_y + 1, _texto_resultado, escala_texto_resultado, escala_texto_resultado, 0);
 
-    // Texto branco por cima
-    draw_set_color(c_white);
-    draw_text(_texto_x, _texto_y, _texto_resultado);
+    // Resultado por cima, usando a apresentação configurada para este dado.
+    draw_set_color(cor_resultado);
+    draw_text_transformed(_texto_x, _texto_y, _texto_resultado, escala_texto_resultado, escala_texto_resultado, 0);
 
     draw_set_alpha(1);
     draw_set_color(c_white); // reseta pro padrão, pra não vazar cor pra outros desenhos
@@ -67,10 +68,12 @@ if (grupo_soma_responsavel && is_struct(grupo_soma)
 if (interativo_iniciativa) {
     draw_set_halign(fa_center);
     draw_set_valign(fa_bottom);
+    draw_set_font(Fontenil);
     draw_set_color(c_black);
-    draw_text(x + 1, y - sprite_height * image_yscale * 0.62 + 1, "D20 — PEGUE E ARREMESSE");
+    draw_text_transformed(x + 1, y - sprite_height * image_yscale * 0.62 + 1, "D20 — PEGUE E ARREMESSE", 0.52, 0.52, 0);
     draw_set_color(c_yellow);
-    draw_text(x, y - sprite_height * image_yscale * 0.62, "D20 — PEGUE E ARREMESSE");
+    draw_text_transformed(x, y - sprite_height * image_yscale * 0.62, "D20 — PEGUE E ARREMESSE", 0.52, 0.52, 0);
+    draw_set_font(-1);
 }
 draw_set_halign(fa_left);
 draw_set_valign(fa_top);

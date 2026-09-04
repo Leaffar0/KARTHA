@@ -23,8 +23,9 @@ if (interativo_iniciativa) {
         iniciativa_mouse_anterior_y = mouse_y;
         x += (mouse_x - x) * 0.72;
         y += (mouse_y - y) * 0.72;
-        image_angle += _dx_dado * 2.4;
-        image_index = irandom_range(0, sprite_get_number(sprite_index) - 1);
+        // Enquanto está na mão, apenas acompanha o cursor; o giro começa ao soltar.
+        image_angle = 0;
+        image_index = 0;
         image_xscale = lerp(image_xscale, escala_base_dado * 1.10, 0.28);
         image_yscale = lerp(image_yscale, escala_base_dado * 1.10, 0.28);
 
@@ -44,8 +45,12 @@ if (interativo_iniciativa) {
             }
         }
     } else {
-        y = iniciativa_mesa_y + sin(current_time / 180) * 3;
-        image_angle = sin(current_time / 260) * 4;
+        x = iniciativa_mesa_x;
+        y = iniciativa_mesa_y;
+        image_angle = 0;
+        image_index = 0;
+        image_xscale = escala_base_dado;
+        image_yscale = escala_base_dado;
     }
     exit;
 }

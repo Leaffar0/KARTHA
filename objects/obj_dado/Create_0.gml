@@ -1,5 +1,5 @@
 sprite_index = spr_dado_d6;
-image_speed = 0.5;
+image_speed = 0;
 image_index = 0;
 image_xscale = 3;
 image_yscale = 3;
@@ -13,6 +13,10 @@ atraso_inicio = 0;
 tamanho_dado = 6;
 valor_final = 1;
 modificador_exibido = 0;
+rotulo_resultado = "";
+cor_resultado = c_white;
+escala_texto_resultado = 1;
+offset_texto_resultado = 10;
 callback = noone;
 destino_x = x;
 destino_y = y;

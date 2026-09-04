@@ -464,6 +464,14 @@ if (arrastando && mouse_check_button_released(mb_left)) {
     }
 	
 	} else if (categoria == "armadilha") {
+    // Uma carta ativa continua na mão apenas como botão de ativação; nunca pode ser posicionada de novo.
+    if (armadilha_estado != "") {
+        mostrar_aviso_regra("Esta armadilha já vigia um espaço", x, y);
+        iniciar_retorno_carta(id);
+        esta_na_mao = true;
+        exit;
+    }
+
     // Arrasta pra um slot de batalha SEU, da posição 2 (meio) pra trás (3, 4).
     var _slot_armadilha = noone;
     var _menor_distancia = 9999;
@@ -480,7 +488,10 @@ if (arrastando && mouse_check_button_released(mb_left)) {
 	    }
 	}
 
-    if (_slot_armadilha != noone && pode_pagar_custo(custo, "jogador")) {
+    var _slot_armadilha_ocupado = (_slot_armadilha != noone
+        && slot_tem_armadilha(_slot_armadilha.lane, _slot_armadilha.posicao, id));
+
+    if (_slot_armadilha != noone && !_slot_armadilha_ocupado && pode_pagar_custo(custo, "jogador")) {
         pagar_custo(custo, "jogador");
 
         armadilha_lane = _slot_armadilha.lane;
@@ -511,6 +522,9 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         x = origem_x;
         y = origem_y;
     } else {
+        if (_slot_armadilha_ocupado) {
+            mostrar_aviso_regra("Este espaço já possui uma armadilha", _slot_armadilha.x, _slot_armadilha.y);
+        }
         iniciar_retorno_carta(id);
         esta_na_mao = true;
     }

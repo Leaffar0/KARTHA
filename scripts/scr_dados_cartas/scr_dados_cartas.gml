@@ -699,6 +699,20 @@ function dono_slot_armadilha(_slot) {
     return "jogador"; // posições 2 (meio), 3, 4 -- pode colocar armadilha
 }
 
+// Cada espaço aceita apenas uma armadilha ativa, independentemente do dono.
+function slot_tem_armadilha(_lane, _posicao, _ignorar = noone) {
+    var _encontrou = false;
+    with (obj_carta) {
+        if (id != _ignorar && categoria == "armadilha"
+            && armadilha_estado != "" && armadilha_estado != "resolvendo"
+            && armadilha_lane == _lane && armadilha_posicao == _posicao) {
+            _encontrou = true;
+            break;
+        }
+    }
+    return _encontrou;
+}
+
 // Remove a armadilha usada do campo/mão e registra seu descarte.
 function consumir_armadilha_ativada(_carta_armadilha) {
     if (!instance_exists(_carta_armadilha)) return;
@@ -739,10 +753,8 @@ function ativar_armadilha(_carta_armadilha) {
             _alvo.imune_armadilha_usos = max(0, _alvo.imune_armadilha_usos - 1);
             if (_alvo.imune_armadilha_usos <= 0) _alvo.imune_armadilha = false;
             mostrar_aviso_regra("Proteção da Visão do Véu consumida", _alvo.x, _alvo.y);
-            var _indice_ignorada = array_get_index(obj_controlador.mao, _carta_armadilha);
-            if (_indice_ignorada >= 0) { array_delete(obj_controlador.mao, _indice_ignorada, 1); organizar_mao(); }
-            registrar_descarte(_carta_armadilha);
-            instance_destroy(_carta_armadilha);
+            // Consome também o marcador visual, liberando o espaço sem deixar uma armadilha fantasma.
+            consumir_armadilha_ativada(_carta_armadilha);
         } else {
             mostrar_aviso_regra("Tropas com Voar não ativam esta armadilha", _alvo.x, _alvo.y);
             _carta_armadilha.armadilha_estado = "vigiando";
@@ -2449,7 +2461,7 @@ function preparar_dado_disputa_inicial() {
     if (obj_controlador.rolagens_pendentes > 0) return;
     if (instance_exists(obj_controlador.dado_iniciativa_id)) instance_destroy(obj_controlador.dado_iniciativa_id);
 
-    var _dado = instance_create_layer(room_width * 0.25, room_height * 0.62, "Instances", obj_dado);
+    var _dado = instance_create_layer(room_width * 0.50, room_height * 0.68, "Instances", obj_dado);
     _dado.tamanho_dado = 20;
     _dado.valor_final = -1;
     _dado.interativo_iniciativa = true;
@@ -2476,18 +2488,34 @@ function lancar_dado_disputa_inicial(_dado, _velocidade_arremesso) {
     var _resultado_inimigo = irandom_range(1, 20);
     var _controle_jogador = { controle: instance_find(obj_controlador, 0) };
     var _controle_inimigo = { controle: instance_find(obj_controlador, 0) };
-    var _centro_x = room_width / 2;
-    var _centro_y = 78;
+    // O seu dado continua na direção do gesto; o da IA escolhe outro pouso a cada disputa.
+    var _margem_dado = 58;
+    var _destino_jogador_x = clamp(_dado.x + _dado.iniciativa_velocidade_x * 7,
+        _margem_dado, room_width - _margem_dado);
+    var _destino_jogador_y = clamp(_dado.y + _dado.iniciativa_velocidade_y * 7,
+        90, room_height - 135);
+    var _destino_ia_x = random_range(room_width * 0.18, room_width * 0.82);
+    var _destino_ia_y = random_range(room_height * 0.14, room_height * 0.46);
+    for (var _tentativa_ia = 0; _tentativa_ia < 6; _tentativa_ia++) {
+        if (point_distance(_destino_jogador_x, _destino_jogador_y, _destino_ia_x, _destino_ia_y) >= 145) break;
+        _destino_ia_x = random_range(room_width * 0.18, room_width * 0.82);
+        _destino_ia_y = random_range(room_height * 0.14, room_height * 0.46);
+    }
 
     _dado.interativo_iniciativa = false;
     _dado.ocultar_resultado_ate_rolar = false;
     _dado.tamanho_dado = 20;
     _dado.valor_final = _resultado_jogador;
     _dado.modificador_exibido = 0;
+    _dado.rotulo_resultado = "";
+    _dado.cor_resultado = c_white;
+    _dado.escala_texto_resultado = 1.22;
+    _dado.offset_texto_resultado = 2;
     _dado.pos_inicial_x = _dado.x;
     _dado.pos_inicial_y = _dado.y;
-    _dado.destino_x = _centro_x - 100;
-    _dado.destino_y = _centro_y;
+    _dado.destino_x = _destino_jogador_x;
+    _dado.destino_y = _destino_jogador_y;
+    _dado.depth = -2000;
     _dado.altura_maxima_dado = 75 + min(55, _velocidade_arremesso * 3);
     _dado.tempo_total_giro = clamp(round(82 - _velocidade_arremesso * 1.5), 50, 82);
     _dado.tempo_girando = 0;
@@ -2502,7 +2530,7 @@ function lancar_dado_disputa_inicial(_dado, _velocidade_arremesso) {
     });
     obj_controlador.rolagens_pendentes += 1;
 
-    rolar_dado_visual(room_width * 0.75, 70, _centro_x + 100, _centro_y,
+    var _dado_ia = rolar_dado_visual(random_range(room_width * 0.32, room_width * 0.68), 55, _destino_ia_x, _destino_ia_y,
         20, _resultado_inimigo, method(_controle_inimigo, function(_resultado) {
             if (!instance_exists(controle)) return;
             controle.disputa_inicial_resultado_inimigo = _resultado;
@@ -2511,6 +2539,10 @@ function lancar_dado_disputa_inicial(_dado, _velocidade_arremesso) {
                 controle.disputa_inicial_timer = 55;
             }
         }), 0, irandom_range(8, 15), 78 + irandom_range(-5, 12));
+    _dado_ia.rotulo_resultado = "";
+    _dado_ia.cor_resultado = c_white;
+    _dado_ia.escala_texto_resultado = 1.22;
+    _dado_ia.offset_texto_resultado = 2;
 }
 
 // Compatibilidade com chamadas antigas: agora apenas coloca o D20 sobre a mesa.
@@ -3193,15 +3225,7 @@ function ia_jogar_itens() {
 }
 
 function ia_slot_tem_armadilha(_lane, _posicao) {
-    var _encontrou = false;
-    with (obj_carta) {
-        if (categoria == "armadilha" && dono == "inimigo" && armadilha_estado != ""
-            && armadilha_lane == _lane && armadilha_posicao == _posicao) {
-            _encontrou = true;
-            break;
-        }
-    }
-    return _encontrou;
+    return slot_tem_armadilha(_lane, _posicao);
 }
 
 function ia_preparar_armadilha() {

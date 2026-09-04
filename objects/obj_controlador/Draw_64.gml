@@ -696,14 +696,17 @@ if (vida_jogador <= 0 || vida_inimigo <= 0) {
 
 
 #region Escolha de iniciativa
-if (disputa_inicial_estado != "concluida" && !tutorial_ativo && !(instance_exists(obj_livro) && obj_livro.preview_ativo)) {
+// O painel só entra depois que os dois D20 terminaram; o voo e o resultado sobre a mesa ficam livres.
+var _mostrar_painel_iniciativa = (disputa_inicial_estado == "resultado"
+    || disputa_inicial_estado == "escolha_jogador"
+    || disputa_inicial_estado == "escolha_inimigo");
+if (_mostrar_painel_iniciativa && !tutorial_ativo && !(instance_exists(obj_livro) && obj_livro.preview_ativo)) {
     var _ini_largura = display_get_gui_width();
     var _ini_altura = display_get_gui_height();
     var _ini_cx = _ini_largura / 2;
     var _ini_cy = _ini_altura / 2;
 
-    var _abertura_mesa_visivel = (disputa_inicial_estado == "aguardando_deck" || disputa_inicial_estado == "distribuindo" || disputa_inicial_estado == "preparando_dado" || disputa_inicial_estado == "aguardando_arremesso" || disputa_inicial_estado == "rolando");
-    draw_set_alpha(_abertura_mesa_visivel ? 0.18 : 0.76);
+    draw_set_alpha(0.76);
     draw_set_color(c_black);
     draw_rectangle(0, 0, _ini_largura, _ini_altura, false);
     draw_set_alpha(1);
@@ -715,7 +718,7 @@ if (disputa_inicial_estado != "concluida" && !tutorial_ativo && !(instance_exist
     draw_set_valign(fa_middle);
     draw_set_font(fnt_vitoria);
     draw_set_color(c_yellow);
-    draw_text(_ini_cx, _ini_cy - 108, disputa_inicial_estado == "aguardando_deck" ? "PREPARE SUA MÃO" : "DISPUTA DE INICIATIVA");
+    draw_text(_ini_cx, _ini_cy - 108, "DISPUTA DE INICIATIVA");
     draw_set_font(Fontenil);
     draw_set_color(c_aqua);
     draw_text(_ini_cx - 120, _ini_cy - 38, "VOCÊ\n" + (disputa_inicial_resultado_jogador >= 0 ? string(disputa_inicial_resultado_jogador) : "D20"));
@@ -723,19 +726,7 @@ if (disputa_inicial_estado != "concluida" && !tutorial_ativo && !(instance_exist
     draw_text(_ini_cx + 120, _ini_cy - 38, "INIMIGO\n" + (disputa_inicial_resultado_inimigo >= 0 ? string(disputa_inicial_resultado_inimigo) : "D20"));
     draw_set_color(c_white);
 
-    if (disputa_inicial_estado == "aguardando_deck") {
-        draw_set_color(c_yellow);
-        draw_text(_ini_cx, _ini_cy + 25, "CLIQUE NO DECK PARA RECEBER SUAS CARTAS");
-    } else if (disputa_inicial_estado == "distribuindo") {
-        draw_text(_ini_cx, _ini_cy + 25, "Distribuindo a mão inicial...");
-    } else if (disputa_inicial_estado == "preparando_dado") {
-        draw_text(_ini_cx, _ini_cy + 25, "Preparando um novo D20 sobre a mesa...");
-    } else if (disputa_inicial_estado == "aguardando_arremesso") {
-        draw_set_color(c_yellow);
-        draw_text(_ini_cx, _ini_cy + 25, "PEGUE O D20, MOVA E SOLTE PARA ARREMESSAR");
-    } else if (disputa_inicial_estado == "rolando") {
-        draw_text(_ini_cx, _ini_cy + 25, "Os dois D20 estão rolando...");
-    } else if (disputa_inicial_estado == "resultado") {
+    if (disputa_inicial_estado == "resultado") {
         var _texto_resultado_ini = (disputa_inicial_resultado_jogador == disputa_inicial_resultado_inimigo)
             ? "EMPATE — NOVA ROLAGEM" : "O maior resultado escolhe quem começa";
         draw_text(_ini_cx, _ini_cy + 25, _texto_resultado_ini);

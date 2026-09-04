@@ -530,6 +530,9 @@ for (var i = 0; i < _total; i++) {
 if (mouse_check_button_pressed(mb_left)) {
     if (hover_atual != noone && instance_exists(hover_atual) && hover_atual.armadilha_estado == "pronta") {
         ativar_armadilha(hover_atual.id);
+    } else if (hover_atual != noone && instance_exists(hover_atual)
+        && hover_atual.categoria == "armadilha" && hover_atual.armadilha_estado == "vigiando") {
+        mostrar_aviso_regra("Armadilha já posicionada", hover_atual.x, hover_atual.y - 35);
     } else if (hover_atual != noone && instance_exists(hover_atual) && !hover_atual.travada) {
         with (hover_atual) {
             arrastando = true;
