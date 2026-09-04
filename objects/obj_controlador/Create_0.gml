@@ -25,25 +25,10 @@ randomize(); // garante que os números aleatórios mudam a cada execução do j
 #endregion
 
 #region Baralho e deck
-baralho = [
-    criar_dados_esquilo, criar_dados_lobo, criar_dados_urso, criar_dados_slime, criar_dados_mimic, 
-	criar_dados_olho_demonio, criar_dados_mago_da_sombra, criar_dados_gato_mago, criar_dados_goblin, criar_dados_hollow_jack, 
-	criar_dados_esqueleto, criar_dados_shroomilin,
-    criar_dados_recurso_sangue, criar_dados_recurso_ossos, criar_dados_recurso_sucata, criar_dados_recurso_mana,
-    criar_dados_construcao_torre,criar_dados_construcao_hemodrenario,
-    criar_dados_magica_bola_fogo, criar_dados_magica_veneno, criar_dados_magica_gelo, criar_dados_magica_choque,
-    criar_dados_item_espada, criar_dados_item_escudo, criar_dados_item_pocao,
-	criar_dados_item_sangue_suga, criar_dados_item_pocao_mana,
-    criar_dados_armadilha_urso,
-	criar_dados_bencao_vida, criar_dados_maldicao_perda,
-	criar_dados_bencao_decomposicao, criar_dados_maldicao_sangue_por_sangue,
-	criar_dados_item_bau, criar_dados_item_frasco_sangue,
-	criar_dados_item_vitamina_cerebro, criar_dados_item_elmo_ferro,
-	criar_dados_item_frasco_acido, criar_dados_terreno_pantano,criar_dados_terreno_cemiterio, criar_dados_item_espada_quebrada
-	
-];
+baralho = catalogo_cartas();
 
-monte = montar_deck();
+monte = (variable_global_exists("deck_contagens") && validar_contagens_baralho(baralho, global.deck_contagens))
+    ? montar_deck_personalizado(baralho, global.deck_contagens) : montar_deck();
 monte_inimigo = montar_deck();
 quantidade_inicial = 7;;
 #endregion
@@ -148,6 +133,10 @@ tooltip_escala = 0;
 tropa_selecionada = noone;
 digestao_selecao_ativa = false;
 digestao_origem = noone;
+mitose_selecao_ativa = false;
+mitose_dados_pendentes = noone;
+mitose_funcao_pendente = noone;
+mitose_slots_pendentes = [];
 visao_veu_ativa = false;
 visao_veu_origem = noone;
 visao_veu_opcoes = [];
@@ -200,11 +189,13 @@ tutorial_pagina = 0;
 tutorial_paginas = [
     { titulo: "BEM-VINDO A KARTHA", texto: "O objetivo é reduzir a vida do castelo inimigo a zero. Use suas cartas para formar tropas, criar recursos e controlar as três fileiras." },
     { titulo: "QUEM COMEÇA", texto: "No início, pegue o D20 sobre a mesa, mova e solte para arremessá-lo. O inimigo joga o dele automaticamente. Em caso de empate, arremesse novamente. Quem vencer escolhe qual lado começa; depois, clique no deck para receber sua mão e iniciar a partida." },
-    { titulo: "SEU TURNO", texto: "Compre cartas, coloque até um recurso e jogue suas cartas pagando o custo indicado. Recursos usados ficam virados até o próximo turno." },
-    { titulo: "TROPAS E MOVIMENTO", texto: "Cada jogador pode ter no máximo 1 tropa em cada coluna. Se tentar colocar outra na mesma coluna, a carta volta para a mão e aparece o aviso COLUNA OCUPADA. Uma tropa recém-colocada só pode se mover no próximo turno dela." },
+    { titulo: "INTERAÇÃO E SEU TURNO", texto: "Você pode inspecionar o campo, abrir os painéis e reorganizar a mão mesmo durante o turno inimigo. Arraste uma carta entre as outras para mudar sua posição. Jogar cartas e executar ações continua permitido apenas no seu turno." },
+    { titulo: "TROPAS E MOVIMENTO", texto: "Cada jogador pode ter no máximo 1 tropa em cada coluna. Se tentar colocar outra na mesma coluna, a carta volta para a mão e aparece o aviso COLUNA OCUPADA. Uma tropa recém-colocada só pode se mover no próximo turno dela. Depois, escolha Avançar ou Recuar; ambos consomem a ação de movimento." },
     { titulo: "COMBATE E CASTELO", texto: "Chegar ao centro não permite atingir o castelo. No centro, a tropa combate inimigos à frente; para atacar uma construção, o castelo ou a vida adversária, precisa avançar mais uma casa até a posição de assalto. Em um 20 natural, escolha entre dobrar os dados originais ou dobrar o resultado deles; modificadores são aplicados depois." },
     { titulo: "BOLA DE FOGO", texto: "Arraste a Bola de Fogo sobre uma tropa inimiga, construção inimiga ou sobre o marcador CASTELO. Ela joga seu D8 após o impacto. Somente tropas podem receber Queimado." },
-    { titulo: "AÇÕES E EVOLUÇÃO", texto: "Clique numa tropa no campo para atacar, mover, usar habilidade, evoluir ou defender. Evoluções exigem que a tropa tenha sobrevivido pelo menos um turno." },
+    { titulo: "AÇÕES E EVOLUÇÃO", texto: "Clique numa tropa no campo para atacar, avançar, recuar, usar habilidade, evoluir ou defender. Evoluções exigem que a tropa tenha sobrevivido pelo menos um turno." },
+    { titulo: "CONSTRUÇÕES", texto: "A Torre de Vigia dispara sua artilharia no início do turno. Clique no Hemodrenário para virar um Sangue inimigo e desvirar um recurso seu, uma vez por turno. Somente tropas com Alcance podem atacar construções." },
+    { titulo: "MITOSE", texto: "Ao morrer, a tropa com Mitose procura até 2 Slimets na mão ou no baralho. O primeiro ocupa a casa da morte; escolha uma casa adjacente destacada para o segundo. Pressione Esc para devolver o segundo à mão." },
     { titulo: "EFEITOS ATIVOS", texto: "Cada lado pode manter até 2 bênçãos e 2 maldições. Elas aparecem em quatro espaços próprios do tabuleiro: dourado para bênção e vermelho para maldição. Passe o mouse sobre uma carta ativa para ler seu efeito." },
     { titulo: "CONDIÇÕES", texto: "Uma tropa só mantém uma condição por vez. Confusão dá desvantagem e permite contra-ataque em qualquer erro; Adormecer joga uma moeda no início do turno; Berserker dobra apenas o dano original, dá vantagem e +4 DEF. Apodrecer e Regeneração jogam um único D4, que define duração e valor por turno." },
     { titulo: "ITENS E RECURSOS", texto: "No menu de uma tropa equipada, você pode devolver o último item à mão ou transferi-lo para uma tropa aliada com espaço. Cada tropa envolvida troca no máximo uma vez por turno. Clique com o botão direito em um recurso para devolvê-lo à mão; só 1 recurso pode ser retirado por turno." },

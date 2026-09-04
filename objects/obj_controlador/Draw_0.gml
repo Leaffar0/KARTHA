@@ -130,6 +130,16 @@ if (tropa_selecionada != noone && instance_exists(tropa_selecionada)) {
 #endregion
 
 #region Escolhas de alvo
+if (mitose_selecao_ativa) {
+    draw_set_halign(fa_center); draw_set_valign(fa_bottom); draw_set_color(c_lime);
+    draw_text_transformed(room_width / 2, room_height / 2, "MITOSE: escolha a casa do segundo Slimet", 0.45, 0.45, 0);
+    for (var _mdi = 0; _mdi < array_length(mitose_slots_pendentes); _mdi++) {
+        var _mds = mitose_slots_pendentes[_mdi];
+        if (_mds != noone && !_mds.ocupado) {
+            draw_set_alpha(0.4); draw_set_color(c_lime); draw_circle(_mds.x, _mds.y, 34, false); draw_set_alpha(1);
+        }
+    }
+}
 if (digestao_selecao_ativa && instance_exists(digestao_origem)) {
     draw_set_halign(fa_center); draw_set_valign(fa_bottom); draw_set_color(c_lime);
     draw_text_transformed(digestao_origem.x, digestao_origem.y - 55, "DIGESTÃO: escolha o alvo", 0.42, 0.42, 0);
@@ -156,7 +166,7 @@ if (carta_menu_aberto != noone && instance_exists(carta_menu_aberto) && menu_esc
     var _opcoes = obter_opcoes_menu(_carta);
     var _n = array_length(_opcoes);
     
-    var _largura_opcao = 120;
+    var _largura_opcao = 170;
     var _altura_opcao = 23;
     var _espaco_opcao = 6;
     var _altura_total = _n * _altura_opcao + (_n - 1) * _espaco_opcao;

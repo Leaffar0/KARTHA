@@ -32,6 +32,16 @@ if (armadilha_estado == "vigiando" || armadilha_estado == "pronta") {
 #region Soltar carta e aplicar efeito por categoria
 if (arrastando && mouse_check_button_released(mb_left)) {
     arrastando = false;
+
+    // Soltar na faixa da mão sempre significa organizar, inclusive durante o
+    // turno inimigo. Nenhuma carta é jogada ou recurso é consumido aqui.
+    if (mouse_na_faixa_da_mao(mouse_y)) {
+        reordenar_carta_na_mao(id, mouse_x);
+        organizar_mao();
+        esta_na_mao = true;
+        pulso_pouso_timer = pulso_pouso_duracao;
+        exit;
+    }
     
     if (obj_controlador.vida_jogador <= 0 || obj_controlador.vida_inimigo <= 0) {
         iniciar_retorno_carta(id);
@@ -209,7 +219,9 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         _construcao.dono = "jogador";
         _construcao.lane_atual = _slot_construcao_perto.lane;
         _construcao.slot_atual = _slot_construcao_perto;
-		_construcao.tem_habilidade_construcao = (nome_carta == "Hemodrenário");
+		_construcao.efeito_construcao = efeito_construcao;
+        _construcao.dado_efeito = dado_efeito;
+		_construcao.tem_habilidade_construcao = (efeito_construcao != "");
         
         _slot_construcao_perto.ocupado = true;
         _slot_construcao_perto.construcao_atual = _construcao.id;
@@ -278,7 +290,11 @@ if (arrastando && mouse_check_button_released(mb_left)) {
             case "veneno": aplicar_envenenado(_alvo_mais_perto); break;
             case "gelo": aplicar_congelado(_alvo_mais_perto); break;
             case "choque": aplicar_eletrocutado(_alvo_mais_perto); break;
-            default: aplicar_condicao_por_chave(_alvo_mais_perto, efeito_tipo); break;
+            default:
+                if (array_length(efeitos_declarativos) > 0)
+                    executar_efeitos_declarativos(efeitos_declarativos, _alvo_mais_perto, "jogador");
+                else aplicar_condicao_por_chave(_alvo_mais_perto, efeito_tipo);
+            break;
         }
 
         var _index = array_get_index(obj_controlador.mao, id);

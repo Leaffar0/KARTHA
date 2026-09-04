@@ -274,7 +274,7 @@ if (descarte_aberto) {
 
 var _botoes_direita_x1 = _tutorial_largura_gui - 205 + hud_deslocamento_direita;
 var _botoes_direita_x2 = _tutorial_largura_gui - 15 + hud_deslocamento_direita;
-if (!pausa_ativa && (keyboard_check_pressed(vk_f1) || (turno == "jogador" && mouse_check_button_pressed(mb_left)
+if (!pausa_ativa && (keyboard_check_pressed(vk_f1) || (mouse_check_button_pressed(mb_left)
     && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _botoes_direita_x1, 30, _botoes_direita_x2, 62)))) {
     tutorial_ativo = true;
     tutorial_pagina = 0;
@@ -354,21 +354,21 @@ if (keyboard_check_pressed(ord("P")) || _clicou_pausa) {
 var _mouse_gui_x_cemiterio = device_mouse_x_to_gui(0);
 var _mouse_gui_y_cemiterio = device_mouse_y_to_gui(0);
 var _gui_largura_cemiterio = display_get_gui_width();
-if (turno == "jogador" && mouse_check_button_pressed(mb_left)
+if (mouse_check_button_pressed(mb_left)
     && point_in_rectangle(_mouse_gui_x_cemiterio, _mouse_gui_y_cemiterio, 14 - hud_deslocamento_esquerda, 210, 190 - hud_deslocamento_esquerda, 242)) {
     historico_aberto = !historico_aberto;
     exit;
 }
-if (turno == "jogador" && mouse_check_button_pressed(mb_left)
+if (mouse_check_button_pressed(mb_left)
     && point_in_rectangle(_mouse_gui_x_cemiterio, _mouse_gui_y_cemiterio, _gui_largura_cemiterio - 205 + hud_deslocamento_direita, 72, _gui_largura_cemiterio - 15 + hud_deslocamento_direita, 104)) {
     cemiterio_aberto = !cemiterio_aberto;
     exit;
 }
 
-// Enquanto a IA joga, o turno é processado em etapas e o jogador não pode interagir.
+// A IA continua processando em etapas, mas a interface não é congelada:
+// o jogador ainda pode inspecionar o campo e reorganizar a própria mão.
 if (turno == "inimigo" && ia_ativa) {
     processar_turno_ia();
-    exit;
 }
 
 // Espaço encerra o turno do jogador. Escolhas simples de alvo são canceladas;
@@ -486,6 +486,32 @@ if (carta_preview != noone) {
 }
 #endregion
 
+// A Mitose coloca o primeiro Slimet na casa da morte e deixa o jogador
+// escolher uma das casas adjacentes livres para o segundo.
+if (mitose_selecao_ativa) {
+    if (mouse_check_button_pressed(mb_left)) {
+        var _slot_mitose_escolhido = noone;
+        var _menor_distancia_mitose = 38;
+        for (var _mi = 0; _mi < array_length(mitose_slots_pendentes); _mi++) {
+            var _slot_mi = mitose_slots_pendentes[_mi];
+            if (_slot_mi != noone && !_slot_mi.ocupado) {
+                var _dist_mi = point_distance(mouse_x, mouse_y, _slot_mi.x, _slot_mi.y);
+                if (_dist_mi < _menor_distancia_mitose) { _menor_distancia_mitose = _dist_mi; _slot_mitose_escolhido = _slot_mi; }
+            }
+        }
+        if (_slot_mitose_escolhido != noone) {
+            criar_tropa_no_slot(mitose_dados_pendentes, _slot_mitose_escolhido, "jogador");
+            mitose_selecao_ativa = false;
+            mitose_slots_pendentes = [];
+        } else mostrar_aviso_regra("Escolha uma casa adjacente destacada", mouse_x, mouse_y);
+    } else if (keyboard_check_pressed(vk_escape)) {
+        comprar_carta_do_deck_por_funcao(mitose_funcao_pendente, room_width / 2, obj_controlador.mao_y);
+        mitose_selecao_ativa = false;
+        mitose_slots_pendentes = [];
+    }
+    exit;
+}
+
 // Modos de escolha iniciados por habilidades e ações do menu.
 if (digestao_selecao_ativa) {
     if (!instance_exists(digestao_origem) || keyboard_check_pressed(vk_escape) || mouse_check_button_pressed(mb_right)) {
@@ -514,9 +540,9 @@ if (troca_item_selecao_ativa) {
     exit;
 }
 
-// A tropa destacada só existe enquanto ela continuar válida e no turno do jogador.
+// A seleção continua disponível para consulta até durante o turno inimigo.
 if (tropa_selecionada != noone && (!instance_exists(tropa_selecionada)
-    || !tropa_selecionada.travada || tropa_selecionada.dono != "jogador" || turno != "jogador")) {
+    || !tropa_selecionada.travada || tropa_selecionada.dono != "jogador")) {
     tropa_selecionada = noone;
 }
 
@@ -586,6 +612,18 @@ if (mouse_check_button_pressed(mb_left)) {
         }
     }
 }
+
+// Enquanto a carta cruza as demais, a mão abre espaço em tempo real.
+var _carta_arrastada_mao = noone;
+for (var _ri = 0; _ri < array_length(mao); _ri++) {
+    if (instance_exists(mao[_ri]) && mao[_ri].arrastando) {
+        _carta_arrastada_mao = mao[_ri];
+        break;
+    }
+}
+if (_carta_arrastada_mao != noone && mouse_na_faixa_da_mao(mouse_y)) {
+    reordenar_carta_na_mao(_carta_arrastada_mao, mouse_x);
+}
 #endregion
 
 #region Scroll horizontal da mão (perto das bordas da tela, só quando o mouse está sobre a mão)
@@ -626,7 +664,7 @@ if (carta_menu_aberto != noone && instance_exists(carta_menu_aberto) && menu_esc
     var _opcoes = obter_opcoes_menu(_carta);
     var _n = array_length(_opcoes);
 
-    var _largura_opcao = 120;
+    var _largura_opcao = 170;
     var _altura_opcao = 23;
     var _espaco_opcao = 6;
     var _altura_total = _n * _altura_opcao + (_n - 1) * _espaco_opcao;
