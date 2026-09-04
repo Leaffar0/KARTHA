@@ -1056,6 +1056,7 @@ function buscar_recurso_no_deck(_tipo_recurso, _dono) {
     var _indice = array_get_index(_monte, _funcao_alvo);
     if (_indice == -1) {
         debug_combate("Busca: nenhum recurso de " + _tipo_recurso + " restou no deck.");
+        if (_dono == "jogador") mostrar_aviso_regra("Não há mais " + nome_recurso_exibicao(_tipo_recurso, 1) + " no baralho");
         return false;
     }
 
@@ -4178,6 +4179,7 @@ function evoluir_tropa(_carta) {
     if (_carta.funcao_evolucao == noone) return;
     if (_carta.turnos_no_campo < 1) {
         debug_combate("Ainda não pode evoluir, precisa sobreviver 1 turno completo.");
+        if (_carta.dono == "jogador") mostrar_aviso_regra("A tropa precisa sobreviver 1 turno", _carta.x, _carta.y);
         return;
     }
     if (!evolucoes_disponiveis(_carta.dono)) {
@@ -4429,10 +4431,12 @@ function executar_opcao_menu(_carta, _opcao) {
         case "Defender Castelo":
             _carta.defendendo_castelo = true;
             debug_combate(_carta.nome_carta + " está defendendo o castelo.");
+            mostrar_feedback("DEFENDENDO", _carta.x, _carta.y - 35, c_aqua, 45);
             break;
         case "Parar de Defender":
             _carta.defendendo_castelo = false;
             debug_combate(_carta.nome_carta + " deixou de defender o castelo.");
+            mostrar_feedback("DEFESA ENCERRADA", _carta.x, _carta.y - 35, c_silver, 45);
             break;
         case "Habilidade":
             usar_habilidade(_carta);
@@ -4597,6 +4601,7 @@ function usar_habilidade(_carta) {
 function habilidade_golpe_duplo(_carta) {
     if (_carta.atacou_este_turno) {
         debug_combate("Golpe Duplo: já atacou esse turno, não pode usar.");
+        if (_carta.dono == "jogador") mostrar_aviso_regra("Esta tropa já atacou neste turno", _carta.x, _carta.y);
         return;
     }
 
@@ -4616,6 +4621,7 @@ function habilidade_golpe_duplo(_carta) {
 function habilidade_sombra_translucida(_carta) {
     if (_carta.sombra_cooldown > 0) {
         debug_combate("Sombra Translúcida ainda recarregando (" + string(_carta.sombra_cooldown) + " turnos).");
+        if (_carta.dono == "jogador") mostrar_aviso_regra("Sombra recarregando por " + string(_carta.sombra_cooldown) + " turno(s)", _carta.x, _carta.y);
         return;
     }
 
@@ -4649,6 +4655,7 @@ function habilidade_ferida_exposta(_carta) {
 
     if (_slot_alvo == noone || !_slot_alvo.ocupado || _slot_alvo.carta_atual.dono != _lado_defensor) {
         debug_combate("Ferida Exposta: sem alvo na frente.");
+        if (_carta.dono == "jogador") mostrar_aviso_regra("Ferida Exposta precisa de um inimigo à frente", _carta.x, _carta.y);
         return;
     }
 
@@ -4670,6 +4677,7 @@ function habilidade_ferida_exposta(_carta) {
             if (alvo.vida <= 0) destruir_tropa(alvo);
         } else {
             debug_combate("Ferida Exposta: coroa, nada aconteceu.");
+            mostrar_feedback("SEM EFEITO", alvo.x, alvo.y - 35, c_silver, 40);
         }
     }));
 }
@@ -4683,6 +4691,7 @@ function habilidade_imitacao(_carta) {
 
     if (_slot_alvo == noone || !_slot_alvo.ocupado || _slot_alvo.carta_atual.dono != _lado_defensor) {
         debug_combate("Imitação: sem tropa inimiga na frente pra enganar.");
+        if (_carta.dono == "jogador") mostrar_aviso_regra("Imitação precisa de um inimigo à frente", _carta.x, _carta.y);
         return;
     }
 
@@ -4702,6 +4711,7 @@ function habilidade_imitacao(_carta) {
         debug_combate(_carta.nome_carta + " realizou o contra-ataque da Imitação!");
     } else {
         debug_combate("A tropa inimiga não caiu no truque.");
+        mostrar_feedback("FALHOU", _alvo.x, _alvo.y - 35, c_silver, 40);
     }
 }
 
@@ -4866,6 +4876,7 @@ function verificar_olhar_vazio(_carta) {
     if (_rolagem <= 10) {
         aplicar_condicao(_carta, "paralisado", 1, 0);
         debug_combate(_carta.nome_carta + " ficou PARALISADO pelo Olhar Vazio!");
+        mostrar_feedback("PARALISADO", _carta.x, _carta.y - 35, c_aqua, 45);
     }
 }
 #endregion

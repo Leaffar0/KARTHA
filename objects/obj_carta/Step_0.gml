@@ -40,6 +40,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
     }
     
 	if (obj_controlador.turno != "jogador") {
+	    mostrar_aviso_regra("Aguarde o seu turno", x, y);
 	    iniciar_retorno_carta(id);
 	    esta_na_mao = true;
 	    exit;
@@ -140,7 +141,11 @@ if (arrastando && mouse_check_button_released(mb_left)) {
                     mostrar_aviso_regra("Coluna ocupada: máximo de 1 tropa", _slot_mais_perto.x, _slot_mais_perto.y);
                 } else if (_slot_mais_perto.ocupado) {
                     mostrar_aviso_regra("A base desta coluna está ocupada", _slot_mais_perto.x, _slot_mais_perto.y);
+                } else if (obj_controlador.cartas_jogadas_no_turno >= obj_controlador.max_cartas_por_turno) {
+                    mostrar_aviso_regra("Limite de cartas por turno atingido", x, y);
                 }
+            } else {
+                mostrar_aviso_regra("Solte a tropa em uma base válida", x, y);
             }
             iniciar_retorno_carta(id);
             esta_na_mao = true;
@@ -175,6 +180,8 @@ if (arrastando && mouse_check_button_released(mb_left)) {
                 esta_na_mao = true;
             }
         } else {
+            if (obj_controlador.recurso_colocado_no_turno) mostrar_aviso_regra("Você já colocou 1 recurso neste turno", x, y);
+            else mostrar_aviso_regra("Área de recursos cheia ou posição inválida", x, y);
             iniciar_retorno_carta(id);
             esta_na_mao = true;
         }
@@ -215,6 +222,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         mostrar_feedback("USADA", x, y, c_gray, 30);
         instance_destroy(id);
     } else {
+        if (_slot_construcao_perto == noone) mostrar_aviso_regra("Solte em um espaço de construção livre", x, y);
         iniciar_retorno_carta(id);
         esta_na_mao = true;
     }
@@ -281,6 +289,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         registrar_descarte(id);
         instance_destroy(id);
     } else {
+        if (!_tem_alvo_magia) mostrar_aviso_regra("Solte a magia sobre um alvo válido", x, y);
         iniciar_retorno_carta(id);
         esta_na_mao = true;
     }
@@ -307,6 +316,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         mostrar_feedback("EQUIPADO", _alvo.x, _alvo.y - 40, c_aqua, 35);
         instance_destroy(id);
     } else {
+        if (_alvo == noone) mostrar_aviso_regra("Solte o item sobre uma tropa que possa equipá-lo", x, y);
         iniciar_retorno_carta(id); esta_na_mao = true;
     }
 
@@ -389,6 +399,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
             registrar_descarte(id);
             instance_destroy(id);
         } else {
+            if (_alvo == noone) mostrar_aviso_regra("Solte o ácido sobre uma tropa", x, y);
             iniciar_retorno_carta(id);
             esta_na_mao = true;
         }
@@ -411,6 +422,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
                 instance_destroy(id);
             } else {
                 debug_combate("Frasco de Sangue: nenhum sangue virado pra reverter.");
+                mostrar_aviso_regra("Não há Sangue gasto para revirar", x, y);
                 iniciar_retorno_carta(id);
                 esta_na_mao = true;
             }
@@ -458,6 +470,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
             registrar_descarte(id);
             instance_destroy(id);
         } else {
+            if (_alvo == noone) mostrar_aviso_regra("Solte o item sobre uma tropa aliada", x, y);
             iniciar_retorno_carta(id);
             esta_na_mao = true;
         }
@@ -524,6 +537,8 @@ if (arrastando && mouse_check_button_released(mb_left)) {
     } else {
         if (_slot_armadilha_ocupado) {
             mostrar_aviso_regra("Este espaço já possui uma armadilha", _slot_armadilha.x, _slot_armadilha.y);
+        } else if (_slot_armadilha == noone) {
+            mostrar_aviso_regra("Solte a armadilha em um espaço válido do seu campo", x, y);
         }
         iniciar_retorno_carta(id);
         esta_na_mao = true;
@@ -597,6 +612,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
             instance_destroy(id);
         } else {
             debug_combate("Já tem " + string(obj_controlador.max_bencaos_maldicoes) + " " + categoria + "s ativas!");
+            mostrar_aviso_regra("Não há espaço para outro efeito ativo", x, y);
             iniciar_retorno_carta(id);
             esta_na_mao = true;
         }

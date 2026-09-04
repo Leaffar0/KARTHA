@@ -417,6 +417,53 @@ draw_set_color(c_white);
 draw_set_font(-1);
 #endregion
 
+#region Confirmação de retirada de recurso
+if (confirmacao_recurso_ativa && instance_exists(recurso_pendente_retirada)) {
+    var _recurso_modal_largura = display_get_gui_width();
+    var _recurso_modal_altura = display_get_gui_height();
+    var _recurso_modal_cx = _recurso_modal_largura / 2;
+    var _recurso_modal_cy = _recurso_modal_altura / 2;
+
+    draw_set_alpha(0.65);
+    draw_set_color(c_black);
+    draw_rectangle(0, 0, _recurso_modal_largura, _recurso_modal_altura, false);
+    draw_set_alpha(1);
+    draw_set_color(c_black);
+    draw_roundrect(_recurso_modal_cx - 245, _recurso_modal_cy - 110,
+        _recurso_modal_cx + 245, _recurso_modal_cy + 110, false);
+    draw_set_color(c_white);
+    draw_roundrect(_recurso_modal_cx - 245, _recurso_modal_cy - 110,
+        _recurso_modal_cx + 245, _recurso_modal_cy + 110, true);
+
+    draw_set_font(fnt_botao);
+    draw_set_halign(fa_center);
+    draw_set_valign(fa_middle);
+    draw_set_color(c_yellow);
+    draw_text(_recurso_modal_cx, _recurso_modal_cy - 62, "RETIRAR RECURSO?");
+    draw_set_font(-1);
+    draw_set_color(c_white);
+    draw_text(_recurso_modal_cx, _recurso_modal_cy - 25,
+        string_upper(recurso_pendente_retirada.tipo));
+
+    draw_set_color(c_black);
+    draw_roundrect(_recurso_modal_cx - 180, _recurso_modal_cy + 42,
+        _recurso_modal_cx - 12, _recurso_modal_cy + 82, false);
+    draw_roundrect(_recurso_modal_cx + 12, _recurso_modal_cy + 42,
+        _recurso_modal_cx + 180, _recurso_modal_cy + 82, false);
+    draw_set_color(c_white);
+    draw_roundrect(_recurso_modal_cx - 180, _recurso_modal_cy + 42,
+        _recurso_modal_cx - 12, _recurso_modal_cy + 82, true);
+    draw_roundrect(_recurso_modal_cx + 12, _recurso_modal_cy + 42,
+        _recurso_modal_cx + 180, _recurso_modal_cy + 82, true);
+    draw_text(_recurso_modal_cx - 96, _recurso_modal_cy + 62, "RETIRAR");
+    draw_text(_recurso_modal_cx + 96, _recurso_modal_cy + 62, "CANCELAR");
+
+    draw_set_halign(fa_left);
+    draw_set_valign(fa_top);
+    draw_set_color(c_white);
+}
+#endregion
+
 #region Confirmação de descarte manual
 if (confirmacao_descarte_ativa && instance_exists(carta_pendente_descarte)) {
     var _confirmacao_largura = display_get_gui_width();

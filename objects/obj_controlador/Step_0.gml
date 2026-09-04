@@ -183,6 +183,31 @@ if (critico_escolha_ativa) {
     exit;
 }
 
+// Confirmação da retirada de recurso: só retira depois da escolha do jogador.
+if (confirmacao_recurso_ativa) {
+    var _confirmacao_recurso_cx = _tutorial_largura_gui / 2;
+    var _confirmacao_recurso_cy = _tutorial_altura_gui / 2;
+    var _confirmar_recurso = mouse_check_button_pressed(mb_left)
+        && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y,
+            _confirmacao_recurso_cx - 180, _confirmacao_recurso_cy + 42,
+            _confirmacao_recurso_cx - 12, _confirmacao_recurso_cy + 82);
+    var _cancelar_recurso = mouse_check_button_pressed(mb_left)
+        && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y,
+            _confirmacao_recurso_cx + 12, _confirmacao_recurso_cy + 42,
+            _confirmacao_recurso_cx + 180, _confirmacao_recurso_cy + 82);
+
+    if (_confirmar_recurso && instance_exists(recurso_pendente_retirada)) {
+        retirar_recurso_do_campo(recurso_pendente_retirada);
+        recurso_pendente_retirada = noone;
+        confirmacao_recurso_ativa = false;
+    } else if (keyboard_check_pressed(vk_escape) || _cancelar_recurso
+        || !instance_exists(recurso_pendente_retirada)) {
+        recurso_pendente_retirada = noone;
+        confirmacao_recurso_ativa = false;
+    }
+    exit;
+}
+
 // Armadilhas preparadas pela IA continuam secretas e são resolvidas assim que
 // uma tropa do jogador entra no espaço vigiado. As armadilhas do jogador permanecem manuais.
 if (partida_iniciada && turno == "jogador" && ia_ativar_armadilhas_prontas()) exit;
