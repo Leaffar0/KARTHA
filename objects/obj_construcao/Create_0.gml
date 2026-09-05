@@ -1,5 +1,9 @@
 depth = -100;
 nome_construcao = "Torre";
+nome_carta = nome_construcao;
+categoria = "construcao";
+custo = noone;
+tem_arte_propria = false;
 vida = 5;
 vida_maxima = 5;
 dono = "jogador";
@@ -11,3 +15,7 @@ efeito_construcao = "";
 dado_efeito = 0;
 entrada_visual_timer = 24;
 entrada_visual_duracao = 24;
+usa_sprite_carta = false;
+escala_visual_base = 1;
+vida_pos_x = 0.16;
+vida_pos_y = 0.12;

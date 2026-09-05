@@ -77,6 +77,24 @@ draw_set_halign(fa_left);
 draw_set_valign(fa_top);
 #endregion
 
+#region Efeitos temporários de dados
+draw_set_font(Fontenil);
+draw_set_halign(fa_left);
+draw_set_valign(fa_top);
+if (dados_manipulados_usos_jogador > 0) {
+    draw_set_color(c_aqua);
+    draw_text_transformed(302, 520, "D4 = " + string(dados_manipulados_valor_jogador)
+        + "  •  " + string(dados_manipulados_usos_jogador) + " uso(s)", 0.34, 0.34, 0);
+}
+if (dados_manipulados_usos_inimigo > 0) {
+    draw_set_color(c_purple);
+    draw_text_transformed(678, 258, "DADOS MANIPULADOS  •  "
+        + string(dados_manipulados_usos_inimigo) + " uso(s)", 0.34, 0.34, 0);
+}
+draw_set_font(-1);
+draw_set_color(c_white);
+#endregion
+
 #region Indicadores da tropa selecionada
 if (tropa_selecionada != noone && instance_exists(tropa_selecionada)) {
     var _selecionada = tropa_selecionada;

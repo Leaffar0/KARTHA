@@ -8,7 +8,8 @@ if (morrendo) {
 #endregion
 
 #region Armadilha vigiando: detecta gatilho e faz a carta balançar na mão
-if (armadilha_estado == "vigiando" || armadilha_estado == "pronta") {
+if ((armadilha_estado == "vigiando" || armadilha_estado == "pronta")
+    && efeito_tipo == "armadilha_urso") {
     var _slot_vigiado = buscar_slot(armadilha_lane, armadilha_posicao);
     var _alvo_vigiado = (_slot_vigiado != noone && _slot_vigiado.ocupado) ? _slot_vigiado.carta_atual : noone;
     // A armadilha reconhece a entrada primeiro; Voar e Visão do Véu são
@@ -118,7 +119,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
 
         if (_slot_mais_perto != noone && !_slot_mais_perto.ocupado && !_coluna_ocupada
             && obj_controlador.cartas_jogadas_no_turno < obj_controlador.max_cartas_por_turno
-            && pode_pagar_custo(custo, "jogador")) {
+            && pode_pagar_custo(custo, "jogador", categoria)) {
             _slot_mais_perto.ocupado = true;
             _slot_mais_perto.carta_atual = id;
             slot_atual = _slot_mais_perto;
@@ -126,7 +127,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
             lane_atual = _slot_mais_perto.lane;
             posicao_atual = _slot_mais_perto.posicao;
             dono = "jogador";
-            pagar_custo(custo, "jogador");
+            pagar_custo(custo, "jogador", categoria);
 
             esta_na_mao = false;
             travada = true;
@@ -179,6 +180,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
             var _resultado = colocar_recurso(tipo_recurso, "jogador", x, y, _slot_recurso_perto);
             
             if (_resultado == "colocado") {
+                registrar_ultima_carta_jogada(funcao_dados_origem, "jogador");
                 var _index = array_get_index(obj_controlador.mao, id);
                 if (_index != -1) {
                     array_delete(obj_controlador.mao, _index, 1);
@@ -208,12 +210,25 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         }
     }
     
-    if (_slot_construcao_perto != noone && obj_controlador.construcoes_jogadas_este_turno < 1 && pode_pagar_custo(custo, "jogador")) {
-        pagar_custo(custo, "jogador");
+    if (_slot_construcao_perto != noone && obj_controlador.construcoes_jogadas_este_turno < 1 && pode_pagar_custo(custo, "jogador", categoria)) {
+        pagar_custo(custo, "jogador", categoria);
         obj_controlador.construcoes_jogadas_este_turno += 1;
         
         var _construcao = instance_create_layer(_slot_construcao_perto.x, _slot_construcao_perto.y, "Instances", obj_construcao);
         _construcao.nome_construcao = nome_carta;
+        _construcao.nome_carta = nome_carta;
+        _construcao.custo = custo;
+        if (tem_arte_propria) {
+            _construcao.sprite_index = sprite_index;
+            _construcao.usa_sprite_carta = true;
+            _construcao.tem_arte_propria = true;
+            _construcao.escala_visual_base = min((global.CARTA_LARGURA * 0.60) / sprite_get_width(sprite_index),
+                (global.CARTA_ALTURA * 0.60) / sprite_get_height(sprite_index));
+            _construcao.image_xscale = _construcao.escala_visual_base;
+            _construcao.image_yscale = _construcao.escala_visual_base;
+            _construcao.vida_pos_x = clamp(vida_pos_x + 0.05, 0, 1);
+            _construcao.vida_pos_y = clamp(vida_pos_y + 0.05, 0, 1);
+        }
         _construcao.vida = vida;
         _construcao.vida_maxima = vida;
         _construcao.dono = "jogador";
@@ -231,6 +246,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
             array_delete(obj_controlador.mao, _index, 1);
             organizar_mao();
         }
+        registrar_ultima_carta_jogada(funcao_dados_origem, "jogador");
         mostrar_feedback("USADA", x, y, c_gray, 30);
         instance_destroy(id);
     } else {
@@ -240,72 +256,106 @@ if (arrastando && mouse_check_button_released(mb_left)) {
     }
 	
 	} else if (categoria == "magica") {
-    var _alvo_mais_perto = noone;
+    var _distancia_arrastada = point_distance(x, y, arrastar_inicio_x, arrastar_inicio_y);
+    var _alvo_magia = noone;
     var _tipo_alvo_magia = "tropa";
     var _dono_castelo_alvo = "";
-    var _menor_distancia = 9999;
-    var _distancia_maxima = 65;
+    var _menor_distancia_magia = 9999;
+    var _distancia_maxima_magia = 65;
+    var _pode_executar = false;
 
-    // Magias ofensivas miram tropas inimigas. A Bola de Fogo também aceita
-    // construções e a área do castelo inimigo.
-    with (obj_carta) {
-        if (id == other.id || !travada || dono != "inimigo") continue;
-        var _dist = point_distance(x, y, other.x, other.y);
-        if (_dist < _distancia_maxima && _dist < _menor_distancia) {
-            _menor_distancia = _dist;
-            _alvo_mais_perto = id;
-            _tipo_alvo_magia = "tropa";
+    if (efeito_tipo == "dados_manipulados" || efeito_tipo == "refracao_temporal" || efeito_tipo == "buscar_sangue") {
+        _pode_executar = _distancia_arrastada > 80;
+        if (efeito_tipo == "refracao_temporal" && ultima_carta_jogada("jogador") == noone) {
+            mostrar_aviso_regra("Jogue outra carta antes da Refração Temporal", x, y);
+            _pode_executar = false;
         }
-    }
-
-    if (efeito_tipo == "bola_fogo") {
-        with (obj_construcao) {
-            if (dono != "inimigo") continue;
-            var _dist = point_distance(x, y, other.x, other.y);
-            if (_dist < _distancia_maxima && _dist < _menor_distancia) {
-                _menor_distancia = _dist;
-                _alvo_mais_perto = id;
-                _tipo_alvo_magia = "construcao";
+    } else if (efeito_tipo == "bloqueio_recurso") {
+        with (obj_recurso) {
+            var _dist_recurso = point_distance(x, y, other.x, other.y);
+            if (_dist_recurso < _distancia_maxima_magia && _dist_recurso < _menor_distancia_magia) {
+                _menor_distancia_magia = _dist_recurso;
+                _alvo_magia = id;
             }
         }
-        var _pos_castelo = obter_posicao_castelo("inimigo");
-        var _dist_castelo = point_distance(x, y, _pos_castelo.x, _pos_castelo.y);
-        if (_dist_castelo < 95 && _dist_castelo < _menor_distancia) {
-            _alvo_mais_perto = noone;
-            _tipo_alvo_magia = "castelo";
-            _dono_castelo_alvo = "inimigo";
-            _menor_distancia = _dist_castelo;
+        _pode_executar = instance_exists(_alvo_magia);
+        if (!_pode_executar) mostrar_aviso_regra("Solte sobre o recurso que deseja bloquear", x, y);
+    } else {
+        with (obj_carta) {
+            if (id == other.id || !travada) continue;
+            var _aceita = (other.efeito_tipo == "eutanasia") ? (vida <= 5) : (dono == "inimigo");
+            if (!_aceita) continue;
+            var _dist = point_distance(x, y, other.x, other.y);
+            if (_dist < _distancia_maxima_magia && _dist < _menor_distancia_magia) {
+                _menor_distancia_magia = _dist;
+                _alvo_magia = id;
+                _tipo_alvo_magia = "tropa";
+            }
+        }
+        if (efeito_tipo == "bola_fogo") {
+            with (obj_construcao) {
+                if (dono != "inimigo") continue;
+                var _dist = point_distance(x, y, other.x, other.y);
+                if (_dist < _distancia_maxima_magia && _dist < _menor_distancia_magia) {
+                    _menor_distancia_magia = _dist;
+                    _alvo_magia = id;
+                    _tipo_alvo_magia = "construcao";
+                }
+            }
+            var _pos_castelo = obter_posicao_castelo("inimigo");
+            var _dist_castelo = point_distance(x, y, _pos_castelo.x, _pos_castelo.y);
+            if (_dist_castelo < 95 && _dist_castelo < _menor_distancia_magia) {
+                _alvo_magia = noone;
+                _tipo_alvo_magia = "castelo";
+                _dono_castelo_alvo = "inimigo";
+                _menor_distancia_magia = _dist_castelo;
+            }
+        }
+        _pode_executar = instance_exists(_alvo_magia) || _tipo_alvo_magia == "castelo";
+        if (!_pode_executar) {
+            mostrar_aviso_regra(efeito_tipo == "eutanasia"
+                ? "Eutanásia exige uma tropa com até 5 de vida"
+                : "Solte a magia sobre um alvo válido", x, y);
         }
     }
 
-    var _tem_alvo_magia = instance_exists(_alvo_mais_perto) || _tipo_alvo_magia == "castelo";
-    if (_tem_alvo_magia && obj_controlador.magias_usadas_este_turno < 2 && pode_pagar_custo(custo, "jogador")) {
-        pagar_custo(custo, "jogador");
-        obj_controlador.magias_usadas_este_turno += 1;
+    if (_pode_executar && pode_pagar_custo(custo, "jogador", categoria)) {
+        var _executou_magia = true;
         switch (efeito_tipo) {
+            case "dados_manipulados": ativar_dados_manipulados("jogador", x, y); break;
+            case "refracao_temporal": _executou_magia = usar_refracao_temporal(id); break;
+            case "buscar_sangue": _executou_magia = buscar_recurso_no_deck("sangue", "jogador"); break;
+            case "bloqueio_recurso": _executou_magia = bloquear_recurso(_alvo_magia, 3); break;
+            case "eutanasia": destruir_tropa(_alvo_magia, _alvo_magia.dono != "jogador"); break;
             case "bola_fogo":
-                lancar_bola_de_fogo(_alvo_mais_perto, dado_efeito, chance_queimar,
+                lancar_bola_de_fogo(_alvo_magia, dado_efeito, chance_queimar,
                     _tipo_alvo_magia, _dono_castelo_alvo, "jogador");
             break;
-            case "veneno": aplicar_envenenado(_alvo_mais_perto); break;
-            case "gelo": aplicar_congelado(_alvo_mais_perto); break;
-            case "choque": aplicar_eletrocutado(_alvo_mais_perto); break;
+            case "veneno": aplicar_envenenado(_alvo_magia); break;
+            case "gelo": aplicar_congelado(_alvo_magia); break;
+            case "choque": aplicar_eletrocutado(_alvo_magia); break;
             default:
                 if (array_length(efeitos_declarativos) > 0)
-                    executar_efeitos_declarativos(efeitos_declarativos, _alvo_mais_perto, "jogador");
-                else aplicar_condicao_por_chave(_alvo_mais_perto, efeito_tipo);
+                    _executou_magia = executar_efeitos_declarativos(efeitos_declarativos, _alvo_magia, "jogador");
+                else _executou_magia = aplicar_condicao_por_chave(_alvo_magia, efeito_tipo);
             break;
         }
 
-        var _index = array_get_index(obj_controlador.mao, id);
-        if (_index != -1) {
-            array_delete(obj_controlador.mao, _index, 1);
-            organizar_mao();
+        if (_executou_magia) {
+            pagar_custo(custo, "jogador", categoria);
+            obj_controlador.magias_usadas_este_turno += 1;
+            var _index_magia = array_get_index(obj_controlador.mao, id);
+            if (_index_magia != -1) {
+                array_delete(obj_controlador.mao, _index_magia, 1);
+                organizar_mao();
+            }
+            registrar_descarte(id);
+            instance_destroy(id);
+        } else {
+            iniciar_retorno_carta(id);
+            esta_na_mao = true;
         }
-        registrar_descarte(id);
-        instance_destroy(id);
     } else {
-        if (!_tem_alvo_magia) mostrar_aviso_regra("Solte a magia sobre um alvo válido", x, y);
         iniciar_retorno_carta(id);
         esta_na_mao = true;
     }
@@ -319,16 +369,17 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         var _dist = point_distance(x, y, other.x, other.y);
         if (_dist < 60 && _dist < _menor_distancia) { _menor_distancia = _dist; _alvo = id; }
     }
-    if (_alvo != noone && pode_pagar_custo(custo, "jogador")) {
-        pagar_custo(custo, "jogador");
+    if (_alvo != noone && pode_pagar_custo(custo, "jogador", categoria)) {
+        pagar_custo(custo, "jogador", categoria);
         obj_controlador.itens_usados_este_turno += 1;
         var _dados_item = criar_dados_item_equipado(nome_carta, sprite_index, funcao_dados_origem,
-            bonus_mod_dano_item, bonus_defesa_item, sobrescreve_dado_dano_item, sobrescreve_mod_dano_item);
+            bonus_mod_dano_item, bonus_defesa_item, sobrescreve_dado_dano_item, sobrescreve_mod_dano_item, efeito_item);
         equipar_item_dados(_alvo, _dados_item);
         criar_animacao_item(sprite_index, x, y, _alvo.x, _alvo.y, c_aqua);
         _alvo.troca_item_usada_este_turno = true;
         var _index = array_get_index(obj_controlador.mao, id);
         if (_index != -1) { array_delete(obj_controlador.mao, _index, 1); organizar_mao(); }
+        registrar_ultima_carta_jogada(funcao_dados_origem, "jogador");
         mostrar_feedback("EQUIPADO", _alvo.x, _alvo.y - 40, c_aqua, 35);
         instance_destroy(id);
     } else {
@@ -342,9 +393,9 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         var _distancia_arrastada = point_distance(x, y, arrastar_inicio_x, arrastar_inicio_y);
         var _tipo_buscado = string_delete(efeito_tipo, 1, string_length("buscar_"));
 
-        if (_distancia_arrastada > 80 && pode_pagar_custo(custo, "jogador")) {
+        if (_distancia_arrastada > 80 && pode_pagar_custo(custo, "jogador", categoria)) {
             if (buscar_recurso_no_deck(_tipo_buscado, "jogador")) {
-                pagar_custo(custo, "jogador");
+                pagar_custo(custo, "jogador", categoria);
                 obj_controlador.itens_usados_este_turno += 1;
                 var _index = array_get_index(obj_controlador.mao, id);
                 if (_index != -1) {
@@ -367,8 +418,8 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         // --- Baú ---
         var _distancia_arrastada = point_distance(x, y, arrastar_inicio_x, arrastar_inicio_y);
 
-        if (_distancia_arrastada > 80 && pode_pagar_custo(custo, "jogador")) {
-            pagar_custo(custo, "jogador");
+        if (_distancia_arrastada > 80 && pode_pagar_custo(custo, "jogador", categoria)) {
+            pagar_custo(custo, "jogador", categoria);
             obj_controlador.itens_usados_este_turno += 1;
             comprar_varias_cartas(quantidade_efeito, "jogador");
 
@@ -401,8 +452,8 @@ if (arrastando && mouse_check_button_released(mb_left)) {
             }
         }
 
-        if (_alvo != noone && pode_pagar_custo(custo, "jogador")) {
-            pagar_custo(custo, "jogador");
+        if (_alvo != noone && pode_pagar_custo(custo, "jogador", categoria)) {
+            pagar_custo(custo, "jogador", categoria);
             obj_controlador.itens_usados_este_turno += 1;
             aplicar_corrosao(_alvo);
 
@@ -424,9 +475,9 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         // --- Frasco de Sangue ---
         var _distancia_arrastada = point_distance(x, y, arrastar_inicio_x, arrastar_inicio_y);
 
-        if (_distancia_arrastada > 80 && pode_pagar_custo(custo, "jogador")) {
+        if (_distancia_arrastada > 80 && pode_pagar_custo(custo, "jogador", categoria)) {
             if (revirar_recurso("sangue", "jogador")) {
-                pagar_custo(custo, "jogador");
+                pagar_custo(custo, "jogador", categoria);
                 obj_controlador.itens_usados_este_turno += 1;
                 var _index = array_get_index(obj_controlador.mao, id);
                 if (_index != -1) {
@@ -463,8 +514,8 @@ if (arrastando && mouse_check_button_released(mb_left)) {
             }
         }
 
-        if (_alvo != noone && pode_pagar_custo(custo, "jogador")) {
-            pagar_custo(custo, "jogador");
+        if (_alvo != noone && pode_pagar_custo(custo, "jogador", categoria)) {
+            pagar_custo(custo, "jogador", categoria);
             obj_controlador.itens_usados_este_turno += 1;
 
             if (efeito_tipo == "aumentar_intelig") {
@@ -520,12 +571,13 @@ if (arrastando && mouse_check_button_released(mb_left)) {
     var _slot_armadilha_ocupado = (_slot_armadilha != noone
         && slot_tem_armadilha(_slot_armadilha.lane, _slot_armadilha.posicao, id));
 
-    if (_slot_armadilha != noone && !_slot_armadilha_ocupado && pode_pagar_custo(custo, "jogador")) {
-        pagar_custo(custo, "jogador");
+    if (_slot_armadilha != noone && !_slot_armadilha_ocupado && pode_pagar_custo(custo, "jogador", categoria)) {
+        pagar_custo(custo, "jogador", categoria);
 
         armadilha_lane = _slot_armadilha.lane;
         armadilha_posicao = _slot_armadilha.posicao;
         armadilha_estado = "vigiando";
+        registrar_ultima_carta_jogada(funcao_dados_origem, "jogador");
 
         // Efeito visual de "esconder a armadilha" no slot -- reaproveita o objeto de terreno
         // ativo só pelo visual de "cair e assentar no chão", sem afetar regras.
@@ -563,8 +615,8 @@ if (arrastando && mouse_check_button_released(mb_left)) {
 	} else if (categoria == "terreno") {
     var _distancia_arrastada = point_distance(x, y, arrastar_inicio_x, arrastar_inicio_y);
 
-    if (_distancia_arrastada > 80 && obj_controlador.terrenos_jogados_este_turno < 1 && pode_pagar_custo(custo, "jogador")) {
-        pagar_custo(custo, "jogador");
+    if (_distancia_arrastada > 80 && obj_controlador.terrenos_jogados_este_turno < 1 && pode_pagar_custo(custo, "jogador", categoria)) {
+        pagar_custo(custo, "jogador", categoria);
         obj_controlador.terrenos_jogados_este_turno += 1;
 
         var _slot_terreno_destino = noone;
@@ -596,6 +648,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         // Anúncio dramático na tela
         obj_controlador.terreno_anuncio_texto = string_upper(nome_carta);
         obj_controlador.terreno_anuncio_timer = obj_controlador.terreno_anuncio_duracao;
+        registrar_ultima_carta_jogada(funcao_dados_origem, "jogador");
 
         var _index = array_get_index(obj_controlador.mao, id);
         if (_index != -1) {
@@ -611,14 +664,15 @@ if (arrastando && mouse_check_button_released(mb_left)) {
 	} else if (categoria == "bencao" || categoria == "maldicao") {
     var _distancia_arrastada = point_distance(x, y, arrastar_inicio_x, arrastar_inicio_y);
     
-    if (_distancia_arrastada > 80 && pode_pagar_custo(custo, "jogador")) {
+    if (_distancia_arrastada > 80 && pode_pagar_custo(custo, "jogador", categoria)) {
         var _sucesso = (categoria == "bencao")
             ? adicionar_bencao("jogador", efeito_passivo, nome_carta, sprite_index)
             : adicionar_maldicao("jogador", efeito_passivo, nome_carta, sprite_index);
         
         if (_sucesso) {
-            pagar_custo(custo, "jogador");
+            pagar_custo(custo, "jogador", categoria);
             iniciar_animacao_bencao_maldicao(categoria, nome_carta);
+            registrar_ultima_carta_jogada(funcao_dados_origem, "jogador");
             
             var _index = array_get_index(obj_controlador.mao, id);
             if (_index != -1) {

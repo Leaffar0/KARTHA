@@ -279,7 +279,11 @@ if (carta_preview != noone && instance_exists(carta_preview)) {
 			var _texto_atk_m = (_carta.qtd_dados_dano_magico > 1 ? string(_carta.qtd_dados_dano_magico) : "") + "D" + string(_carta.dado_dano_magico) + "+" + string(calcular_mod_dano_total(_carta));
 		    desenhar_stat_preview(_carta, _texto_atk_m, _carta.atk_magico_pos_x, _carta.atk_magico_pos_y, _centro_x, _centro_y, _largura_real, _altura_real, _escala_preview, _escala_stats_preview * global.ESCALA_TEXTO_ATK, true);
 		}
-	}
+	} else if (_carta.categoria == "construcao") {
+        var _escala_vida_construcao = _carta.tem_arte_propria ? _escala_preview : 0.90;
+        desenhar_stat_preview(_carta, _carta.vida, _carta.vida_pos_x, _carta.vida_pos_y,
+            _centro_x, _centro_y, _largura_real, _altura_real, _escala_preview, _escala_vida_construcao);
+    }
 
     #region Painel de detalhes da carta
     var _painel_largura = _tem_painel_lateral ? 300 : min(360, display_get_gui_width() - 40);
@@ -580,6 +584,52 @@ if (descarte_aberto) {
     draw_set_valign(fa_top);
     draw_set_color(c_white);
 }
+#endregion
+
+#region Escolhas das novas cartas
+if (dados_manipulados_escolha_ativa && is_struct(dados_manipulados_escolha_atual)) {
+    var _dm_w = display_get_gui_width();
+    var _dm_h = display_get_gui_height();
+    var _dm_cx = _dm_w / 2;
+    var _dm_cy = _dm_h / 2;
+    draw_set_alpha(0.72); draw_set_color(c_black); draw_rectangle(0, 0, _dm_w, _dm_h, false); draw_set_alpha(1);
+    draw_set_color(c_black); draw_roundrect(_dm_cx - 245, _dm_cy - 105, _dm_cx + 245, _dm_cy + 105, false);
+    draw_set_color(c_white); draw_roundrect(_dm_cx - 245, _dm_cy - 105, _dm_cx + 245, _dm_cy + 105, true);
+    draw_set_font(fnt_botao); draw_set_halign(fa_center); draw_set_valign(fa_middle);
+    draw_set_color(c_aqua); draw_text(_dm_cx, _dm_cy - 62, "DADOS MANIPULADOS");
+    draw_set_font(-1); draw_set_color(c_white); draw_text(_dm_cx, _dm_cy - 25, "Qual resultado deseja usar?");
+    draw_set_color(c_black);
+    draw_roundrect(_dm_cx - 190, _dm_cy + 35, _dm_cx - 10, _dm_cy + 82, false);
+    draw_roundrect(_dm_cx + 10, _dm_cy + 35, _dm_cx + 190, _dm_cy + 82, false);
+    draw_set_color(c_white);
+    draw_roundrect(_dm_cx - 190, _dm_cy + 35, _dm_cx - 10, _dm_cy + 82, true);
+    draw_roundrect(_dm_cx + 10, _dm_cy + 35, _dm_cx + 190, _dm_cy + 82, true);
+    draw_text(_dm_cx - 100, _dm_cy + 59, "ROLADO: " + string(dados_manipulados_escolha_atual.original));
+    draw_text(_dm_cx + 100, _dm_cy + 59, "FIXADO: " + string(dados_manipulados_escolha_atual.alternativo));
+}
+
+if (maquina_ima_escolha_ativa && is_struct(maquina_ima_escolha_atual)) {
+    var _mi_w = display_get_gui_width();
+    var _mi_h = display_get_gui_height();
+    var _mi_cx = _mi_w / 2;
+    var _mi_cy = _mi_h / 2;
+    var _mi_total = array_length(maquina_ima_escolha_atual.itens);
+    var _mi_y2 = _mi_cy + max(75, _mi_total * 36 + 15);
+    draw_set_alpha(0.72); draw_set_color(c_black); draw_rectangle(0, 0, _mi_w, _mi_h, false); draw_set_alpha(1);
+    draw_set_color(c_black); draw_roundrect(_mi_cx - 250, _mi_cy - 115, _mi_cx + 250, _mi_y2, false);
+    draw_set_color(c_white); draw_roundrect(_mi_cx - 250, _mi_cy - 115, _mi_cx + 250, _mi_y2, true);
+    draw_set_font(fnt_botao); draw_set_halign(fa_center); draw_set_valign(fa_middle);
+    draw_set_color(c_aqua); draw_text(_mi_cx, _mi_cy - 78, "MÁQUINA IMÃ");
+    draw_set_font(-1); draw_set_color(c_white); draw_text(_mi_cx, _mi_cy - 48, "Escolha um item para devolver à mão");
+    for (var _mi_i = 0; _mi_i < _mi_total; _mi_i++) {
+        var _mi_y = _mi_cy - 35 + _mi_i * 36;
+        draw_set_color(c_black); draw_roundrect(_mi_cx - 210, _mi_y, _mi_cx + 210, _mi_y + 30, false);
+        draw_set_color(c_white); draw_roundrect(_mi_cx - 210, _mi_y, _mi_cx + 210, _mi_y + 30, true);
+        draw_text(_mi_cx, _mi_y + 15, maquina_ima_escolha_atual.itens[_mi_i].nome);
+    }
+}
+
+draw_set_font(-1); draw_set_halign(fa_left); draw_set_valign(fa_top); draw_set_color(c_white); draw_set_alpha(1);
 #endregion
 
 #region Tutorial opcional

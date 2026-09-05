@@ -18,3 +18,7 @@ pulso_virada_timer = 0;
 pulso_virada_duracao = 10;
 escala_animacao = 1;
 alpha_animacao = 1;
+
+// Bloqueio de Recurso: conta turnos completos do dono sem permitir uso/retirada.
+bloqueado_turnos = 0;
+bloqueio_acabou_de_aplicar = false;

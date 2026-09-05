@@ -105,6 +105,20 @@ partida_iniciada = false;
 critico_escolha_ativa = false;
 criticos_pendentes = [];
 critico_contexto = noone;
+
+// Cartas novas: memória da última carta, manipulação de dados e escolhas da Máquina Imã.
+ultima_carta_nao_tropa_jogador = noone;
+ultima_carta_nao_tropa_inimigo = noone;
+dados_manipulados_valor_jogador = 0;
+dados_manipulados_usos_jogador = 0;
+dados_manipulados_valor_inimigo = 0;
+dados_manipulados_usos_inimigo = 0;
+dados_manipulados_escolhas = [];
+dados_manipulados_escolha_ativa = false;
+dados_manipulados_escolha_atual = noone;
+maquina_ima_pendencias = [];
+maquina_ima_escolha_ativa = false;
+maquina_ima_escolha_atual = noone;
 #endregion
 
 #region Recursos
@@ -200,6 +214,8 @@ tutorial_paginas = [
     { titulo: "CONDIÇÕES", texto: "Uma tropa só mantém uma condição por vez. Confusão dá desvantagem e permite contra-ataque em qualquer erro; Adormecer joga uma moeda no início do turno; Berserker dobra apenas o dano original, dá vantagem e +4 DEF. Apodrecer e Regeneração jogam um único D4, que define duração e valor por turno." },
     { titulo: "ITENS E RECURSOS", texto: "No menu de uma tropa equipada, você pode devolver o último item à mão ou transferi-lo para uma tropa aliada com espaço. Cada tropa envolvida troca no máximo uma vez por turno. Clique com o botão direito em um recurso para devolvê-lo à mão; só 1 recurso pode ser retirado por turno." },
     { titulo: "HABILIDADES ESPECIAIS", texto: "Digestão escolhe uma tropa adjacente com menos de 4 de vida ou usa a vítima recém-abatida. Roubo joga D10 quando a tropa é atacada por uma arma: no 10, toma o item se houver espaço. Carniça Frenética paga 2 Sangues e prepara o próximo ataque. Visão do Véu revela a mão inimiga e oferece duas escolhas." },
+    { titulo: "NOVAS MAGIAS", texto: "Dados Manipulados fixa o resultado de um D4 e, nas próximas 3 rolagens próprias, permite escolher entre o valor rolado e o fixado. Refração Temporal copia a última carta não-tropa usada; construções copiadas ficam com metade da vida. Eutanásia destrói uma tropa com até 5 de vida. Bloqueio de Recurso impede usar ou retirar o recurso escolhido por 3 turnos. Sangue Suga procura um Sangue no baralho." },
+    { titulo: "NOVAS ARMADILHAS E ITENS", texto: "Raízes Espinhosas impede o movimento de uma tropa com menos de 10 de vida e a envenena. Loucura Mútua devolve Loucura a uma tropa inimiga da fileira. Destroços joga D4 contra tropas adversárias da fileira quando sua construção é destruída. A Máquina Imã recupera um item de uma tropa aliada morta na mesma fileira. O Grimório oferece Raio, Escudo ou Curazinha uma vez por turno, pagando 1 Mana." },
     { titulo: "INFORMAÇÕES DA PARTIDA", texto: "Use HISTÓRICO para rever ações recentes e CEMITÉRIO para ver as tropas derrotadas. Você pode abrir este tutorial novamente a qualquer momento pelo botão TUTORIAL ou com F1." }
 ];
 abrir_livro_pendente = variable_global_exists("abrir_livro_menu") && global.abrir_livro_menu;

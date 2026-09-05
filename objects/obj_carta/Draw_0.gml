@@ -173,6 +173,16 @@ if (categoria == "tropa") {
 	}
 }
 
+// Construções com arte própria também mostram a vida diretamente na carta
+// enquanto estão na mão. O deslocamento acompanha a posição usada no campo.
+if (categoria == "construcao" && tem_arte_propria) {
+    var _escala_texto_construcao = escala_atual * (travada ? escala_no_campo : 1) * global.ESCALA_TEXTO_CARTA;
+    var _vida_construcao_x = clamp(vida_pos_x + 0.05, 0, 1);
+    var _vida_construcao_y = clamp(vida_pos_y + 0.05, 0, 1);
+    desenhar_stat(self, vida, _vida_construcao_x, _vida_construcao_y,
+        _x_desenho, _y_desenho, _rotacao_total, _escala_final, _escala_texto_construcao);
+}
+
 draw_set_halign(fa_left);
 draw_set_valign(fa_top);
 #endregion

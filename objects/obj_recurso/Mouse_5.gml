@@ -6,6 +6,10 @@ if (obj_controlador.turno != "jogador") {
     exit;
 }
 if (obj_controlador.rolagens_pendentes > 0 || entrando_no_campo) exit;
+if (bloqueado_turnos > 0) {
+    mostrar_aviso_regra("Recurso bloqueado por " + string(bloqueado_turnos) + " turno(s)", x, y);
+    exit;
+}
 if (obj_controlador.confirmacao_recurso_ativa) exit;
 
 var _escala_clique = escala_recurso * max(1, escala_animacao);

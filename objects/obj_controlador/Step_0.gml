@@ -143,6 +143,45 @@ if (disputa_inicial_estado != "concluida") {
     exit;
 }
 
+// Dados Manipulados pausa apenas a resolução que depende daquele dado.
+if (!dados_manipulados_escolha_ativa && array_length(dados_manipulados_escolhas) > 0) {
+    dados_manipulados_escolha_atual = dados_manipulados_escolhas[0];
+    array_delete(dados_manipulados_escolhas, 0, 1);
+    dados_manipulados_escolha_ativa = true;
+}
+if (dados_manipulados_escolha_ativa) {
+    var _dados_cx = _tutorial_largura_gui / 2;
+    var _dados_cy = _tutorial_altura_gui / 2;
+    if (mouse_check_button_pressed(mb_left)) {
+        if (point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _dados_cx - 190, _dados_cy + 35, _dados_cx - 10, _dados_cy + 82))
+            resolver_escolha_dados_manipulados(false);
+        else if (point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _dados_cx + 10, _dados_cy + 35, _dados_cx + 190, _dados_cy + 82))
+            resolver_escolha_dados_manipulados(true);
+    }
+    exit;
+}
+
+// A Máquina Imã pede qual equipamento da tropa derrotada volta à mão.
+if (!maquina_ima_escolha_ativa && array_length(maquina_ima_pendencias) > 0) {
+    maquina_ima_escolha_atual = maquina_ima_pendencias[0];
+    array_delete(maquina_ima_pendencias, 0, 1);
+    maquina_ima_escolha_ativa = true;
+}
+if (maquina_ima_escolha_ativa) {
+    var _ima_cx = _tutorial_largura_gui / 2;
+    var _ima_cy = _tutorial_altura_gui / 2;
+    if (mouse_check_button_pressed(mb_left)) {
+        for (var _ima_i = 0; _ima_i < array_length(maquina_ima_escolha_atual.itens); _ima_i++) {
+            var _ima_y = _ima_cy - 35 + _ima_i * 36;
+            if (point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _ima_cx - 210, _ima_y, _ima_cx + 210, _ima_y + 30)) {
+                resolver_escolha_maquina_ima(_ima_i);
+                break;
+            }
+        }
+    }
+    exit;
+}
+
 // Visão do Véu bloqueia as demais ações até escolher uma armadilha revelada
 // ou a proteção contra a próxima armadilha.
 if (visao_veu_ativa) {
@@ -466,9 +505,21 @@ with (obj_carta) {
     }
 }
 
+// Construções também abrem a mesma prévia ampliada com o botão direito.
+var _hover_construcao = noone;
+with (obj_construcao) {
+    var _meia_largura = sprite_width / 2;
+    var _meia_altura = sprite_height / 2;
+    if (point_in_rectangle(mouse_x, mouse_y, x - _meia_largura, y - _meia_altura, x + _meia_largura, y + _meia_altura)) {
+        _hover_construcao = id;
+        break;
+    }
+}
+
 if (mouse_check_button_pressed(mb_right)) {
     if (carta_preview == noone) {
-        var _alvo_preview = (hover_atual != noone) ? hover_atual : _hover_campo;
+        var _alvo_preview = (hover_atual != noone) ? hover_atual
+            : ((_hover_campo != noone) ? _hover_campo : _hover_construcao);
         if (_alvo_preview != noone) {
             carta_preview = _alvo_preview;
         }

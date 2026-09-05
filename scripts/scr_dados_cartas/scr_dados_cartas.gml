@@ -240,6 +240,7 @@ function criar_dados_slime() {
 		custo: noone, 
 		habilidades: ["mitose"], 
 		mitose: criar_dados_slimet,
+        evolucao: criar_dados_slime_digestao,
 		vida_pos_x: 0.11,
 		vida_pos_y: 0.06
 	};
@@ -263,6 +264,51 @@ function criar_dados_slimet() {
 		habilidades: [] };
 }
 	
+function criar_dados_slime_digestao() {
+    return {
+        categoria: "tropa",
+        nome: "Slime Digestão",
+        sprite_carta: noone,
+        vida: 22,
+        sacrificio: 0,
+        dado_dano: 12,
+        qtd_dados_dano: 1,
+        mod_dano: 2,
+        dado_dano_magico: 0,
+        mod_dano_magico: 0,
+        inteligencia: 1,
+        mochila: 5,
+        defesa_fisica: 2,
+        defesa_magica: 0,
+        custo: [{ tipo: "ossos", quantidade: 2 }, { tipo: "qualquer", quantidade: 3 }],
+        habilidades: ["digestao", "roubo"],
+        evolucao: noone
+    };
+}
+
+// Forma de evolução pronta para ser ligada à futura carta base Zumbi.
+function criar_dados_carnica_ambulante() {
+    return {
+        categoria: "tropa",
+        nome: "Carniça Ambulante",
+        sprite_carta: noone,
+        vida: 18,
+        sacrificio: 0,
+        dado_dano: 4,
+        qtd_dados_dano: 3,
+        mod_dano: 0,
+        dado_dano_magico: 0,
+        mod_dano_magico: 0,
+        inteligencia: 2,
+        mochila: 0,
+        defesa_fisica: 1,
+        defesa_magica: 0,
+        custo: [{ tipo: "sangue", quantidade: 3 }, { tipo: "ossos", quantidade: 3 }],
+        habilidades: ["carnica_frenetica", "ferida_exposta"],
+        evolucao: noone
+    };
+}
+
 function criar_dados_mimic() {
     return { categoria: "tropa", 
 		nome: "Mimic", 
@@ -505,6 +551,43 @@ function criar_dados_construcao_hemodrenario() {
     };
 }
 
+function criar_dados_construcao_maquina_ima() {
+    return {
+        categoria: "construcao",
+        nome: "Máquina Imã",
+        sprite_carta: spr_carta_maquina_ima,
+        vida: 12,
+        custo: { tipo: "sucata", quantidade: 3 },
+        efeito_construcao: "maquina_ima"
+    };
+}
+
+function criar_dados_magica_dados_manipulados() {
+    return {
+        categoria: "magica",
+        nome: "Dados Manipulados",
+        sprite_carta: spr_carta_dados_manipulados,
+        custo: [{ tipo: "mana", quantidade: 2 }, { tipo: "qualquer", quantidade: 1 }],
+        efeito_tipo: "dados_manipulados",
+        dado_efeito: 4
+    };
+}
+
+function criar_dados_magica_refracao_temporal() {
+    return { categoria: "magica", nome: "Refração Temporal", sprite_carta: noone,
+        custo: noone, efeito_tipo: "refracao_temporal" };
+}
+
+function criar_dados_magica_eutanasia() {
+    return { categoria: "magica", nome: "Eutanásia", sprite_carta: noone,
+        custo: noone, efeito_tipo: "eutanasia" };
+}
+
+function criar_dados_magica_bloqueio_recurso() {
+    return { categoria: "magica", nome: "Bloqueio de Recurso", sprite_carta: noone,
+        custo: noone, efeito_tipo: "bloqueio_recurso" };
+}
+
 function criar_dados_magica_bola_fogo() {
     return {
         categoria: "magica",
@@ -598,9 +681,9 @@ function criar_dados_item_frasco_sangue() {
 
 function criar_dados_item_sangue_suga() {
     return {
-        categoria: "item_consumivel",
+        categoria: "magica",
         nome: "Sangue Suga",
-        sprite_carta: spr_carta_sangue_suga, // troque quando importar a arte
+        sprite_carta: spr_carta_sangue_suga,
         custo: noone,
         efeito_tipo: "buscar_sangue"
     };
@@ -648,6 +731,19 @@ function criar_dados_item_vitamina_cerebro() {
     };
 }
 	
+function criar_dados_item_grimorio_iniciante() {
+    return {
+        categoria: "item_equipavel",
+        nome: "Grimório Iniciante",
+        sprite_carta: spr_carta_grimorio_iniciante,
+        custo: noone,
+        requisito_inteligencia: 1,
+        bonus_mod_dano: 0,
+        bonus_defesa: 0,
+        efeito_item: "grimorio_iniciante"
+    };
+}
+
 function criar_dados_item_espada_quebrada() {
     return {
         categoria: "item_equipavel",
@@ -671,6 +767,26 @@ function criar_dados_armadilha_urso() {
         dado_efeito: 6,
         qtd_dados_efeito: 2
     };
+}
+
+function criar_dados_armadilha_loucura_mutua() {
+    return { categoria: "armadilha", nome: "Loucura Mútua", sprite_carta: noone,
+        custo: noone, efeito_tipo: "loucura_mutua", dado_efeito: 0, qtd_dados_efeito: 0 };
+}
+
+function criar_dados_armadilha_raizes_espinhosas() {
+    return { categoria: "armadilha", nome: "Raízes Espinhosas", sprite_carta: noone,
+        custo: noone, efeito_tipo: "raizes_espinhosas", dado_efeito: 0, qtd_dados_efeito: 0 };
+}
+
+function criar_dados_armadilha_destrocos() {
+    return { categoria: "armadilha", nome: "Destroços", sprite_carta: noone,
+        custo: noone, efeito_tipo: "destrocos", dado_efeito: 4, qtd_dados_efeito: 1 };
+}
+
+function criar_dados_terreno_planicies_profanas() {
+    return { categoria: "terreno", nome: "Planícies Profanas", sprite_carta: noone,
+        custo: noone, bonus_defesa_global: 0, efeito_terreno: "planicies_profanas" };
 }
 
 function criar_dados_terreno_pantano() {
@@ -838,10 +954,78 @@ function ativar_armadilha(_carta_armadilha) {
             _callback_dado,
             0,
             _atraso_dado,
-            _duracao_dado
+            _duracao_dado,
+            _carta_armadilha.dono
         );
     }
 }
+function buscar_armadilha_de_gatilho(_dono, _lane, _efeito) {
+    var _resultado = noone;
+    with (obj_carta) {
+        if (categoria == "armadilha" && dono == _dono && armadilha_estado == "vigiando"
+            && armadilha_lane == _lane && efeito_tipo == _efeito) {
+            _resultado = id;
+            break;
+        }
+    }
+    return _resultado;
+}
+
+function ativar_raizes_espinhosas_ao_mover(_tropa) {
+    if (!instance_exists(_tropa) || _tropa.vida >= 10 || tem_habilidade(_tropa, "voar")) return false;
+    var _dono_armadilha = (_tropa.dono == "jogador") ? "inimigo" : "jogador";
+    var _armadilha = buscar_armadilha_de_gatilho(_dono_armadilha, _tropa.lane_atual, "raizes_espinhosas");
+    if (_armadilha == noone) return false;
+    mostrar_feedback("RAÍZES: MOVIMENTO CANCELADO", _tropa.x, _tropa.y - 42, c_lime, 70);
+    aplicar_envenenado(_tropa);
+    _tropa.moveu_este_turno = true;
+    consumir_armadilha_ativada(_armadilha);
+    return true;
+}
+
+function ativar_loucura_mutua(_tropa_afetada) {
+    if (!instance_exists(_tropa_afetada) || _tropa_afetada.lane_atual < 0) return false;
+    var _armadilha = buscar_armadilha_de_gatilho(_tropa_afetada.dono, _tropa_afetada.lane_atual, "loucura_mutua");
+    if (_armadilha == noone) return false;
+    var _alvo = noone;
+    var _valor = -1;
+    with (obj_carta) {
+        if (!travada || dono == _tropa_afetada.dono || lane_atual != _tropa_afetada.lane_atual) continue;
+        if (vida > _valor) { _valor = vida; _alvo = id; }
+    }
+    if (_alvo == noone) return false;
+    aplicar_condicao(_alvo, "loucura", -1, 0, false);
+    mostrar_feedback("LOUCURA MÚTUA", _alvo.x, _alvo.y - 42, c_purple, 70);
+    consumir_armadilha_ativada(_armadilha);
+    return true;
+}
+
+function ativar_destrocos_construcao(_dono, _lane, _origem_x, _origem_y) {
+    var _armadilha = buscar_armadilha_de_gatilho(_dono, _lane, "destrocos");
+    if (_armadilha == noone) return false;
+    var _alvos = [];
+    with (obj_carta) {
+        if (travada && dono != _dono && lane_atual == _lane) array_push(_alvos, id);
+    }
+    consumir_armadilha_ativada(_armadilha);
+    for (var i = 0; i < array_length(_alvos); i++) {
+        var _alvo = _alvos[i];
+        if (!instance_exists(_alvo)) continue;
+        var _ctx = { alvo: _alvo };
+        var _resultado = irandom_range(1, 4);
+        rolar_dado_visual(_origem_x, _origem_y, _alvo.x, _alvo.y - 35, 4, _resultado,
+            method(_ctx, function(_dano) {
+                if (!instance_exists(alvo)) return;
+                alvo.vida -= _dano;
+                aplicar_flash_dano(alvo);
+                mostrar_dano_tropa(alvo, _dano);
+                if (alvo.vida <= 0) destruir_tropa(alvo);
+            }), 0, i * 8, -1, _dono);
+    }
+    mostrar_feedback("DESTROÇOS", _origem_x, _origem_y - 35, c_yellow, 60);
+    return true;
+}
+
 #endregion
 
 #region Dados das cartas - Bençãos e Maldições
@@ -868,7 +1052,7 @@ function criar_dados_maldicao_perda() {
 function criar_dados_bencao_decomposicao() {
     return {
         categoria: "bencao",
-        nome: "Decomposição",
+        nome: "Bênção da Decomposição",
         sprite_carta: spr_carta_decomposicao,   // importe a arte com esse nome
         custo: noone,
         efeito: "cura_ao_morrer"   // mesmo efeito da Bênção da Vida
@@ -999,19 +1183,106 @@ function bonus_cemiterio_acerto(_carta) {
 #endregion
 
 #region Deck — montar, embaralhar, comprar
+function registrar_ultima_carta_jogada(_funcao, _dono) {
+    if (_funcao == noone) return;
+    var _dados = _funcao();
+    if (_dados.categoria == "tropa" || _dados.nome == "Refração Temporal") return;
+    if (_dono == "jogador") obj_controlador.ultima_carta_nao_tropa_jogador = _funcao;
+    else obj_controlador.ultima_carta_nao_tropa_inimigo = _funcao;
+}
+
+function ultima_carta_jogada(_dono) {
+    return (_dono == "jogador") ? obj_controlador.ultima_carta_nao_tropa_jogador
+        : obj_controlador.ultima_carta_nao_tropa_inimigo;
+}
+
+function bloquear_recurso(_recurso, _turnos = 3) {
+    if (!instance_exists(_recurso)) return false;
+    _recurso.bloqueado_turnos = max(_recurso.bloqueado_turnos, _turnos);
+    _recurso.bloqueio_acabou_de_aplicar = true;
+    mostrar_feedback("BLOQUEADO: " + string(_turnos), _recurso.x, _recurso.y - 32, make_color_rgb(175, 95, 235), 60);
+    return true;
+}
+
+function ativar_dados_manipulados(_dono, _origem_x, _origem_y) {
+    var _resultado = irandom_range(1, 4);
+    var _ctx = { dono: _dono };
+    rolar_dado_visual(_origem_x, _origem_y, _origem_x, _origem_y - 70, 4, _resultado,
+        method(_ctx, function(_valor) {
+            if (dono == "jogador") {
+                obj_controlador.dados_manipulados_valor_jogador = _valor;
+                obj_controlador.dados_manipulados_usos_jogador = 3;
+            } else {
+                obj_controlador.dados_manipulados_valor_inimigo = _valor;
+                obj_controlador.dados_manipulados_usos_inimigo = 3;
+            }
+            mostrar_feedback("DADO FIXADO: " + string(_valor), room_width / 2,
+                dono == "jogador" ? obj_controlador.mao_y - 100 : 95, c_aqua, 75);
+        }));
+}
+
+// Chamado quando um dado próprio termina. Para o jogador, a decisão entra numa
+// fila visual; a IA usa o valor guardado apenas quando ele melhora a rolagem.
+function entregar_resultado_dado_manipulado(_dono, _tamanho_dado, _resultado, _callback) {
+    var _usos = (_dono == "jogador") ? obj_controlador.dados_manipulados_usos_jogador
+        : obj_controlador.dados_manipulados_usos_inimigo;
+    var _alternativo = (_dono == "jogador") ? obj_controlador.dados_manipulados_valor_jogador
+        : obj_controlador.dados_manipulados_valor_inimigo;
+    if (_usos <= 0 || _alternativo <= 0 || _alternativo > _tamanho_dado) {
+        if (_callback != noone) _callback(_resultado);
+        return;
+    }
+
+    if (_dono == "jogador") {
+        obj_controlador.dados_manipulados_usos_jogador -= 1;
+        array_push(obj_controlador.dados_manipulados_escolhas,
+            { original: _resultado, alternativo: _alternativo, callback: _callback });
+    } else {
+        obj_controlador.dados_manipulados_usos_inimigo -= 1;
+        if (_callback != noone) _callback(max(_resultado, _alternativo));
+        if (_alternativo > _resultado) mostrar_feedback("DADO MANIPULADO", room_width / 2, 100, c_purple, 50);
+    }
+}
+
+function resolver_escolha_dados_manipulados(_usar_alternativo) {
+    if (!obj_controlador.dados_manipulados_escolha_ativa || !is_struct(obj_controlador.dados_manipulados_escolha_atual)) return;
+    var _escolha = obj_controlador.dados_manipulados_escolha_atual;
+    var _valor = _usar_alternativo ? _escolha.alternativo : _escolha.original;
+    obj_controlador.dados_manipulados_escolha_ativa = false;
+    obj_controlador.dados_manipulados_escolha_atual = noone;
+    if (_escolha.callback != noone) _escolha.callback(_valor);
+}
+
+function usar_refracao_temporal(_carta) {
+    var _ultima = ultima_carta_jogada(_carta.dono);
+    if (_ultima == noone) {
+        if (_carta.dono == "jogador") mostrar_aviso_regra("Jogue outra carta antes da Refração Temporal", _carta.x, _carta.y);
+        return false;
+    }
+    var _dados_ultima = _ultima();
+    var _nova = comprar_carta_do_deck_por_funcao(_ultima, _carta.x, _carta.y);
+    if (instance_exists(_nova) && _nova.categoria == "construcao") _nova.vida = max(1, ceil(_nova.vida * 0.5));
+    mostrar_feedback("REFRAÇÃO: " + _dados_ultima.nome, _carta.x, _carta.y - 35, c_aqua, 65);
+    return true;
+}
+
 function catalogo_cartas() {
     return [
         criar_dados_esquilo, criar_dados_lobo, criar_dados_urso, criar_dados_slime, criar_dados_slimet, criar_dados_mimic,
         criar_dados_olho_demonio, criar_dados_mago_da_sombra, criar_dados_gato_mago, criar_dados_goblin,
         criar_dados_hollow_jack, criar_dados_esqueleto, criar_dados_shroomilin,
         criar_dados_recurso_sangue, criar_dados_recurso_ossos, criar_dados_recurso_sucata, criar_dados_recurso_mana,
-        criar_dados_construcao_torre, criar_dados_construcao_hemodrenario,
+        criar_dados_construcao_torre, criar_dados_construcao_hemodrenario, criar_dados_construcao_maquina_ima,
         criar_dados_magica_bola_fogo, criar_dados_magica_veneno, criar_dados_magica_gelo, criar_dados_magica_choque,
-        criar_dados_item_espada, criar_dados_item_escudo, criar_dados_item_pocao, criar_dados_item_sangue_suga,
-        criar_dados_item_pocao_mana, criar_dados_armadilha_urso, criar_dados_bencao_vida, criar_dados_maldicao_perda,
-        criar_dados_bencao_decomposicao, criar_dados_maldicao_sangue_por_sangue, criar_dados_item_bau,
-        criar_dados_item_frasco_sangue, criar_dados_item_vitamina_cerebro, criar_dados_item_elmo_ferro,
-        criar_dados_item_frasco_acido, criar_dados_terreno_pantano, criar_dados_terreno_cemiterio,
+        criar_dados_magica_dados_manipulados, criar_dados_magica_refracao_temporal, criar_dados_magica_eutanasia,
+        criar_dados_magica_bloqueio_recurso, criar_dados_item_sangue_suga,
+        criar_dados_item_espada, criar_dados_item_escudo, criar_dados_item_pocao, criar_dados_item_grimorio_iniciante,
+        criar_dados_item_pocao_mana, criar_dados_armadilha_urso, criar_dados_armadilha_loucura_mutua,
+        criar_dados_armadilha_raizes_espinhosas, criar_dados_armadilha_destrocos,
+        criar_dados_bencao_vida, criar_dados_maldicao_perda, criar_dados_bencao_decomposicao,
+        criar_dados_maldicao_sangue_por_sangue, criar_dados_item_bau, criar_dados_item_frasco_sangue,
+        criar_dados_item_vitamina_cerebro, criar_dados_item_elmo_ferro, criar_dados_item_frasco_acido,
+        criar_dados_terreno_pantano, criar_dados_terreno_cemiterio, criar_dados_terreno_planicies_profanas,
         criar_dados_item_espada_quebrada
     ];
 }
@@ -1177,6 +1448,7 @@ function comprar_carta_do_deck_por_funcao(_funcao_sorteada, _x_inicial, _y_inici
     _carta.tem_arte_propria = (_dados.sprite_carta != noone);
     _carta.categoria = _dados.categoria;
     _carta.funcao_dados_origem = _funcao_sorteada;
+    _carta.dados_carta = _dados;
     _carta.efeitos_declarativos = variable_struct_exists(_dados, "efeitos") ? _dados.efeitos : [];
     _carta.tags = variable_struct_exists(_dados, "tags") ? _dados.tags : [];
 
@@ -1237,6 +1509,7 @@ function comprar_carta_do_deck_por_funcao(_funcao_sorteada, _x_inicial, _y_inici
 	    _carta.requisito_inteligencia_item = variable_struct_exists(_dados, "requisito_inteligencia") ? _dados.requisito_inteligencia : 0;
 	    _carta.sobrescreve_dado_dano_item = variable_struct_exists(_dados, "sobrescreve_dado_dano") ? _dados.sobrescreve_dado_dano : 0;
 	    _carta.sobrescreve_mod_dano_item = variable_struct_exists(_dados, "sobrescreve_mod_dano") ? _dados.sobrescreve_mod_dano : 0;
+        _carta.efeito_item = variable_struct_exists(_dados, "efeito_item") ? _dados.efeito_item : "";
 
     } else if (_dados.categoria == "item_consumivel") {
 	    _carta.custo = _dados.custo;
@@ -1246,6 +1519,7 @@ function comprar_carta_do_deck_por_funcao(_funcao_sorteada, _x_inicial, _y_inici
 
     } else if (_dados.categoria == "armadilha") {
         _carta.custo = _dados.custo;
+        _carta.efeito_tipo = variable_struct_exists(_dados, "efeito_tipo") ? _dados.efeito_tipo : "armadilha_urso";
         _carta.dado_efeito = _dados.dado_efeito;
         _carta.qtd_dados_efeito = variable_struct_exists(_dados, "qtd_dados_efeito") ? _dados.qtd_dados_efeito : 1;
 
@@ -1293,6 +1567,7 @@ function comprar_carta_do_deck_por_funcao(_funcao_sorteada, _x_inicial, _y_inici
     if (obj_controlador.mao_inicial_comprada) {
         mostrar_feedback("+ CARTA", _x_inicial, _y_inicial, c_aqua, 32);
     }
+    return _carta;
 }
 	
 // Compra 1 carta do monte da IA (consumindo ele) e guarda na mão dela.
@@ -1487,6 +1762,12 @@ function mover_tropa(_carta, _direcao) {
             return "ataque_necessario";
             }
         }
+    }
+
+    // Só dispara após confirmar que existe um deslocamento válido.
+    if (ativar_raizes_espinhosas_ao_mover(_carta)) {
+        _carta.moveu_este_turno = true;
+        return "armadilha";
     }
 
     _carta.slot_atual.ocupado = false;
@@ -1757,7 +2038,7 @@ function rolar_dano_direto_visual(_carta, _tipo_ataque, _callback_final, _indice
             method(_dados_extra, function(_extra) {
                 var _finalizar = callback_final;
                 _finalizar(base + _extra);
-            }));
+            }), 0, 0, -1, carta.dono);
     });
 
     rolar_varios_dados_visuais(
@@ -1769,7 +2050,8 @@ function rolar_dano_direto_visual(_carta, _tipo_ataque, _callback_final, _indice
         _dado,
         _callback_dados,
         _modificador,
-        _atraso_grupo
+        _atraso_grupo,
+        _carta.dono
     );
 }
 
@@ -1926,11 +2208,7 @@ function processar_combate(_lado_atacante) {
                             if (!instance_exists(alvo)) return;
                             alvo.vida -= _dano_construcao;
                             mostrar_feedback("-" + string(_dano_construcao), alvo.x, alvo.y, c_red, 45);
-                            if (alvo.vida <= 0) {
-                                alvo.slot_atual.ocupado = false;
-                                alvo.slot_atual.construcao_atual = noone;
-                                instance_destroy(alvo);
-                            }
+                            if (alvo.vida <= 0) destruir_construcao(alvo);
                         })
                     );
                 } else {
@@ -2002,11 +2280,7 @@ function processar_combate_tropa(_carta, _tipo_ataque, _indice_ataque = 0, _tota
                     if (!instance_exists(alvo)) return;
                     alvo.vida -= _dano_construcao;
                     mostrar_feedback("-" + string(_dano_construcao), alvo.x, alvo.y, c_red, 45);
-                    if (alvo.vida <= 0) {
-                        alvo.slot_atual.ocupado = false;
-                        alvo.slot_atual.construcao_atual = noone;
-                        instance_destroy(alvo);
-                    }
+                    if (alvo.vida <= 0) destruir_construcao(alvo);
                 }),
                 _indice_ataque,
                 _total_ataques
@@ -2051,7 +2325,7 @@ function rolar_teste_acerto_visual(_atacante, _defensor, _tipo_ataque, _indice_a
             _defensor.x + _offset_golpe, _defensor.y, 20, _resultado,
             method(_dados_normais, function(_valor) {
                 processar_resultado_acerto(_valor, atacante, defensor, tipo_ataque);
-            }), 0, _atraso_golpe, 78 + ((_total_ataques > 1) ? irandom_range(-7, 16) : 0));
+            }), 0, _atraso_golpe, 78 + ((_total_ataques > 1) ? irandom_range(-7, 16) : 0), _atacante.dono);
         return;
     }
 
@@ -2081,7 +2355,7 @@ function rolar_teste_acerto_visual(_atacante, _defensor, _tipo_ataque, _indice_a
             _defensor.x + _offset_golpe + _offset_teste, _defensor.y,
             20, _valor_teste, _callback_teste, 0,
             _atraso_golpe + ((_i_teste == 0) ? 0 : irandom_range(8, 14)),
-            78 + irandom_range(-7, 16));
+            78 + irandom_range(-7, 16), _atacante.dono);
     }
 }
 
@@ -2114,14 +2388,14 @@ function rolar_varios_dados(_quantidade, _tamanho_dado) {
 // Lança cada dado separadamente, preserva os resultados individuais e só chama
 // o callback final depois que todos pousarem. O atraso e a duração variam para
 // parecerem lançamentos físicos independentes.
-function rolar_varios_dados_visuais(_origem_x, _origem_y, _destino_x, _destino_y, _quantidade, _tamanho_dado, _callback_final, _modificador_exibido = 0, _atraso_grupo = 0) {
+function rolar_varios_dados_visuais(_origem_x, _origem_y, _destino_x, _destino_y, _quantidade, _tamanho_dado, _callback_final, _modificador_exibido = 0, _atraso_grupo = 0, _dono_rolagem = "") {
     var _qtd = max(1, _quantidade);
     if (_qtd == 1) {
         var _resultado_unico = irandom_range(1, _tamanho_dado);
         var _duracao_unico = 78 + ((_atraso_grupo > 0) ? irandom_range(-8, 18) : 0);
         rolar_dado_visual(_origem_x, _origem_y, _destino_x, _destino_y,
             _tamanho_dado, _resultado_unico, _callback_final, _modificador_exibido,
-            _atraso_grupo, _duracao_unico);
+            _atraso_grupo, _duracao_unico, _dono_rolagem);
         return;
     }
 
@@ -2163,7 +2437,8 @@ function rolar_varios_dados_visuais(_origem_x, _origem_y, _destino_x, _destino_y
             _callback_dado,
             0,
             _atraso,
-            _duracao
+            _duracao,
+            _dono_rolagem
         );
         _dado_grupo.grupo_soma = _grupo;
         _dado_grupo.grupo_soma_responsavel = (i == _qtd - 1);
@@ -2236,9 +2511,11 @@ function resolver_dano_de_acerto(_contexto, _modo_critico = "normal") {
             rolar_dado_visual(atacante.x, atacante.y, defensor.x, defensor.y - 55, 8, _resultado_extra,
                 method(_dados_extra, function(_extra) {
                     aplicar_resultado_dano_tropa(dados_dano, resultado_base, _extra);
-                }));
+                }), 0, 0, -1, atacante.dono);
         }),
-        _mod_total_exibido
+        _mod_total_exibido,
+        0,
+        _atacante.dono
     );
 }
 
@@ -2309,7 +2586,9 @@ function executar_contra_ataque(_atacante, _defensor) {
                 destruir_tropa(atacante);
             }
         }),
-        _mod_contra_exibido
+        _mod_contra_exibido,
+        0,
+        _defensor.dono
     );
 }
 
@@ -2392,6 +2671,61 @@ function processar_resultado_acerto(_dado_acerto, _atacante, _defensor, _tipo_at
     resolver_dano_de_acerto(_contexto_dano, "normal");
 }
 
+function tem_maquina_ima_na_fileira(_dono, _lane) {
+    var _achou = false;
+    with (obj_construcao) {
+        if (dono == _dono && lane_atual == _lane && efeito_construcao == "maquina_ima") {
+            _achou = true;
+            break;
+        }
+    }
+    return _achou;
+}
+
+function descartar_itens_da_tropa(_itens, _dono, _preservar_indice = -1) {
+    for (var i = 0; i < array_length(_itens); i++) {
+        if (i == _preservar_indice) continue;
+        var _item = _itens[i];
+        if (_item.funcao != noone) registrar_descarte_dados(_item.funcao(), _dono);
+    }
+}
+
+function processar_maquina_ima_na_morte(_carta) {
+    var _itens = _carta.itens_equipados;
+    if (array_length(_itens) <= 0) return false;
+    if (!tem_maquina_ima_na_fileira(_carta.dono, _carta.lane_atual)) return false;
+
+    if (_carta.dono == "jogador") {
+        array_push(obj_controlador.maquina_ima_pendencias,
+            { itens: _itens, x: _carta.x, y: _carta.y, dono: _carta.dono });
+    } else {
+        var _melhor = 0;
+        var _melhor_valor = -999999;
+        for (var i = 0; i < array_length(_itens); i++) {
+            var _item = _itens[i];
+            var _valor = _item.bonus_dano * 2 + _item.bonus_defesa * 2
+                + (_item.dado > 0 ? ((_item.dado + 1) / 2 + _item.modificador) : 0);
+            if (_valor > _melhor_valor) { _melhor_valor = _valor; _melhor = i; }
+        }
+        if (_itens[_melhor].funcao != noone) array_push(obj_controlador.mao_inimigo, _itens[_melhor].funcao);
+        descartar_itens_da_tropa(_itens, _carta.dono, _melhor);
+        mostrar_feedback("ITEM RECUPERADO", _carta.x, _carta.y - 45, c_aqua, 55);
+    }
+    return true;
+}
+
+function resolver_escolha_maquina_ima(_indice) {
+    if (!obj_controlador.maquina_ima_escolha_ativa || !is_struct(obj_controlador.maquina_ima_escolha_atual)) return;
+    var _evento = obj_controlador.maquina_ima_escolha_atual;
+    if (_indice < 0 || _indice >= array_length(_evento.itens)) return;
+    var _item = _evento.itens[_indice];
+    if (_item.funcao != noone) comprar_carta_do_deck_por_funcao(_item.funcao, _evento.x, _evento.y);
+    descartar_itens_da_tropa(_evento.itens, _evento.dono, _indice);
+    obj_controlador.maquina_ima_escolha_ativa = false;
+    obj_controlador.maquina_ima_escolha_atual = noone;
+    mostrar_feedback("ITEM RECUPERADO", _evento.x, _evento.y - 45, c_aqua, 55);
+}
+
 function destruir_tropa(_carta, _por_inimigo = true) {
     if (!instance_exists(_carta) || _carta.morrendo) return;
     if (_carta.tipo_morte_visual == "normal") {
@@ -2401,11 +2735,9 @@ function destruir_tropa(_carta, _por_inimigo = true) {
     debug_combate(_carta.nome_carta + " foi derrotada e enviada ao cemitério.");
     aplicar_efeitos_morte(_carta, _por_inimigo);
 
-    // Equipamentos acompanham a tropa até a morte e então vão para o descarte.
-    for (var _i_item_morte = 0; _i_item_morte < array_length(_carta.itens_equipados); _i_item_morte++) {
-        var _item_morte = _carta.itens_equipados[_i_item_morte];
-        if (_item_morte.funcao != noone) registrar_descarte_dados(_item_morte.funcao(), _carta.dono);
-    }
+    // A Máquina Imã da mesma fileira recupera um equipamento; os demais são descartados.
+    var _maquina_recuperou = processar_maquina_ima_na_morte(_carta);
+    if (!_maquina_recuperou) descartar_itens_da_tropa(_carta.itens_equipados, _carta.dono);
     _carta.itens_equipados = [];
     _carta.item_ataque_atual = noone;
 
@@ -2452,6 +2784,7 @@ function registrar_descarte_dados(_dados, _dono) {
 // Itens e magias consumidos vão para o descarte; tropas derrotadas usam o cemitério.
 function registrar_descarte(_carta) {
     if (!instance_exists(_carta)) return;
+    registrar_ultima_carta_jogada(_carta.funcao_dados_origem, _carta.dono);
     var _destino = (_carta.dono == "jogador") ? obj_controlador.descarte_jogador : obj_controlador.descarte_inimigo;
     array_push(_destino, {
         nome: _carta.nome_carta,
@@ -2590,7 +2923,7 @@ function criar_tropa_no_slot(_dados, _slot, _dono) {
 #region Dado visual (D20 / dado de dano)
 // Cria um dado animado que desliza do atacante até o defensor, gira, e para no valor
 // já decidido (_resultado_final). Quando termina, chama _funcao_callback com o resultado.
-function rolar_dado_visual(_x, _y, _destino_x, _destino_y, _tamanho_dado, _resultado_final, _funcao_callback, _modificador_exibido = 0, _atraso_inicio = 0, _tempo_total = -1) {
+function rolar_dado_visual(_x, _y, _destino_x, _destino_y, _tamanho_dado, _resultado_final, _funcao_callback, _modificador_exibido = 0, _atraso_inicio = 0, _tempo_total = -1, _dono_rolagem = "") {
     var _dado = instance_create_layer(_x, _y, "Instances", obj_dado);
     obj_controlador.rolagens_pendentes += 1;
 
@@ -2604,7 +2937,14 @@ function rolar_dado_visual(_x, _y, _destino_x, _destino_y, _tamanho_dado, _resul
     if (_tempo_total > 0) _dado.tempo_total_giro = _tempo_total;
     _dado.girando = true;
     _dado.tempo_girando = 0;
-    _dado.callback = _funcao_callback;
+    if (_funcao_callback != noone && _dono_rolagem != "") {
+        var _ctx_manipulado = { dono: _dono_rolagem, tamanho: _tamanho_dado, callback_real: _funcao_callback };
+        _dado.callback = method(_ctx_manipulado, function(_valor_visual) {
+            entregar_resultado_dado_manipulado(dono, tamanho, _valor_visual, callback_real);
+        });
+    } else {
+        _dado.callback = _funcao_callback;
+    }
     return _dado;
 }
 #endregion
@@ -2850,6 +3190,7 @@ function processar_turno_ia() {
         case 4:
             obj_controlador.ia_texto_acao = "intenção: evoluir e usar habilidades";
             ia_evoluir_tropa();
+            ia_usar_grimorios();
             ia_usar_habilidades_tropas();
             obj_controlador.ia_etapa = 5;
             obj_controlador.ia_tempo_espera = 55;
@@ -2908,6 +3249,11 @@ function reiniciar_acoes_tropas(_lado) {
             atacou_este_turno = false;
             habilidade_usada_este_turno = false;
             troca_item_usada_este_turno = false;
+            grimorio_usado_este_turno = false;
+            if (grimorio_escudo_ativo) {
+                defesa_magica = max(0, defesa_magica - 2);
+                grimorio_escudo_ativo = false;
+            }
             turnos_no_campo += 1;
         }
     }
@@ -2944,7 +3290,7 @@ function ia_escolher_indice_tropa() {
 
     for (var i = 0; i < array_length(obj_controlador.mao_inimigo); i++) {
         var _dados = obj_controlador.mao_inimigo[i]();
-        if (_dados.categoria != "tropa" || !pode_pagar_custo(_dados.custo, "inimigo")) continue;
+        if (_dados.categoria != "tropa" || !pode_pagar_custo(_dados.custo, "inimigo", _dados.categoria)) continue;
 
         var _valor = ia_valor_tropa_dados(_dados);
         if (_valor > _melhor_valor) {
@@ -3016,9 +3362,26 @@ function ia_pontuacao_alvo_magia(_dados, _alvo) {
 function ia_escolher_alvo_magia(_dados) {
     var _escolha = { tipo: "", alvo: noone, dono_castelo: "", pontuacao: -999999 };
 
+    if (_dados.nome == "Dados Manipulados") return { tipo: "propria", alvo: noone, dono_castelo: "", pontuacao: 85 };
+    if (_dados.nome == "Sangue Suga") return { tipo: "propria", alvo: noone, dono_castelo: "", pontuacao: 70 };
+    if (_dados.nome == "Refração Temporal" && ultima_carta_jogada("inimigo") != noone)
+        return { tipo: "propria", alvo: noone, dono_castelo: "", pontuacao: 75 };
+    if (_dados.nome == "Bloqueio de Recurso") {
+        with (obj_recurso) {
+            if (dono != "jogador" || bloqueado_turnos > 0) continue;
+            var _p = virado ? 35 : 90;
+            if (_p > _escolha.pontuacao) {
+                _escolha.tipo = "recurso"; _escolha.alvo = id; _escolha.pontuacao = _p;
+            }
+        }
+        return _escolha;
+    }
+
     with (obj_carta) {
         if (!travada || dono != "jogador" || sombra_ativa) continue;
+        if (_dados.nome == "Eutanásia" && vida > 5) continue;
         var _pontuacao = ia_pontuacao_alvo_magia(_dados, id);
+        if (_dados.nome == "Eutanásia") _pontuacao += 500;
         if (_pontuacao > _escolha.pontuacao) {
             _escolha.tipo = "tropa";
             _escolha.alvo = id;
@@ -3062,7 +3425,7 @@ function ia_jogar_magias() {
     var _melhor_pontuacao = -999999;
     for (var i = 0; i < array_length(obj_controlador.mao_inimigo); i++) {
         var _dados = obj_controlador.mao_inimigo[i]();
-        if (_dados.categoria != "magica" || !pode_pagar_custo(_dados.custo, "inimigo")) continue;
+        if (_dados.categoria != "magica" || !pode_pagar_custo(_dados.custo, "inimigo", _dados.categoria)) continue;
         var _escolha = ia_escolher_alvo_magia(_dados);
         if (_escolha.tipo == "" || _escolha.pontuacao <= _melhor_pontuacao) continue;
         _melhor_pontuacao = _escolha.pontuacao;
@@ -3071,10 +3434,12 @@ function ia_jogar_magias() {
     }
     if (_melhor_indice == -1 || !is_struct(_melhor_escolha)) return false;
 
-    var _magia = obj_controlador.mao_inimigo[_melhor_indice]();
-    pagar_custo(_magia.custo, "inimigo");
+    var _funcao_magia = obj_controlador.mao_inimigo[_melhor_indice];
+    var _magia = _funcao_magia();
+    pagar_custo(_magia.custo, "inimigo", _magia.categoria);
     array_delete(obj_controlador.mao_inimigo, _melhor_indice, 1);
     registrar_descarte_dados(_magia, "inimigo");
+    registrar_ultima_carta_jogada(_funcao_magia, "inimigo");
 
     switch (_magia.nome) {
         case "Bola de Fogo":
@@ -3084,13 +3449,32 @@ function ia_jogar_magias() {
         case "Veneno Mortal": aplicar_envenenado(_melhor_escolha.alvo); break;
         case "Congelante": aplicar_congelado(_melhor_escolha.alvo); break;
         case "Choque Elétrico": aplicar_eletrocutado(_melhor_escolha.alvo); break;
+        case "Eutanásia": destruir_tropa(_melhor_escolha.alvo, true); break;
+        case "Bloqueio de Recurso": bloquear_recurso(_melhor_escolha.alvo, 3); break;
+        case "Sangue Suga": buscar_recurso_no_deck("sangue", "inimigo"); break;
+        case "Dados Manipulados": ativar_dados_manipulados("inimigo", room_width / 2, 90); break;
+        case "Refração Temporal":
+            var _ultima_ia = ultima_carta_jogada("inimigo");
+            if (_ultima_ia != noone) {
+                var _ctx_refracao = { base: _ultima_ia };
+                array_push(obj_controlador.mao_inimigo, method(_ctx_refracao, function() {
+                    var _copia = base();
+                    if (_copia.categoria == "construcao") _copia.vida = max(1, ceil(_copia.vida * 0.5));
+                    return _copia;
+                }));
+            }
+        break;
         default:
             if (variable_struct_exists(_magia, "efeito_tipo")) aplicar_condicao_por_chave(_melhor_escolha.alvo, _magia.efeito_tipo);
         break;
     }
 
-    var _nome_alvo = (_melhor_escolha.tipo == "castelo") ? "castelo do jogador"
-        : ((_melhor_escolha.tipo == "construcao") ? _melhor_escolha.alvo.nome_construcao : _melhor_escolha.alvo.nome_carta);
+    var _nome_alvo = "efeito próprio";
+    if (_melhor_escolha.tipo == "castelo") _nome_alvo = "castelo do jogador";
+    else if (_melhor_escolha.tipo == "construcao") _nome_alvo = _melhor_escolha.alvo.nome_construcao;
+    else if (_melhor_escolha.tipo == "tropa")
+        _nome_alvo = instance_exists(_melhor_escolha.alvo) ? _melhor_escolha.alvo.nome_carta : "tropa";
+    else if (_melhor_escolha.tipo == "recurso") _nome_alvo = "recurso do jogador";
     obj_controlador.magias_usadas_este_turno += 1;
     debug_combate("IA usou " + _magia.nome + " em " + _nome_alvo + ".");
     return true;
@@ -3224,23 +3608,26 @@ function ia_usar_habilidades_tropas() {
     }
 }
 
-function ia_consumir_carta_da_mao(_indice, _dados) {
-    pagar_custo(_dados.custo, "inimigo");
+function ia_consumir_carta_da_mao(_indice, _dados, _funcao) {
+    pagar_custo(_dados.custo, "inimigo", _dados.categoria);
     array_delete(obj_controlador.mao_inimigo, _indice, 1);
     registrar_descarte_dados(_dados, "inimigo");
+    registrar_ultima_carta_jogada(_funcao, "inimigo");
 }
 
 function ia_jogar_bencaos_maldicoes() {
     for (var i = array_length(obj_controlador.mao_inimigo) - 1; i >= 0; i--) {
-        var _dados = obj_controlador.mao_inimigo[i]();
+        var _funcao_efeito_ia = obj_controlador.mao_inimigo[i];
+        var _dados = _funcao_efeito_ia();
         if ((_dados.categoria != "bencao" && _dados.categoria != "maldicao")
-            || !pode_pagar_custo(_dados.custo, "inimigo")) continue;
+            || !pode_pagar_custo(_dados.custo, "inimigo", _dados.categoria)) continue;
         var _sucesso = (_dados.categoria == "bencao")
             ? adicionar_bencao("inimigo", _dados.efeito, _dados.nome, _dados.sprite_carta)
             : adicionar_maldicao("inimigo", _dados.efeito, _dados.nome, _dados.sprite_carta);
         if (!_sucesso) continue;
-        pagar_custo(_dados.custo, "inimigo");
+        pagar_custo(_dados.custo, "inimigo", _dados.categoria);
         array_delete(obj_controlador.mao_inimigo, i, 1);
+        registrar_ultima_carta_jogada(_funcao_efeito_ia, "inimigo");
         iniciar_animacao_bencao_maldicao(_dados.categoria, _dados.nome);
         debug_combate("IA ativou " + _dados.nome + ".");
     }
@@ -3249,11 +3636,13 @@ function ia_jogar_bencaos_maldicoes() {
 function ia_jogar_terreno() {
     if (obj_controlador.primeiro_turno_inimigo || obj_controlador.terrenos_jogados_este_turno >= 1) return;
     for (var i = 0; i < array_length(obj_controlador.mao_inimigo); i++) {
-        var _dados = obj_controlador.mao_inimigo[i]();
-        if (_dados.categoria != "terreno" || !pode_pagar_custo(_dados.custo, "inimigo")) continue;
+        var _funcao_terreno_ia = obj_controlador.mao_inimigo[i];
+        var _dados = _funcao_terreno_ia();
+        if (_dados.categoria != "terreno" || !pode_pagar_custo(_dados.custo, "inimigo", _dados.categoria)) continue;
 
-        pagar_custo(_dados.custo, "inimigo");
+        pagar_custo(_dados.custo, "inimigo", _dados.categoria);
         array_delete(obj_controlador.mao_inimigo, i, 1);
+        registrar_ultima_carta_jogada(_funcao_terreno_ia, "inimigo");
         obj_controlador.terrenos_jogados_este_turno += 1;
         obj_controlador.terreno_bonus_defesa = _dados.bonus_defesa_global;
         obj_controlador.terreno_ativo = variable_struct_exists(_dados, "efeito_terreno") ? _dados.efeito_terreno : "";
@@ -3328,9 +3717,10 @@ function ia_jogar_itens() {
     while (_usos < 3) {
         var _usou = false;
         for (var i = 0; i < array_length(obj_controlador.mao_inimigo); i++) {
-            var _dados = obj_controlador.mao_inimigo[i]();
+            var _funcao_item_ia = obj_controlador.mao_inimigo[i];
+            var _dados = _funcao_item_ia();
             if ((_dados.categoria != "item_equipavel" && _dados.categoria != "item_consumivel")
-                || !pode_pagar_custo(_dados.custo, "inimigo")) continue;
+                || !pode_pagar_custo(_dados.custo, "inimigo", _dados.categoria)) continue;
 
             if (_dados.categoria == "item_equipavel") {
                 var _requisito = variable_struct_exists(_dados, "requisito_inteligencia") ? _dados.requisito_inteligencia : 0;
@@ -3338,15 +3728,17 @@ function ia_jogar_itens() {
                 if (_alvo_equipar == noone) continue;
                 var _item_ia = criar_dados_item_equipado(_dados.nome,
                     variable_struct_exists(_dados, "sprite_carta") ? _dados.sprite_carta : spr_carta_placeholder,
-                    obj_controlador.mao_inimigo[i],
+                    _funcao_item_ia,
                     variable_struct_exists(_dados, "bonus_mod_dano") ? _dados.bonus_mod_dano : 0,
                     variable_struct_exists(_dados, "bonus_defesa") ? _dados.bonus_defesa : 0,
                     variable_struct_exists(_dados, "sobrescreve_dado_dano") ? _dados.sobrescreve_dado_dano : 0,
-                    variable_struct_exists(_dados, "sobrescreve_mod_dano") ? _dados.sobrescreve_mod_dano : 0);
+                    variable_struct_exists(_dados, "sobrescreve_mod_dano") ? _dados.sobrescreve_mod_dano : 0,
+                    variable_struct_exists(_dados, "efeito_item") ? _dados.efeito_item : "");
                 equipar_item_dados(_alvo_equipar, _item_ia);
                 _alvo_equipar.troca_item_usada_este_turno = true;
-                pagar_custo(_dados.custo, "inimigo");
+                pagar_custo(_dados.custo, "inimigo", _dados.categoria);
                 array_delete(obj_controlador.mao_inimigo, i, 1);
+                registrar_ultima_carta_jogada(_funcao_item_ia, "inimigo");
                 debug_combate("IA equipou " + _dados.nome + " em " + _alvo_equipar.nome_carta + ".");
                 _usou = true;
             } else {
@@ -3380,7 +3772,7 @@ function ia_jogar_itens() {
                     }
                 }
                 if (!_executou) continue;
-                ia_consumir_carta_da_mao(i, _dados);
+                ia_consumir_carta_da_mao(i, _dados, _funcao_item_ia);
                 debug_combate("IA usou " + _dados.nome + ".");
                 _usou = true;
             }
@@ -3402,11 +3794,13 @@ function ia_slot_tem_armadilha(_lane, _posicao) {
 function ia_preparar_armadilha() {
     var _indice = -1;
     var _dados = noone;
+    var _funcao_armadilha = noone;
     for (var i = 0; i < array_length(obj_controlador.mao_inimigo); i++) {
         var _teste = obj_controlador.mao_inimigo[i]();
         if (_teste.categoria == "armadilha" && pode_pagar_custo(_teste.custo, "inimigo")) {
             _indice = i;
             _dados = _teste;
+            _funcao_armadilha = obj_controlador.mao_inimigo[i];
             break;
         }
     }
@@ -3431,8 +3825,9 @@ function ia_preparar_armadilha() {
     }
     if (_slot_escolhido == noone) return;
 
-    pagar_custo(_dados.custo, "inimigo");
+    pagar_custo(_dados.custo, "inimigo", _dados.categoria);
     array_delete(obj_controlador.mao_inimigo, _indice, 1);
+    registrar_ultima_carta_jogada(_funcao_armadilha, "inimigo");
     var _armadilha = instance_create_layer(_slot_escolhido.x, _slot_escolhido.y, "Instances", obj_carta);
     _armadilha.nome_carta = _dados.nome;
     _armadilha.categoria = "armadilha";
@@ -3440,6 +3835,7 @@ function ia_preparar_armadilha() {
     _armadilha.sprite_index = (_dados.sprite_carta != noone) ? _dados.sprite_carta : spr_carta_placeholder;
     _armadilha.dado_efeito = _dados.dado_efeito;
     _armadilha.qtd_dados_efeito = variable_struct_exists(_dados, "qtd_dados_efeito") ? _dados.qtd_dados_efeito : 1;
+    _armadilha.efeito_tipo = variable_struct_exists(_dados, "efeito_tipo") ? _dados.efeito_tipo : "armadilha_urso";
     _armadilha.armadilha_lane = _slot_escolhido.lane;
     _armadilha.armadilha_posicao = _slot_escolhido.posicao;
     _armadilha.armadilha_estado = "vigiando";
@@ -3496,9 +3892,9 @@ function ia_jogar_cartas() {
 				    continue;
 				}
 				if (_dados.categoria != "tropa") continue;
-				if (!pode_pagar_custo(_dados.custo, "inimigo")) continue;
+				if (!pode_pagar_custo(_dados.custo, "inimigo", _dados.categoria)) continue;
 
-                pagar_custo(_dados.custo, "inimigo");
+                pagar_custo(_dados.custo, "inimigo", _dados.categoria);
                 array_delete(obj_controlador.mao_inimigo, _indice_mao, 1);
 
                 var _carta = instance_create_layer(x, y, "Instances", obj_carta);
@@ -3618,12 +4014,14 @@ function ia_jogar_recursos() {
         }
     }
 
-    var _dados_escolhidos = obj_controlador.mao_inimigo[_melhor_indice_mao]();
+    var _funcao_recurso_ia = obj_controlador.mao_inimigo[_melhor_indice_mao];
+    var _dados_escolhidos = _funcao_recurso_ia();
     // Recurso vem da área oculta da mão inimiga, igual antes.
     var _resultado = colocar_recurso(_dados_escolhidos.tipo_recurso, "inimigo", room_width / 2, -global.CARTA_ALTURA);
 
     if (_resultado == "colocado") {
         array_delete(obj_controlador.mao_inimigo, _melhor_indice_mao, 1);
+        registrar_ultima_carta_jogada(_funcao_recurso_ia, "inimigo");
     }
 }
 
@@ -3654,15 +4052,30 @@ function ia_jogar_construcao() {
     // tenta cada construção que ela tem na mão até achar uma que dê pra pagar
     for (var i = 0; i < array_length(_indices_construcao); i++) {
         var _indice_mao = _indices_construcao[i];
-        var _dados = obj_controlador.mao_inimigo[_indice_mao]();
+        var _funcao_construcao_ia = obj_controlador.mao_inimigo[_indice_mao];
+        var _dados = _funcao_construcao_ia();
 
-        if (!pode_pagar_custo(_dados.custo, "inimigo")) continue;
+        if (!pode_pagar_custo(_dados.custo, "inimigo", _dados.categoria)) continue;
 
-        pagar_custo(_dados.custo, "inimigo");
+        pagar_custo(_dados.custo, "inimigo", _dados.categoria);
         array_delete(obj_controlador.mao_inimigo, _indice_mao, 1);
+        registrar_ultima_carta_jogada(_funcao_construcao_ia, "inimigo");
 
         var _construcao = instance_create_layer(_slot_livre.x, _slot_livre.y, "Instances", obj_construcao);
         _construcao.nome_construcao = _dados.nome;
+        _construcao.nome_carta = _dados.nome;
+        _construcao.custo = _dados.custo;
+        if (variable_struct_exists(_dados, "sprite_carta") && _dados.sprite_carta != noone) {
+            _construcao.sprite_index = _dados.sprite_carta;
+            _construcao.usa_sprite_carta = true;
+            _construcao.tem_arte_propria = true;
+            _construcao.escala_visual_base = min((global.CARTA_LARGURA * 0.60) / sprite_get_width(_dados.sprite_carta),
+                (global.CARTA_ALTURA * 0.60) / sprite_get_height(_dados.sprite_carta));
+            _construcao.image_xscale = _construcao.escala_visual_base;
+            _construcao.image_yscale = _construcao.escala_visual_base;
+            _construcao.vida_pos_x = clamp((variable_struct_exists(_dados, "vida_pos_x") ? _dados.vida_pos_x : 0.11) + 0.05, 0, 1);
+            _construcao.vida_pos_y = clamp((variable_struct_exists(_dados, "vida_pos_y") ? _dados.vida_pos_y : 0.07) + 0.05, 0, 1);
+        }
         _construcao.vida = _dados.vida;
         _construcao.vida_maxima = _dados.vida;
         _construcao.dono = "inimigo";
@@ -3828,76 +4241,90 @@ function nome_recurso_exibicao(_tipo, _quantidade) {
 }
 
 // verifica se dá pra pagar um custo, sem gastar ainda
-function pode_pagar_custo(_custo, _dono) {
-    if (_custo == noone) return true;
-
-    // aceita tanto o formato antigo (1 struct só) quanto o novo (array de structs)
-    var _lista_custos = is_array(_custo) ? _custo : [_custo];
-    var _faltas = [];
-    var _pode_pagar = true;
-
-    for (var i = 0; i < array_length(_lista_custos); i++) {
-        var _item = _lista_custos[i];
-        var _disponiveis = 0;
-
-        with (obj_recurso) {
-            if (!virado && dono == _dono && (tipo == other_custo_tipo(_item) || _item.tipo == "qualquer")) {
-                _disponiveis += 1;
-            }
+function ajustar_custo_por_terreno(_custo, _categoria) {
+    if (_custo == noone) return [];
+    var _entrada = is_array(_custo) ? _custo : [_custo];
+    var _saida = [];
+    for (var i = 0; i < array_length(_entrada); i++) {
+        var _quantidade = _entrada[i].quantidade;
+        if (_categoria == "tropa" && obj_controlador.terreno_ativo == "planicies_profanas"
+            && _entrada[i].tipo == "mana") {
+            _quantidade = max(0, _quantidade - 1);
         }
-
-        if (_disponiveis < _item.quantidade) {
-            _pode_pagar = false;
-            var _quantidade_faltante = _item.quantidade - _disponiveis;
-            array_push(_faltas, string(_quantidade_faltante) + " " + nome_recurso_exibicao(_item.tipo, _quantidade_faltante));
-        }
+        if (_quantidade > 0) array_push(_saida, { tipo: _entrada[i].tipo, quantidade: _quantidade });
     }
-
-    if (!_pode_pagar && _dono == "jogador") {
-        var _texto_faltas = "Falta ";
-        for (var j = 0; j < array_length(_faltas); j++) {
-            if (j > 0) _texto_faltas += (j == array_length(_faltas) - 1) ? " e " : ", ";
-            _texto_faltas += _faltas[j];
-        }
-        mostrar_aviso_regra(_texto_faltas);
-    }
-
-    return _pode_pagar;
+    return _saida;
 }
 
-// paga de verdade, virando os recursos usados
-function pagar_custo(_custo, _dono) {
-    if (_custo == noone) return true;
+// Reserva recursos específicos primeiro e deixa custos neutros/"qualquer" por
+// último, impedindo que a mesma carta de recurso pague duas partes do custo.
+function selecionar_recursos_para_custo(_custo, _dono, _categoria = "") {
+    var _necessidades = ajustar_custo_por_terreno(_custo, _categoria);
+    var _disponiveis = [];
+    with (obj_recurso) {
+        if (!virado && dono == _dono && bloqueado_turnos <= 0) array_push(_disponiveis, id);
+    }
+    var _selecionados = [];
+    var _faltas = [];
 
-    var _lista_custos = is_array(_custo) ? _custo : [_custo];
-    var _lista_recursos = (_dono == "jogador") ? obj_controlador.recursos_jogador : obj_controlador.recursos_inimigo;
-
-    for (var i = 0; i < array_length(_lista_custos); i++) {
-        var _item = _lista_custos[i];
-        var _pagos = 0;
-
-        for (var j = 0; j < array_length(_lista_recursos); j++) {
-            if (_pagos >= _item.quantidade) break;
-
-            var _recurso = _lista_recursos[j];
-            if (instance_exists(_recurso) && !_recurso.virado) {
-                if (_item.tipo == "qualquer" || _recurso.tipo == _item.tipo) {
-                    _recurso.virado = true;
+    for (var _passo = 0; _passo < 2; _passo++) {
+        for (var i = 0; i < array_length(_necessidades); i++) {
+            var _item = _necessidades[i];
+            var _eh_neutro = (_item.tipo == "qualquer");
+            if ((_passo == 0 && _eh_neutro) || (_passo == 1 && !_eh_neutro)) continue;
+            var _pagos = 0;
+            for (var j = 0; j < array_length(_disponiveis); j++) {
+                var _recurso = _disponiveis[j];
+                if (!instance_exists(_recurso) || array_get_index(_selecionados, _recurso) >= 0) continue;
+                if (_eh_neutro || _recurso.tipo == _item.tipo) {
+                    array_push(_selecionados, _recurso);
                     _pagos += 1;
+                    if (_pagos >= _item.quantidade) break;
                 }
             }
+            if (_pagos < _item.quantidade) {
+                var _falta = _item.quantidade - _pagos;
+                array_push(_faltas, string(_falta) + " " + nome_recurso_exibicao(_item.tipo, _falta));
+            }
         }
-
-        if (_pagos < _item.quantidade) return false; // não deveria acontecer se pode_pagar_custo já checou antes
     }
+    return { sucesso: array_length(_faltas) == 0, recursos: _selecionados, faltas: _faltas };
+}
 
+function pode_pagar_custo(_custo, _dono, _categoria = "") {
+    if (_custo == noone) return true;
+    var _selecao = selecionar_recursos_para_custo(_custo, _dono, _categoria);
+    if (!_selecao.sucesso && _dono == "jogador") {
+        var _texto = "Falta ";
+        for (var i = 0; i < array_length(_selecao.faltas); i++) {
+            if (i > 0) _texto += (i == array_length(_selecao.faltas) - 1) ? " e " : ", ";
+            _texto += _selecao.faltas[i];
+        }
+        mostrar_aviso_regra(_texto);
+    }
+    return _selecao.sucesso;
+}
+
+function pagar_custo(_custo, _dono, _categoria = "") {
+    if (_custo == noone) return true;
+    var _selecao = selecionar_recursos_para_custo(_custo, _dono, _categoria);
+    if (!_selecao.sucesso) return false;
+    for (var i = 0; i < array_length(_selecao.recursos); i++) {
+        if (instance_exists(_selecao.recursos[i])) _selecao.recursos[i].virado = true;
+    }
     return true;
 }
 
 // desvira todos os recursos de um lado (chamado no início do turno dele)
 function desvirar_recursos(_dono) {
     with (obj_recurso) {
-        if (dono == _dono) virado = false;
+        if (dono == _dono) {
+            virado = false;
+            if (bloqueado_turnos > 0) {
+                if (bloqueio_acabou_de_aplicar) bloqueio_acabou_de_aplicar = false;
+                else bloqueado_turnos = max(0, bloqueado_turnos - 1);
+            }
+        }
     }
     if (_dono == "jogador") {
         obj_controlador.recurso_colocado_no_turno = false;
@@ -3942,7 +4369,7 @@ function obter_config_condicao(_tipo) {
 
 // Tenta aplicar uma condição -- só funciona se a tropa não tiver outra condição diferente ativa.
 // Já dispara o texto flutuante com a cor certa quando aplica com sucesso.
-function aplicar_condicao(_carta, _tipo, _turnos, _dano_por_turno) {
+function aplicar_condicao(_carta, _tipo, _turnos, _dano_por_turno, _disparar_armadilhas = true) {
     if (_carta.condicao != noone && _carta.condicao != _tipo) {
         return false;
     }
@@ -3958,6 +4385,7 @@ function aplicar_condicao(_carta, _tipo, _turnos, _dano_por_turno) {
     _texto_flutuante.texto = string_upper(_tipo);
     _texto_flutuante.cor_texto = _config.cor;
 
+    if (_tipo == "loucura" && _disparar_armadilhas) ativar_loucura_mutua(_carta);
     return true;
 }
 
@@ -4086,23 +4514,27 @@ function aplicar_corrosao(_carta) {
 
 // O resultado único do D4 define tanto a duração quanto o valor por turno.
 function aplicar_apodrecer(_carta) {
+    if (!instance_exists(_carta) || _carta.condicao != noone) return false;
     var _resultado = irandom_range(1, 4);
-    var _aplicou = aplicar_condicao(_carta, "apodrecer", _resultado, _resultado);
-    if (_aplicou) {
-        _carta.condicao_valor_sorteado = _resultado;
-        rolar_dado_visual(_carta.x, _carta.y, _carta.x, _carta.y - 45, 4, _resultado, noone);
-    }
-    return _aplicou;
+    var _ctx = { carta: _carta };
+    rolar_dado_visual(_carta.x, _carta.y, _carta.x, _carta.y - 45, 4, _resultado,
+        method(_ctx, function(_valor) {
+            if (!instance_exists(carta)) return;
+            if (aplicar_condicao(carta, "apodrecer", _valor, _valor)) carta.condicao_valor_sorteado = _valor;
+        }), 0, 0, -1, _carta.dono);
+    return true;
 }
 
 function aplicar_regeneracao(_carta) {
+    if (!instance_exists(_carta) || _carta.condicao != noone) return false;
     var _resultado = irandom_range(1, 4);
-    var _aplicou = aplicar_condicao(_carta, "regeneracao", _resultado, _resultado);
-    if (_aplicou) {
-        _carta.condicao_valor_sorteado = _resultado;
-        rolar_dado_visual(_carta.x, _carta.y, _carta.x, _carta.y - 45, 4, _resultado, noone);
-    }
-    return _aplicou;
+    var _ctx = { carta: _carta };
+    rolar_dado_visual(_carta.x, _carta.y, _carta.x, _carta.y - 45, 4, _resultado,
+        method(_ctx, function(_valor) {
+            if (!instance_exists(carta)) return;
+            if (aplicar_condicao(carta, "regeneracao", _valor, _valor)) carta.condicao_valor_sorteado = _valor;
+        }), 0, 0, -1, _carta.dono);
+    return true;
 }
 
 // Condições incapacitantes bloqueiam todas as ações manuais da tropa.
@@ -4230,11 +4662,16 @@ function obter_posicao_castelo(_dono) {
 
 function destruir_construcao(_construcao) {
     if (!instance_exists(_construcao)) return;
+    var _dono = _construcao.dono;
+    var _lane = _construcao.lane_atual;
+    var _origem_x = _construcao.x;
+    var _origem_y = _construcao.y;
     if (_construcao.slot_atual != noone) {
         _construcao.slot_atual.ocupado = false;
         _construcao.slot_atual.construcao_atual = noone;
     }
     instance_destroy(_construcao);
+    ativar_destrocos_construcao(_dono, _lane, _origem_x, _origem_y);
 }
 
 function aplicar_efeito_bola_fogo(_alvo, _dado_efeito, _chance_queimar, _tipo_alvo = "tropa", _dono_castelo = "", _dano_rolado = -1) {
@@ -4304,6 +4741,7 @@ function lancar_bola_de_fogo(_alvo, _dado_efeito, _chance_queimar, _tipo_alvo = 
         chance_queimar: _chance_queimar,
         tipo_alvo: _tipo_alvo,
         dono_castelo: _dono_castelo,
+        dono_lancador: _dono_lancador,
         alvo_x: _posicao_alvo.x,
         alvo_y: _posicao_alvo.y
     };
@@ -4321,7 +4759,7 @@ function lancar_bola_de_fogo(_alvo, _dado_efeito, _chance_queimar, _tipo_alvo = 
         rolar_dado_visual(alvo_x, alvo_y - 45, alvo_x, alvo_y, dado_efeito, _resultado,
             method(_dados_dano, function(_dano) {
                 aplicar_efeito_bola_fogo(alvo, dado_efeito, chance_queimar, tipo_alvo, dono_castelo, _dano);
-            }));
+            }), 0, 0, -1, dono_lancador);
     });
 }
 #endregion
@@ -4368,11 +4806,11 @@ function evoluir_tropa(_carta) {
     
     var _dados_evo = _carta.funcao_evolucao();
     
-    if (!pode_pagar_custo(_dados_evo.custo, _carta.dono)) {
+    if (!pode_pagar_custo(_dados_evo.custo, _carta.dono, "tropa")) {
         debug_combate("Sem recurso suficiente pra evoluir.");
         return;
     }
-    pagar_custo(_dados_evo.custo, _carta.dono);
+    pagar_custo(_dados_evo.custo, _carta.dono, "tropa");
     
     // transfere o dano já sofrido, não reseta a vida
     var _dano_sofrido = _carta.vida_maxima - _carta.vida;
@@ -4459,9 +4897,9 @@ function esta_no_abismo(_nome_carta) {
 
 // Equipamentos permanecem ligados à tropa para que cartas futuras possam removê-los,
 // transferi-los ou roubá-los sem perder a origem nem acumular bônus incorretos.
-function criar_dados_item_equipado(_nome, _sprite, _funcao, _bonus_dano, _bonus_defesa, _dado, _mod) {
+function criar_dados_item_equipado(_nome, _sprite, _funcao, _bonus_dano, _bonus_defesa, _dado, _mod, _efeito_item = "") {
     return { nome: _nome, sprite: _sprite, funcao: _funcao, bonus_dano: _bonus_dano,
-        bonus_defesa: _bonus_defesa, dado: _dado, modificador: _mod };
+        bonus_defesa: _bonus_defesa, dado: _dado, modificador: _mod, efeito_item: _efeito_item };
 }
 
 function recalcular_itens_tropa(_tropa) {
@@ -4535,7 +4973,69 @@ function tentar_roubo_item(_ladrao, _vitima, _item_atacante) {
         equipar_item_dados(ladrao, _roubado);
         criar_animacao_item(_roubado.sprite, vitima.x, vitima.y, ladrao.x, ladrao.y, c_yellow);
         mostrar_feedback("ROUBOU: " + _roubado.nome, ladrao.x, ladrao.y - 45, c_yellow, 60);
-    }));
+    }), 0, 0, -1, _ladrao.dono);
+}
+
+function tropa_tem_item_efeito(_tropa, _efeito) {
+    if (!instance_exists(_tropa)) return false;
+    for (var i = 0; i < array_length(_tropa.itens_equipados); i++) {
+        if (_tropa.itens_equipados[i].efeito_item == _efeito) return true;
+    }
+    return false;
+}
+
+function usar_grimorio_iniciante(_tropa, _magia) {
+    if (!instance_exists(_tropa) || _tropa.grimorio_usado_este_turno) return false;
+    var _custo = { tipo: "mana", quantidade: 1 };
+    if (!pode_pagar_custo(_custo, _tropa.dono, "magica")) {
+        if (_tropa.dono == "jogador") mostrar_aviso_regra("O Grimório precisa de 1 Mana", _tropa.x, _tropa.y);
+        return false;
+    }
+
+    var _alvo = noone;
+    if (_magia == "raio") {
+        var _inimigo = (_tropa.dono == "jogador") ? "inimigo" : "jogador";
+        _alvo = buscar_tropa_na_coluna(_tropa.lane_atual, _inimigo);
+        if (_alvo == noone) {
+            if (_tropa.dono == "jogador") mostrar_aviso_regra("Não há tropa inimiga nesta fileira", _tropa.x, _tropa.y);
+            return false;
+        }
+    }
+
+    pagar_custo(_custo, _tropa.dono, "magica");
+    _tropa.grimorio_usado_este_turno = true;
+    if (_magia == "curazinha") {
+        _tropa.vida = min(_tropa.vida_maxima, _tropa.vida + 1);
+        mostrar_feedback("+1 VIDA", _tropa.x, _tropa.y - 40, c_lime, 45);
+    } else if (_magia == "escudo") {
+        _tropa.defesa_magica += 2;
+        _tropa.grimorio_escudo_ativo = true;
+        mostrar_feedback("+2 DEF MÁGICA", _tropa.x, _tropa.y - 40, c_aqua, 55);
+    } else {
+        var _resultado = irandom_range(1, 4);
+        var _ctx = { alvo: _alvo, conjurador: _tropa };
+        rolar_dado_visual(_tropa.x, _tropa.y, _alvo.x, _alvo.y - 40, 4, _resultado,
+            method(_ctx, function(_valor) {
+                if (!instance_exists(alvo)) return;
+                var _dano = max(0, _valor - alvo.defesa_magica);
+                alvo.vida -= _dano;
+                aplicar_flash_dano(alvo);
+                mostrar_dano_tropa(alvo, _dano);
+                if (alvo.vida <= 0) destruir_tropa(alvo, true);
+            }), 0, 0, -1, _tropa.dono);
+    }
+    return true;
+}
+
+function ia_usar_grimorios() {
+    with (obj_carta) {
+        if (!travada || dono != "inimigo" || grimorio_usado_este_turno
+            || !tropa_tem_item_efeito(id, "grimorio_iniciante")) continue;
+        var _alvo = buscar_tropa_na_coluna(lane_atual, "jogador");
+        if (vida < vida_maxima) usar_grimorio_iniciante(id, "curazinha");
+        else if (_alvo != noone) usar_grimorio_iniciante(id, "raio");
+        else usar_grimorio_iniciante(id, "escudo");
+    }
 }
 
 #region Menu de ação (clicar na tropa → Atacar/Mover/Habilidade)
@@ -4576,6 +5076,12 @@ function obter_opcoes_menu(_carta) {
     }
     if (tem_habilidade_ativa(_carta) != noone) {
         array_push(_opcoes, _carta.habilidade_usada_este_turno ? "Habilidade [já usada]" : "Habilidade");
+    }
+    if (tropa_tem_item_efeito(_carta, "grimorio_iniciante")) {
+        var _sufixo_grimorio = _carta.grimorio_usado_este_turno ? " [já usado]" : "";
+        array_push(_opcoes, "Grimório: Raio" + _sufixo_grimorio);
+        array_push(_opcoes, "Grimório: Escudo" + _sufixo_grimorio);
+        array_push(_opcoes, "Grimório: Curazinha" + _sufixo_grimorio);
     }
     if (array_length(_carta.itens_equipados) > 0) {
         if (!_carta.atacou_este_turno && _pode_atacar) {
@@ -4654,6 +5160,8 @@ function executar_opcao_menu(_carta, _opcao) {
                 mostrar_aviso_regra("Uma tropa aliada bloqueia o caminho", _carta.x, _carta.y);
             } else if (_resultado == "ataque_necessario") {
                 mostrar_aviso_regra("Há um inimigo no caminho", _carta.x, _carta.y);
+            } else if (_resultado == "armadilha") {
+                mostrar_feedback("PRESA PELAS RAÍZES", _carta.x, _carta.y - 38, c_lime, 55);
             } else {
                 mostrar_aviso_regra(_direcao_movimento == 1 ? "Não pode avançar mais" : "Não pode recuar mais",
                     _carta.x, _carta.y);
@@ -4672,6 +5180,9 @@ function executar_opcao_menu(_carta, _opcao) {
         case "Habilidade":
             usar_habilidade(_carta);
             break;
+        case "Grimório: Raio": usar_grimorio_iniciante(_carta, "raio"); break;
+        case "Grimório: Escudo": usar_grimorio_iniciante(_carta, "escudo"); break;
+        case "Grimório: Curazinha": usar_grimorio_iniciante(_carta, "curazinha"); break;
         case "Remover Item":
             if (remover_item_equipado(_carta, array_length(_carta.itens_equipados) - 1, true) != noone) {
                 _carta.troca_item_usada_este_turno = true;
@@ -4734,6 +5245,7 @@ function descricao_habilidade(_chave) {
         case "digestao": return "Digestão: devora uma tropa abatida ou com menos de 4 de vida.";
         case "roubo": return "Roubo: ao ser atacada por um item, tenta roubá-lo com um D10.";
         case "carnica_frenetica": return "Carniça Frenética: paga 2 Sangues e joga uma moeda para alterar o próximo ataque.";
+        case "ferida_exposta": return "Ferida Exposta: joga uma moeda para tentar causar Sangramento com o dano original.";
     }
     return _chave;
 }
@@ -4766,6 +5278,13 @@ function descricao_efeito_preview(_carta) {
         case "buscar_mana": return "Obtém um recurso de Mana.";
         case "aplicar_corrosao": return "Aplica Corrosão, com dano decrescente por 3 turnos.";
         case "aumentar_intelig": return "Concede +" + string(_carta.quantidade_efeito) + " de Inteligência a uma tropa aliada.";
+        case "dados_manipulados": return "Joga D4 e permite trocar as próximas 3 rolagens próprias pelo valor fixado.";
+        case "refracao_temporal": return "Transforma-se na última carta não-tropa que você jogou; construção copiada tem metade da vida.";
+        case "eutanasia": return "Destrói uma tropa com 5 ou menos de vida.";
+        case "bloqueio_recurso": return "Impede usar ou retirar o recurso escolhido durante 3 turnos do dono.";
+        case "loucura_mutua": return "Quando uma tropa sua recebe Loucura, uma tropa inimiga da fileira também recebe.";
+        case "raizes_espinhosas": return "Cancela o movimento de uma tropa terrestre com menos de 10 de vida e a envenena.";
+        case "destrocos": return "Quando uma construção sua é destruída, causa 1D4 às tropas inimigas da fileira.";
     }
     return "Use o efeito da carta em um alvo válido.";
 }
@@ -4789,12 +5308,27 @@ function descricao_carta_preview(_carta) {
 
     switch (_carta.categoria) {
         case "recurso": _texto += "\n\nColoque no seu campo de recursos. Recursos virados pagam cartas e voltam no próximo turno."; break;
-        case "construcao": _texto += "\n\nOcupa uma fileira e protege o castelo antes do dano direto."; break;
-        case "armadilha": _texto += "\n\nFica escondida no campo e ativa quando uma tropa inimiga entra no espaço vigiado."; break;
-        case "item_equipavel": _texto += "\n\nEquipe em uma tropa aliada. Bônus: +" + string(_carta.bonus_mod_dano_item) + " dano e +" + string(_carta.bonus_defesa_item) + " defesa."; break;
+        case "construcao":
+            if (_carta.efeito_construcao == "maquina_ima")
+                _texto += "\n\nQuando uma tropa aliada da fileira morrer, escolha um item dela para devolver à mão.";
+            else if (_carta.efeito_construcao == "artilharia")
+                _texto += "\n\nNo início do turno do dono, dispara " + string(_carta.dado_efeito) + " contra uma tropa inimiga da fileira.";
+            else if (_carta.efeito_construcao == "hemodrenario")
+                _texto += "\n\nUma vez por turno, vira um Sangue inimigo e desvira um recurso aliado.";
+            else _texto += "\n\nOcupa uma fileira e protege o castelo antes do dano direto.";
+        break;
+        case "armadilha": _texto += "\n\n" + descricao_efeito_preview(_carta); break;
+        case "item_equipavel":
+            if (_carta.efeito_item == "grimorio_iniciante")
+                _texto += "\n\nUma vez por turno, paga 1 Mana para usar Raio (1D4 mágico), Escudo Arcano (+2 DEF mágica) ou Curazinha (+1 vida).";
+            else _texto += "\n\nEquipe em uma tropa aliada. Bônus: +" + string(_carta.bonus_mod_dano_item) + " dano e +" + string(_carta.bonus_defesa_item) + " defesa.";
+        break;
         case "item_consumivel": _texto += "\n\n" + descricao_efeito_preview(_carta) + " É consumido depois do uso."; break;
         case "magica": _texto += "\n\n" + descricao_efeito_preview(_carta) + " Magias possuem limite por turno."; break;
-        case "terreno": _texto += "\n\nAltera regras ou atributos do campo enquanto estiver ativo."; break;
+        case "terreno":
+            if (_carta.efeito_terreno == "planicies_profanas") _texto += "\n\nReduz em 1 o custo de Mana de todas as tropas enquanto estiver ativo.";
+            else _texto += "\n\nAltera regras ou atributos do campo enquanto estiver ativo.";
+        break;
         case "bencao": _texto += "\n\nEfeito positivo permanente para seu lado da partida: " + string(_carta.efeito_passivo) + "."; break;
         case "maldicao": _texto += "\n\nEfeito negativo permanente aplicado ao lado escolhido: " + string(_carta.efeito_passivo) + "."; break;
     }
@@ -5156,7 +5690,7 @@ function processar_construcoes_inicio_turno(_dono) {
                     mostrar_dano_tropa(alvo, _dano);
                     mostrar_feedback("ARTILHARIA", torre.x, torre.y - 35, c_yellow, 45);
                     if (alvo.vida <= 0) destruir_tropa(alvo);
-                }));
+                }), 0, 0, -1, dono);
         }
     }
 }
