@@ -42,7 +42,7 @@ if (!girando && progresso_revelacao > 0 && !ocultar_resultado_ate_rolar) {
 
 // Quando todos os dados do grupo pousam, um deles desenha a soma uma única vez.
 if (grupo_soma_responsavel && is_struct(grupo_soma)
-    && grupo_soma.pousados >= grupo_soma.quantidade) {
+    && grupo_soma.pousados >= grupo_soma.quantidade && !grupo_soma.aguarda_resultado_final) {
     var _texto_soma = "";
     for (var _i_soma = 0; _i_soma < array_length(grupo_soma.resultados); _i_soma++) {
         if (_i_soma > 0) _texto_soma += " + ";

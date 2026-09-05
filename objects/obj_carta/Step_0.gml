@@ -204,7 +204,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
     
     with (obj_slot_construcao) {
         var _dist = point_distance(x, y, other.x, other.y);
-        if (!ocupado && _dist < _distancia_maxima && _dist < _menor_distancia) {
+        if (dono == "jogador" && !ocupado && _dist < _distancia_maxima && _dist < _menor_distancia) {
             _menor_distancia = _dist;
             _slot_construcao_perto = id;
         }
@@ -331,9 +331,9 @@ if (arrastando && mouse_check_button_released(mb_left)) {
                 lancar_bola_de_fogo(_alvo_magia, dado_efeito, chance_queimar,
                     _tipo_alvo_magia, _dono_castelo_alvo, "jogador");
             break;
-            case "veneno": aplicar_envenenado(_alvo_magia); break;
-            case "gelo": aplicar_congelado(_alvo_magia); break;
-            case "choque": aplicar_eletrocutado(_alvo_magia); break;
+            case "veneno": _executou_magia = aplicar_envenenado(_alvo_magia); break;
+            case "gelo": _executou_magia = aplicar_congelado(_alvo_magia); break;
+            case "choque": _executou_magia = aplicar_eletrocutado(_alvo_magia); break;
             default:
                 if (array_length(efeitos_declarativos) > 0)
                     _executou_magia = executar_efeitos_declarativos(efeitos_declarativos, _alvo_magia, "jogador");

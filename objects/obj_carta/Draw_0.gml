@@ -57,7 +57,61 @@ draw_set_alpha(_alpha_carta);
 
 gpu_set_texfilter(true);
 
+// Equipamentos ficam empilhados atrás da tropa como cartas físicas.
+// Cada carta sobe apenas a altura do cabeçalho, deixando o título à mostra.
+if (travada && categoria == "tropa" && array_length(itens_equipados) > 0) {
+    var _qtd_equipamentos = array_length(itens_equipados);
+    var _largura_tropa_visual = sprite_get_width(sprite_index) * _escala_final;
+    var _altura_tropa_visual = sprite_get_height(sprite_index) * _escala_final;
+    var _passo_equipamento = clamp(_altura_tropa_visual * 0.070, 15, 23);
 
+    for (var _indice_equip = 0; _indice_equip < _qtd_equipamentos; _indice_equip++) {
+        var _item_visual = itens_equipados[_indice_equip];
+        if (!is_struct(_item_visual) || !variable_struct_exists(_item_visual, "sprite")) continue;
+
+        var _sprite_equipamento = _item_visual.sprite;
+        if (_sprite_equipamento == noone || !sprite_exists(_sprite_equipamento))
+            _sprite_equipamento = spr_carta_placeholder;
+
+        var _escala_equipamento = min(
+            _largura_tropa_visual / sprite_get_width(_sprite_equipamento),
+            _altura_tropa_visual / sprite_get_height(_sprite_equipamento)
+        );
+        var _recuo_local = -_passo_equipamento * (_qtd_equipamentos - _indice_equip);
+        var _distancia_equip = abs(_recuo_local);
+        var _direcao_equip = point_direction(0, 0, 0, _recuo_local) + _rotacao_total;
+        var _equip_x = _x_desenho + lengthdir_x(_distancia_equip, _direcao_equip);
+        var _equip_y = _y_desenho + lengthdir_y(_distancia_equip, _direcao_equip);
+
+        draw_sprite_ext(_sprite_equipamento, 0, _equip_x, _equip_y,
+            _escala_equipamento, _escala_equipamento, _rotacao_total, _cor_final, _alpha_carta);
+
+        // Cartas sem arte usam o placeholder; nesse caso o título é desenhado
+        // manualmente para a faixa visível continuar identificando o item.
+        if (_sprite_equipamento == spr_carta_placeholder) {
+            var _nome_equipamento = variable_struct_exists(_item_visual, "nome")
+                ? _item_visual.nome : "Equipamento";
+            var _topo_local = -(sprite_get_height(_sprite_equipamento) * _escala_equipamento * 0.5)
+                + _passo_equipamento * 0.50;
+            var _distancia_titulo = abs(_topo_local);
+            var _direcao_titulo = point_direction(0, 0, 0, _topo_local) + _rotacao_total;
+            var _titulo_x = _equip_x + lengthdir_x(_distancia_titulo, _direcao_titulo);
+            var _titulo_y = _equip_y + lengthdir_y(_distancia_titulo, _direcao_titulo);
+            var _escala_titulo = min(_escala_equipamento * 0.42,
+                (_largura_tropa_visual * 0.82) / max(1, string_width(_nome_equipamento)));
+
+            draw_set_halign(fa_center);
+            draw_set_valign(fa_middle);
+            draw_set_color(c_white);
+            draw_text_transformed(_titulo_x, _titulo_y, _nome_equipamento,
+                _escala_titulo, _escala_titulo, _rotacao_total);
+            draw_set_halign(fa_left);
+            draw_set_valign(fa_top);
+            draw_set_color(c_white);
+
+        }
+    }
+}
 // Sombra deslocada dá altura e peso à carta enquanto ela acompanha o mouse.
 if (arrastando) {
     var _sombra_distancia = 8 + min(5, point_distance(0, 0, arrasto_velocidade_x, arrasto_velocidade_y) * 0.15);

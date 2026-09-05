@@ -196,21 +196,39 @@ if (carta_menu_aberto != noone && instance_exists(carta_menu_aberto) && menu_esc
         var _opt_y = _base_y + i * (_altura_opcao + _espaco_opcao);
         var _centro_opt_y = _opt_y + _altura_opcao/2;
         
-        // cresce a partir da esquerda (perto da carta), não do centro
-        var _largura_atual = _largura_opcao * menu_escala;
-        var _altura_atual = _altura_opcao * menu_escala;
+        var _hover_botao = (i < array_length(menu_opcao_hover_anim)) ? menu_opcao_hover_anim[i] : 0;
+        var _press_botao = (i < array_length(menu_opcao_press_anim)) ? menu_opcao_press_anim[i] : 0;
+        var _deslocamento_botao = _hover_botao * 7 + _press_botao * 3;
+        var _largura_atual = _largura_opcao * menu_escala + _hover_botao * 10 - _press_botao * 5;
+        var _altura_atual = _altura_opcao * menu_escala + _hover_botao * 2 - _press_botao * 3;
+        var _centro_animado_y = _centro_opt_y + _press_botao * 2;
         
-        var _x1 = _base_x;
-        var _y1 = _centro_opt_y - _altura_atual/2;
-        var _x2 = _base_x + _largura_atual;
-        var _y2 = _centro_opt_y + _altura_atual/2;
+        var _x1 = _base_x + _deslocamento_botao;
+        var _y1 = _centro_animado_y - _altura_atual/2;
+        var _x2 = _x1 + _largura_atual;
+        var _y2 = _centro_animado_y + _altura_atual/2;
         
         var _opcao_indisponivel = string_pos("[", _opcoes[i]) > 0;
-        draw_set_alpha(menu_escala);
+        var _cor_borda = _opcao_indisponivel ? c_gray
+            : merge_color(c_white, c_yellow, _hover_botao);
+        _cor_borda = merge_color(_cor_borda, make_color_rgb(255, 150, 35), _press_botao);
+        var _cor_fundo = merge_color(make_color_rgb(14, 14, 18),
+            make_color_rgb(52, 40, 18), _hover_botao * 0.72);
+        
+        // A sombra se separa no hover e volta para perto quando o botão é pressionado.
+        draw_set_alpha(menu_escala * (0.36 + _hover_botao * 0.22));
         draw_set_color(c_black);
+        var _sombra_x = 4 + _hover_botao * 3 - _press_botao * 2;
+        var _sombra_y = 4 + _hover_botao * 2 - _press_botao * 2;
+        draw_rectangle(_x1 + _sombra_x, _y1 + _sombra_y,
+            _x2 + _sombra_x, _y2 + _sombra_y, false);
+        
+        draw_set_alpha(menu_escala);
+        draw_set_color(_cor_fundo);
         draw_rectangle(_x1, _y1, _x2, _y2, false);
-        draw_set_color(_opcao_indisponivel ? c_gray : c_white);
+        draw_set_color(_cor_borda);
         draw_rectangle(_x1, _y1, _x2, _y2, true);
+        draw_rectangle(_x1, _y1, _x1 + 3 + _hover_botao * 2, _y2, false);
         
 		// tooltip com o nome da habilidade, mostrado só quando o mouse está exatamente nesta opção
 		if (i == opcao_hover_index && tooltip_escala > 0.01 && _opcoes[i] == "Habilidade") {
@@ -251,7 +269,15 @@ if (carta_menu_aberto != noone && instance_exists(carta_menu_aberto) && menu_esc
 		    draw_set_halign(fa_center);
 		    draw_set_valign(fa_middle);
 		    var _escala_texto_opcao = _opcao_indisponivel ? 0.40 : 0.60;
-		    draw_text_transformed((_x1 + _x2)/2, (_y1 + _y2)/2, _opcoes[i], _escala_texto_opcao, _escala_texto_opcao, 0);
+            _escala_texto_opcao *= 1 + _hover_botao * 0.035 - _press_botao * 0.045;
+            var _texto_opcao = _opcoes[i];
+            if (menu_submenu == "" && (_texto_opcao == "Ataque"
+                || _texto_opcao == "Movimento" || _texto_opcao == "Itens")) {
+                _texto_opcao += "  >";
+            }
+            draw_set_color(_cor_borda);
+		    draw_text_transformed((_x1 + _x2)/2, (_y1 + _y2)/2,
+                _texto_opcao, _escala_texto_opcao, _escala_texto_opcao, 0);
 		}
         draw_set_alpha(1);
     }

@@ -21,6 +21,7 @@ if (obj_controlador.carta_menu_aberto != noone && obj_controlador.carta_menu_abe
     }
 }
 
+obj_controlador.menu_submenu = "";
 if (obj_controlador.carta_menu_aberto == id) {
     obj_controlador.carta_menu_aberto = noone;
     obj_controlador.tropa_selecionada = noone;

@@ -142,6 +142,10 @@ rolagens_pendentes_timer = 0; // watchdog: força reset se ficar travado tempo d
 #region Menu de ação (clicar na tropa em campo)
 carta_menu_aberto = noone;
 menu_escala = 0;
+menu_submenu = "";
+menu_opcao_pressionada = -1;
+menu_opcao_hover_anim = [];
+menu_opcao_press_anim = [];
 opcao_hover_index = -1;
 tooltip_escala = 0;
 tropa_selecionada = noone;
@@ -214,8 +218,8 @@ tutorial_paginas = [
     { titulo: "CONDIÇÕES", texto: "Uma tropa só mantém uma condição por vez. Confusão dá desvantagem e permite contra-ataque em qualquer erro; Adormecer joga uma moeda no início do turno; Berserker dobra apenas o dano original, dá vantagem e +4 DEF. Apodrecer e Regeneração jogam um único D4, que define duração e valor por turno." },
     { titulo: "ITENS E RECURSOS", texto: "No menu de uma tropa equipada, você pode devolver o último item à mão ou transferi-lo para uma tropa aliada com espaço. Cada tropa envolvida troca no máximo uma vez por turno. Clique com o botão direito em um recurso para devolvê-lo à mão; só 1 recurso pode ser retirado por turno." },
     { titulo: "HABILIDADES ESPECIAIS", texto: "Digestão escolhe uma tropa adjacente com menos de 4 de vida ou usa a vítima recém-abatida. Roubo joga D10 quando a tropa é atacada por uma arma: no 10, toma o item se houver espaço. Carniça Frenética paga 2 Sangues e prepara o próximo ataque. Visão do Véu revela a mão inimiga e oferece duas escolhas." },
-    { titulo: "NOVAS MAGIAS", texto: "Dados Manipulados fixa o resultado de um D4 e, nas próximas 3 rolagens próprias, permite escolher entre o valor rolado e o fixado. Refração Temporal copia a última carta não-tropa usada; construções copiadas ficam com metade da vida. Eutanásia destrói uma tropa com até 5 de vida. Bloqueio de Recurso impede usar ou retirar o recurso escolhido por 3 turnos. Sangue Suga procura um Sangue no baralho." },
-    { titulo: "NOVAS ARMADILHAS E ITENS", texto: "Raízes Espinhosas impede o movimento de uma tropa com menos de 10 de vida e a envenena. Loucura Mútua devolve Loucura a uma tropa inimiga da fileira. Destroços joga D4 contra tropas adversárias da fileira quando sua construção é destruída. A Máquina Imã recupera um item de uma tropa aliada morta na mesma fileira. O Grimório oferece Raio, Escudo ou Curazinha uma vez por turno, pagando 1 Mana." },
+    { titulo: "COMO USAR MAGIAS", texto: "No seu turno, arraste uma magia da mão até o alvo indicado pela carta. O alvo pode ser uma tropa, construção, recurso ou castelo, dependendo do efeito. Você pode usar até 2 magias por turno e precisa pagar o custo. Se o alvo não for válido, a carta volta para a mão e nenhum recurso é gasto. Magias usadas normalmente vão para o descarte." },
+    { titulo: "COMO USAR ARMADILHAS E ITENS", texto: "Arraste uma armadilha para uma casa válida do campo; cada casa aceita apenas 1 armadilha. Quando o gatilho dela acontecer, clique na armadilha pronta para ativá-la. Para usar um item, arraste-o sobre uma tropa aliada que tenha inteligência e espaço suficientes. Você pode usar até 3 itens por turno, e itens equipados podem liberar ataques ou efeitos no menu da tropa." },
     { titulo: "INFORMAÇÕES DA PARTIDA", texto: "Use HISTÓRICO para rever ações recentes e CEMITÉRIO para ver as tropas derrotadas. Você pode abrir este tutorial novamente a qualquer momento pelo botão TUTORIAL ou com F1." }
 ];
 abrir_livro_pendente = variable_global_exists("abrir_livro_menu") && global.abrir_livro_menu;

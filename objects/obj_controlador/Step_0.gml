@@ -725,19 +725,68 @@ if (carta_menu_aberto != noone && instance_exists(carta_menu_aberto) && menu_esc
 
     for (var i = 0; i < _n; i++) {
         var _opt_y = _base_y + i * (_altura_opcao + _espaco_opcao);
-        if (mouse_x > _base_x && mouse_x < _base_x + _largura_opcao && mouse_y > _opt_y && mouse_y < _opt_y + _altura_opcao) {
+        if (mouse_x > _base_x && mouse_x < _base_x + _largura_opcao + 12
+            && mouse_y > _opt_y - 2 && mouse_y < _opt_y + _altura_opcao + 2) {
             opcao_hover_index = i;
+            if (mouse_check_button_pressed(mb_left)) menu_opcao_pressionada = i;
 
-            if (mouse_check_button_pressed(mb_left)) {
-                executar_opcao_menu(_carta, _opcoes[i]);
-                carta_menu_aberto = noone;
-                // Depois de escolher qualquer ação, a tropa deixa de ficar destacada.
-                // Mesmo quando a regra impedir a ação, o jogador pode selecionar novamente se quiser.
-                tropa_selecionada = noone;
+            if (mouse_check_button_released(mb_left) && menu_opcao_pressionada == i) {
+                var _opcao_clicada = _opcoes[i];
+                if (_opcao_clicada == "Ataque") {
+                    menu_submenu = "ataque";
+                    opcao_hover_index = -1;
+                    menu_escala = 0.88;
+                    menu_opcao_hover_anim = [];
+                    menu_opcao_press_anim = [];
+                } else if (_opcao_clicada == "Movimento") {
+                    menu_submenu = "movimento";
+                    opcao_hover_index = -1;
+                    menu_escala = 0.88;
+                    menu_opcao_hover_anim = [];
+                    menu_opcao_press_anim = [];
+                } else if (_opcao_clicada == "Itens") {
+                    menu_submenu = "itens";
+                    opcao_hover_index = -1;
+                    menu_escala = 0.88;
+                    menu_opcao_hover_anim = [];
+                    menu_opcao_press_anim = [];
+                } else if (_opcao_clicada == "Voltar") {
+                    menu_submenu = "";
+                    opcao_hover_index = -1;
+                    menu_escala = 0.88;
+                    menu_opcao_hover_anim = [];
+                    menu_opcao_press_anim = [];
+                } else {
+                    executar_opcao_menu(_carta, _opcao_clicada);
+                    carta_menu_aberto = noone;
+                    menu_submenu = "";
+                    tropa_selecionada = noone;
+                }
             }
             break;
         }
     }
+}
+
+if (mouse_check_button_released(mb_left)) menu_opcao_pressionada = -1;
+
+if (carta_menu_aberto != noone && instance_exists(carta_menu_aberto)) {
+    var _opcoes_animadas = obter_opcoes_menu(carta_menu_aberto);
+    var _qtd_opcoes_animadas = array_length(_opcoes_animadas);
+    array_resize(menu_opcao_hover_anim, _qtd_opcoes_animadas);
+    array_resize(menu_opcao_press_anim, _qtd_opcoes_animadas);
+    for (var _anim_i = 0; _anim_i < _qtd_opcoes_animadas; _anim_i++) {
+        if (is_undefined(menu_opcao_hover_anim[_anim_i])) menu_opcao_hover_anim[_anim_i] = 0;
+        if (is_undefined(menu_opcao_press_anim[_anim_i])) menu_opcao_press_anim[_anim_i] = 0;
+        var _alvo_hover_opcao = (_anim_i == opcao_hover_index) ? 1 : 0;
+        var _alvo_press_opcao = (_anim_i == menu_opcao_pressionada && mouse_check_button(mb_left)) ? 1 : 0;
+        menu_opcao_hover_anim[_anim_i] = lerp(menu_opcao_hover_anim[_anim_i], _alvo_hover_opcao, 0.28);
+        menu_opcao_press_anim[_anim_i] = lerp(menu_opcao_press_anim[_anim_i], _alvo_press_opcao, 0.42);
+    }
+} else {
+    menu_opcao_pressionada = -1;
+    menu_opcao_hover_anim = [];
+    menu_opcao_press_anim = [];
 }
 #endregion
 
