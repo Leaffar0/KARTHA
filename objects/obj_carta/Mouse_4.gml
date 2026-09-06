@@ -1,5 +1,5 @@
 if (obj_controlador.visao_veu_ativa || obj_controlador.digestao_selecao_ativa || obj_controlador.troca_item_selecao_ativa) exit;
-if (!travada || dono != "jogador") exit;
+if (!travada || !lado_controlado_localmente(dono)) exit;
 
 // se o menu de outra carta estiver aberto e o clique caiu em cima dele, ignora -- deixa o Step cuidar disso
 if (obj_controlador.carta_menu_aberto != noone && obj_controlador.carta_menu_aberto != id && obj_controlador.menu_escala > 0.5) {

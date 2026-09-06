@@ -1,3 +1,80 @@
+// O SDK usa uma fila de eventos; ela precisa ser processada a cada frame.
+if (colyseus_is_ready()) colyseus_process();
+if (online_copiado_timer > 0) online_copiado_timer--;
+
+if (online_aberto) {
+    var _online_cx = room_width / 2;
+    var _online_cy = room_height / 2;
+    var _online_conectado = online_ativo();
+    var _online_ocupado = global.online_status == "conectando" || global.online_status == "reconectando";
+
+    if (keyboard_check_pressed(vk_escape)) {
+        if (_online_conectado || _online_ocupado) online_desconectar();
+        else online_aberto = false;
+        keyboard_string = "";
+        exit;
+    }
+
+    if (!_online_conectado && !_online_ocupado) {
+        if (mouse_check_button_pressed(mb_left)) {
+            if (point_in_rectangle(mouse_x, mouse_y, _online_cx - 190, _online_cy - 105, _online_cx + 190, _online_cy - 69)) {
+                online_foco = 0; keyboard_string = online_nome_input;
+            } else if (point_in_rectangle(mouse_x, mouse_y, _online_cx - 190, _online_cy - 55, _online_cx + 190, _online_cy - 19)) {
+                online_foco = 1; keyboard_string = online_codigo_input;
+            } else if (point_in_rectangle(mouse_x, mouse_y, _online_cx - 190, _online_cy - 5, _online_cx + 190, _online_cy + 31)) {
+                online_foco = 2; keyboard_string = online_servidor_input;
+            } else if (point_in_rectangle(mouse_x, mouse_y, _online_cx - 190, _online_cy + 55, _online_cx - 10, _online_cy + 101)) {
+                online_conectar(true, "", online_nome_input, online_servidor_input);
+            } else if (point_in_rectangle(mouse_x, mouse_y, _online_cx + 10, _online_cy + 55, _online_cx + 190, _online_cy + 101)) {
+                if (string_length(string_trim(online_codigo_input)) > 0)
+                    online_conectar(false, online_codigo_input, online_nome_input, online_servidor_input);
+                else global.online_erro = "Digite o código da sala.";
+            } else if (point_in_rectangle(mouse_x, mouse_y, _online_cx - 100, _online_cy + 130, _online_cx + 100, _online_cy + 170)) {
+                online_aberto = false;
+            }
+        }
+
+        if (keyboard_check_pressed(vk_tab)) {
+            online_foco = (online_foco + 1) mod 3;
+            keyboard_string = (online_foco == 0) ? online_nome_input
+                : ((online_foco == 1) ? online_codigo_input : online_servidor_input);
+        }
+
+        if (online_foco == 0) {
+            online_nome_input = string_copy(keyboard_string, 1, 24);
+            keyboard_string = online_nome_input;
+        } else if (online_foco == 1) {
+            online_codigo_input = string_copy(keyboard_string, 1, 64);
+            keyboard_string = online_codigo_input;
+        } else {
+            online_servidor_input = string_copy(keyboard_string, 1, 120);
+            keyboard_string = online_servidor_input;
+        }
+    } else if (_online_conectado) {
+        if (mouse_check_button_pressed(mb_left)) {
+            if (global.online_fase == "waiting"
+                && point_in_rectangle(mouse_x, mouse_y, _online_cx - 105, _online_cy + 35, _online_cx + 105, _online_cy + 75)) {
+                clipboard_set_text(global.net_room_id);
+                online_copiado_timer = 90;
+            } else if (global.online_fase == "initiative"
+                && global.online_assento >= 0 && global.online_iniciativa[global.online_assento] < 0
+                && point_in_rectangle(mouse_x, mouse_y, _online_cx - 130, _online_cy + 45, _online_cx + 130, _online_cy + 95)) {
+                online_rolar_iniciativa();
+            } else if (global.online_fase == "choose_first"
+                && global.online_vencedor_iniciativa == global.online_assento) {
+                if (point_in_rectangle(mouse_x, mouse_y, _online_cx - 205, _online_cy + 45, _online_cx - 5, _online_cy + 95))
+                    online_escolher_primeiro(global.online_assento);
+                else if (point_in_rectangle(mouse_x, mouse_y, _online_cx + 5, _online_cy + 45, _online_cx + 205, _online_cy + 95))
+                    online_escolher_primeiro(1 - global.online_assento);
+            }
+            if (point_in_rectangle(mouse_x, mouse_y, _online_cx - 100, _online_cy + 140, _online_cx + 100, _online_cy + 178)) {
+                online_desconectar();
+            }
+        }
+    }
+    exit;
+}
+
 #region Atualização da animação e posição dos botões
 tempo_menu += 0.03;
 
@@ -50,6 +127,34 @@ var sair_x = room_width/2 + offset_x;
 var sair_y = room_height - 45 + offset_y;
 #endregion
 
+if (modo_jogo_aberto) {
+    var _modo_cx = room_width / 2;
+    var _modo_cy = room_height / 2;
+    if (keyboard_check_pressed(vk_escape)) {
+        modo_jogo_aberto = false;
+    } else if (mouse_check_button_pressed(mb_left)) {
+        if (point_in_rectangle(mouse_x, mouse_y,
+            _modo_cx - 170, _modo_cy - 42, _modo_cx + 170, _modo_cy + 2)) {
+            global.modo_partida = "ia";
+            room_goto(rm_jogo);
+        } else if (point_in_rectangle(mouse_x, mouse_y,
+            _modo_cx - 170, _modo_cy + 15, _modo_cx + 170, _modo_cy + 59)) {
+            global.modo_partida = "local";
+            room_goto(rm_jogo);
+        } else if (point_in_rectangle(mouse_x, mouse_y,
+            _modo_cx - 170, _modo_cy + 72, _modo_cx + 170, _modo_cy + 116)) {
+            modo_jogo_aberto = false;
+            online_aberto = true;
+            online_foco = 0;
+            keyboard_string = online_nome_input;
+        } else if (point_in_rectangle(mouse_x, mouse_y,
+            _modo_cx - 100, _modo_cy + 135, _modo_cx + 100, _modo_cy + 175)) {
+            modo_jogo_aberto = false;
+        }
+    }
+    exit;
+}
+
 #region Cliques do menu
 if (!opcoes_abertas && mouse_check_button_pressed(mb_left))
 {
@@ -60,7 +165,7 @@ if (!opcoes_abertas && mouse_check_button_pressed(mb_left))
         jogar_x - 80, jogar_y - 25,
         jogar_x + 80, jogar_y + 25))
     {
-        room_goto(rm_jogo);
+        modo_jogo_aberto = true;
     }
 
     if (point_in_rectangle(mouse_x, mouse_y, jogar_x - 90, opcoes_y - 22, jogar_x + 90, opcoes_y + 22)) opcoes_abertas = true;

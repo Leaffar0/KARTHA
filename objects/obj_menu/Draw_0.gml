@@ -82,6 +82,7 @@ if (opcoes_abertas) {
     draw_set_color(c_black);
     draw_rectangle(_opcoes_x - 210, _opcoes_y - 105, _opcoes_x + 210, _opcoes_y + 150, false);
     draw_set_alpha(1);
+
     draw_set_color(c_white);
     draw_rectangle(_opcoes_x - 210, _opcoes_y - 105, _opcoes_x + 210, _opcoes_y + 150, true);
     draw_text(_opcoes_x, _opcoes_y - 65, "OPÇÕES");
@@ -95,6 +96,147 @@ if (opcoes_abertas) {
     draw_text(_opcoes_x, _tela_y, "TELA CHEIA: " + (window_get_fullscreen() ? "SIM" : "NÃO"));
     draw_set_color(c_white);
     draw_text(_opcoes_x, _voltar_y, "VOLTAR");
+}
+#endregion
+
+#region Escolha do modo de partida
+if (modo_jogo_aberto) {
+    var _modo_cx = room_width / 2;
+    var _modo_cy = room_height / 2;
+    draw_set_alpha(0.90);
+    draw_set_color(c_black);
+    draw_roundrect(_modo_cx - 235, _modo_cy - 125, _modo_cx + 235, _modo_cy + 198, false);
+    draw_set_alpha(1);
+    draw_set_color(c_white);
+    draw_roundrect(_modo_cx - 235, _modo_cy - 125, _modo_cx + 235, _modo_cy + 198, true);
+    draw_text(_modo_cx, _modo_cy - 82, "ESCOLHA O MODO");
+
+    var _hover_ia = point_in_rectangle(mouse_x, mouse_y,
+        _modo_cx - 170, _modo_cy - 42, _modo_cx + 170, _modo_cy + 2);
+    var _hover_local = point_in_rectangle(mouse_x, mouse_y,
+        _modo_cx - 170, _modo_cy + 15, _modo_cx + 170, _modo_cy + 59);
+    var _hover_online = point_in_rectangle(mouse_x, mouse_y,
+        _modo_cx - 170, _modo_cy + 72, _modo_cx + 170, _modo_cy + 116);
+    var _hover_voltar = point_in_rectangle(mouse_x, mouse_y,
+        _modo_cx - 100, _modo_cy + 135, _modo_cx + 100, _modo_cy + 175);
+
+    draw_set_color(_hover_ia ? c_yellow : c_white);
+    draw_roundrect(_modo_cx - 170, _modo_cy - 42, _modo_cx + 170, _modo_cy + 2, true);
+    draw_text(_modo_cx, _modo_cy - 20, "CONTRA IA");
+    draw_set_color(_hover_local ? c_yellow : c_white);
+    draw_roundrect(_modo_cx - 170, _modo_cy + 15, _modo_cx + 170, _modo_cy + 59, true);
+    draw_text(_modo_cx, _modo_cy + 37, "2 JOGADORES LOCAL");
+    draw_set_color(_hover_online ? c_aqua : c_white);
+    draw_roundrect(_modo_cx - 170, _modo_cy + 72, _modo_cx + 170, _modo_cy + 116, true);
+    draw_text(_modo_cx, _modo_cy + 94, "ONLINE (BETA)");
+    draw_set_color(_hover_voltar ? c_yellow : c_gray);
+    draw_text(_modo_cx, _modo_cy + 155, "VOLTAR");
+    draw_set_color(c_white);
+}
+#endregion
+
+#region Lobby online
+if (online_aberto) {
+    var _online_cx = room_width / 2;
+    var _online_cy = room_height / 2;
+    draw_set_alpha(0.94);
+    draw_set_color(c_black);
+    draw_roundrect(_online_cx - 285, _online_cy - 205, _online_cx + 285, _online_cy + 205, false);
+    draw_set_alpha(1);
+    draw_set_color(c_white);
+    draw_roundrect(_online_cx - 285, _online_cy - 205, _online_cx + 285, _online_cy + 205, true);
+    draw_text(_online_cx, _online_cy - 174, "MULTIPLAYER ONLINE");
+
+    var _online_conectado = online_ativo();
+    var _online_ocupado = global.online_status == "conectando" || global.online_status == "reconectando";
+
+    if (!_online_conectado && !_online_ocupado) {
+        draw_set_halign(fa_left);
+        draw_set_color(c_ltgray);
+        draw_text(_online_cx - 190, _online_cy - 121, "NOME");
+        draw_text(_online_cx - 190, _online_cy - 71, "CÓDIGO DA SALA");
+        draw_text(_online_cx - 190, _online_cy - 21, "SERVIDOR");
+        draw_set_halign(fa_center);
+
+        for (var _online_i = 0; _online_i < 3; _online_i++) {
+            var _online_y = _online_cy - 105 + _online_i * 50;
+            draw_set_color(online_foco == _online_i ? c_aqua : c_white);
+            draw_roundrect(_online_cx - 190, _online_y, _online_cx + 190, _online_y + 36, true);
+        }
+        draw_set_color(c_white);
+        draw_text(_online_cx, _online_cy - 87, online_nome_input);
+        draw_text(_online_cx, _online_cy - 37, online_codigo_input == "" ? "para entrar em uma sala" : online_codigo_input);
+        draw_text(_online_cx, _online_cy + 13, online_servidor_input);
+
+        var _hover_criar = point_in_rectangle(mouse_x, mouse_y, _online_cx - 190, _online_cy + 55, _online_cx - 10, _online_cy + 101);
+        var _hover_entrar = point_in_rectangle(mouse_x, mouse_y, _online_cx + 10, _online_cy + 55, _online_cx + 190, _online_cy + 101);
+        draw_set_color(_hover_criar ? c_aqua : c_white);
+        draw_roundrect(_online_cx - 190, _online_cy + 55, _online_cx - 10, _online_cy + 101, true);
+        draw_text(_online_cx - 100, _online_cy + 78, "CRIAR SALA");
+        draw_set_color(_hover_entrar ? c_aqua : c_white);
+        draw_roundrect(_online_cx + 10, _online_cy + 55, _online_cx + 190, _online_cy + 101, true);
+        draw_text(_online_cx + 100, _online_cy + 78, "ENTRAR");
+        draw_set_color(c_gray);
+        draw_text(_online_cx, _online_cy + 150, "VOLTAR");
+    } else if (_online_ocupado && !_online_conectado) {
+        draw_set_color(c_aqua);
+        draw_text(_online_cx, _online_cy - 10,
+            global.online_status == "reconectando" ? "RECONECTANDO..." : "CONECTANDO...");
+        draw_set_color(c_ltgray);
+        draw_text(_online_cx, _online_cy + 28, "Aguarde o servidor responder");
+    } else {
+        draw_set_color(c_aqua);
+        draw_text(_online_cx, _online_cy - 132, "SALA " + global.net_room_id);
+        draw_set_color(c_ltgray);
+        draw_text(_online_cx, _online_cy - 102, "Você é o jogador " + string(global.online_assento + 1));
+
+        if (global.online_fase == "waiting") {
+            draw_set_color(c_white);
+            draw_text(_online_cx, _online_cy - 35, "AGUARDANDO OUTRO JOGADOR");
+            draw_set_color(c_aqua);
+            draw_roundrect(_online_cx - 105, _online_cy + 35, _online_cx + 105, _online_cy + 75, true);
+            draw_text(_online_cx, _online_cy + 55, online_copiado_timer > 0 ? "CÓDIGO COPIADO" : "COPIAR CÓDIGO");
+        } else if (global.online_fase == "initiative") {
+            draw_set_color(c_white);
+            draw_text(_online_cx, _online_cy - 55, "DISPUTA DE INICIATIVA — D20");
+            draw_text(_online_cx - 95, _online_cy - 10,
+                global.online_iniciativa[0] < 0 ? "—" : string(global.online_iniciativa[0]));
+            draw_text(_online_cx + 95, _online_cy - 10,
+                global.online_iniciativa[1] < 0 ? "—" : string(global.online_iniciativa[1]));
+            draw_set_color(c_ltgray);
+            draw_text(_online_cx - 95, _online_cy + 14, "JOGADOR 1");
+            draw_text(_online_cx + 95, _online_cy + 14, "JOGADOR 2");
+            if (global.online_iniciativa[global.online_assento] < 0) {
+                draw_set_color(c_aqua);
+                draw_roundrect(_online_cx - 130, _online_cy + 45, _online_cx + 130, _online_cy + 95, true);
+                draw_text(_online_cx, _online_cy + 70, "JOGAR O D20");
+            } else {
+                draw_set_color(c_yellow);
+                draw_text(_online_cx, _online_cy + 70, "AGUARDANDO A OUTRA JOGADA...");
+            }
+        } else if (global.online_fase == "choose_first") {
+            if (global.online_vencedor_iniciativa == global.online_assento) {
+                draw_set_color(c_yellow);
+                draw_text(_online_cx, _online_cy - 35, "VOCÊ VENCEU — QUEM COMEÇA?");
+                draw_set_color(c_aqua);
+                draw_roundrect(_online_cx - 205, _online_cy + 45, _online_cx - 5, _online_cy + 95, true);
+                draw_roundrect(_online_cx + 5, _online_cy + 45, _online_cx + 205, _online_cy + 95, true);
+                draw_text(_online_cx - 105, _online_cy + 70, "EU COMEÇO");
+                draw_text(_online_cx + 105, _online_cy + 70, "OPONENTE COMEÇA");
+            } else {
+                draw_set_color(c_yellow);
+                draw_text(_online_cx, _online_cy - 10, "O OPONENTE ESTÁ ESCOLHENDO");
+            }
+        }
+        draw_set_color(c_gray);
+        draw_text(_online_cx, _online_cy + 160, "SAIR DA SALA");
+    }
+
+    if (global.online_erro != "") {
+        draw_set_color(c_red);
+        draw_text_ext(_online_cx, _online_cy + 116, global.online_erro, 18, 480);
+    }
+    draw_set_color(c_white);
 }
 #endregion
 

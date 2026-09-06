@@ -1,6 +1,7 @@
 // =============================================================================
 // obj_controlador — Step Event
 // =============================================================================
+if (modo_partida == "online" && colyseus_is_ready()) colyseus_process();
 
 #region Watchdog de segurança
 // Se rolagens_pendentes ficar travado (algum dado/moeda não decrementou por bug),
@@ -90,9 +91,24 @@ if (disputa_inicial_estado != "concluida") {
     var _iniciativa_cx = _tutorial_largura_gui / 2;
     var _iniciativa_cy = _tutorial_altura_gui / 2;
 
-    if (disputa_inicial_estado == "preparando_dado") {
+    if (disputa_inicial_estado == "online_preparar") {
+        if (instance_exists(obj_deck)) {
+            comprar_mao_inicial();
+            comprar_mao_inicial_segundo_jogador();
+            disputa_inicial_estado = "distribuindo";
+            disputa_inicial_timer = quantidade_inicial * 7 + 45;
+        }
+    } else if (disputa_inicial_estado == "preparando_dado") {
         disputa_inicial_timer--;
         if (disputa_inicial_timer <= 0 && rolagens_pendentes <= 0) preparar_dado_disputa_inicial();
+    } else if (disputa_inicial_estado == "troca_dado_local" && rolagens_pendentes <= 0) {
+        if (keyboard_check_pressed(vk_space) || keyboard_check_pressed(vk_enter)
+            || mouse_check_button_pressed(mb_left)) {
+            iniciativa_rolador = "inimigo";
+            disputa_inicial_estado = "preparando_dado";
+            disputa_inicial_timer = 18;
+            dado_iniciativa_id = noone;
+        }
     } else if (disputa_inicial_estado == "resultado" && rolagens_pendentes <= 0) {
         disputa_inicial_timer--;
         if (disputa_inicial_timer <= 0) {
@@ -101,17 +117,23 @@ if (disputa_inicial_estado != "concluida") {
                 disputa_inicial_timer = 35;
                 disputa_inicial_resultado_jogador = -1;
                 disputa_inicial_resultado_inimigo = -1;
+                iniciativa_rolador = "jogador";
                 dado_iniciativa_id = noone;
-            } else if (disputa_inicial_resultado_jogador > disputa_inicial_resultado_inimigo) {
-                disputa_inicial_vencedor = "jogador";
-                disputa_inicial_estado = "escolha_jogador";
             } else {
-                disputa_inicial_vencedor = "inimigo";
-                disputa_inicial_estado = "escolha_inimigo";
-                disputa_inicial_timer = 65;
+                disputa_inicial_vencedor = (disputa_inicial_resultado_jogador > disputa_inicial_resultado_inimigo)
+                    ? "jogador" : "inimigo";
+                if (partida_local_ativa()) {
+                    disputa_inicial_estado = "escolha_local";
+                } else if (disputa_inicial_vencedor == "jogador") {
+                    disputa_inicial_estado = "escolha_jogador";
+                } else {
+                    disputa_inicial_estado = "escolha_inimigo";
+                    disputa_inicial_timer = 65;
+                }
             }
         }
-    } else if (disputa_inicial_estado == "escolha_jogador") {
+    } else if (disputa_inicial_estado == "escolha_local"
+        || disputa_inicial_estado == "escolha_jogador") {
         var _escolher_jogador = mouse_check_button_pressed(mb_left)
             && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _iniciativa_cx - 215, _iniciativa_cy + 55, _iniciativa_cx - 15, _iniciativa_cy + 105);
         var _escolher_inimigo = mouse_check_button_pressed(mb_left)
@@ -130,7 +152,7 @@ if (disputa_inicial_estado != "concluida") {
                 _deck_inicial.x + _deck_inicial.sprite_width * 0.65,
                 _deck_inicial.y + _deck_inicial.sprite_height * 0.65)) {
             comprar_mao_inicial();
-            comprar_mao_inicial_ia();
+            if (partida_local_ativa()) comprar_mao_inicial_segundo_jogador(); else comprar_mao_inicial_ia();
             disputa_inicial_estado = "distribuindo";
             disputa_inicial_timer = quantidade_inicial * 7 + 45;
         }
@@ -139,6 +161,18 @@ if (disputa_inicial_estado != "concluida") {
         if (disputa_inicial_timer <= 0) {
             finalizar_disputa_inicial(disputa_inicial_primeiro_escolhido);
         }
+    }
+    exit;
+}
+
+if (partida_local_ativa() && passagem_turno_ativa) {
+    carta_preview = noone;
+    carta_menu_aberto = noone;
+    hover_atual = noone;
+    if (keyboard_check_pressed(vk_space) || keyboard_check_pressed(vk_enter)
+        || mouse_check_button_pressed(mb_left)) {
+        passagem_turno_ativa = false;
+        anunciar_turno(turno);
     }
     exit;
 }
@@ -249,7 +283,7 @@ if (confirmacao_recurso_ativa) {
 
 // Armadilhas preparadas pela IA continuam secretas e são resolvidas assim que
 // uma tropa do jogador entra no espaço vigiado. As armadilhas do jogador permanecem manuais.
-if (partida_iniciada && turno == "jogador" && ia_ativar_armadilhas_prontas()) exit;
+if (!partida_local_ativa() && partida_iniciada && turno == "jogador" && ia_ativar_armadilhas_prontas()) exit;
 
 // Confirmação do descarte manual: a carta só sai da mão após a escolha do jogador.
 if (confirmacao_descarte_ativa) {
@@ -412,7 +446,7 @@ if (turno == "inimigo" && ia_ativa) {
 
 // Espaço encerra o turno do jogador. Escolhas simples de alvo são canceladas;
 // rolagens e a escolha de crítico precisam terminar antes para não cortar efeitos.
-if (turno == "jogador" && partida_iniciada && keyboard_check_pressed(vk_space)) {
+if (lado_controlado_localmente(turno) && partida_iniciada && keyboard_check_pressed(vk_space)) {
     if (rolagens_pendentes > 0 || critico_escolha_ativa || array_length(criticos_pendentes) > 0) {
         mostrar_aviso_regra("Aguarde a rolagem terminar", mouse_x, mouse_y);
     } else {
@@ -551,12 +585,12 @@ if (mitose_selecao_ativa) {
             }
         }
         if (_slot_mitose_escolhido != noone) {
-            criar_tropa_no_slot(mitose_dados_pendentes, _slot_mitose_escolhido, "jogador");
+            criar_tropa_no_slot(mitose_dados_pendentes, _slot_mitose_escolhido, mitose_dono_pendente);
             mitose_selecao_ativa = false;
             mitose_slots_pendentes = [];
         } else mostrar_aviso_regra("Escolha uma casa adjacente destacada", mouse_x, mouse_y);
     } else if (keyboard_check_pressed(vk_escape)) {
-        comprar_carta_do_deck_por_funcao(mitose_funcao_pendente, room_width / 2, obj_controlador.mao_y);
+        comprar_carta_do_deck_por_funcao(mitose_funcao_pendente, room_width / 2, obj_controlador.mao_y, mitose_dono_pendente);
         mitose_selecao_ativa = false;
         mitose_slots_pendentes = [];
     }
@@ -583,7 +617,7 @@ if (troca_item_selecao_ativa) {
     } else if (mouse_check_button_pressed(mb_left)) {
         var _destino_item = instance_position(mouse_x, mouse_y, obj_carta);
         if (instance_exists(_destino_item) && _destino_item != troca_item_origem && _destino_item.travada
-            && _destino_item.dono == "jogador" && _destino_item.mochila > 0 && !_destino_item.troca_item_usada_este_turno) {
+            && _destino_item.dono == troca_item_origem.dono && _destino_item.mochila > 0 && !_destino_item.troca_item_usada_este_turno) {
             transferir_item_equipado(troca_item_origem, _destino_item, array_length(troca_item_origem.itens_equipados) - 1);
             troca_item_selecao_ativa = false; troca_item_origem = noone; tropa_selecionada = noone; carta_menu_aberto = noone;
         } else mostrar_aviso_regra("Escolha uma tropa aliada com espaço na mochila", mouse_x, mouse_y);
@@ -593,7 +627,7 @@ if (troca_item_selecao_ativa) {
 
 // A seleção continua disponível para consulta até durante o turno inimigo.
 if (tropa_selecionada != noone && (!instance_exists(tropa_selecionada)
-    || !tropa_selecionada.travada || tropa_selecionada.dono != "jogador")) {
+    || !tropa_selecionada.travada || tropa_selecionada.dono != turno)) {
     tropa_selecionada = noone;
 }
 

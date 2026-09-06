@@ -18,10 +18,16 @@ global.DEBUG_COMBATE = true;
 
 
 depth = -10000; // desenha o menu de ação por cima de absolutamente tudo
+modo_partida = variable_global_exists("modo_partida") ? global.modo_partida : "ia";
+passagem_turno_ativa = false;
+passagem_turno_destino = "jogador";
+mao_oculta = [];
+iniciativa_rolador = "jogador";
 vida_pos_x = 0.11; // pode ser sobrescrito por carta específica
 vida_pos_y = 0.07;
 
-randomize(); // garante que os números aleatórios mudam a cada execução do jogo
+if (modo_partida == "online" && variable_global_exists("online_seed") && global.online_seed > 0) random_set_seed(global.online_seed);
+else randomize(); // partidas offline continuam variadas
 #endregion
 
 #region Baralho e deck
@@ -99,6 +105,11 @@ dado_iniciativa_id = noone;
 disputa_inicial_primeiro_escolhido = "";
 disputa_inicial_vencedor = "";
 partida_iniciada = false;
+online_aguardando_turno = false;
+if (modo_partida == "online") {
+    disputa_inicial_estado = "online_preparar";
+    disputa_inicial_primeiro_escolhido = online_lado_do_assento(global.online_primeiro);
+}
 
 // Críticos do jogador abrem uma escolha. A fila também cobre dois críticos
 // quase simultâneos, como pode acontecer durante Golpe Duplo.
@@ -154,6 +165,7 @@ digestao_origem = noone;
 mitose_selecao_ativa = false;
 mitose_dados_pendentes = noone;
 mitose_funcao_pendente = noone;
+mitose_dono_pendente = "jogador";
 mitose_slots_pendentes = [];
 visao_veu_ativa = false;
 visao_veu_origem = noone;

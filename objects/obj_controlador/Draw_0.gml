@@ -168,7 +168,7 @@ if (digestao_selecao_ativa && instance_exists(digestao_origem)) {
 if (troca_item_selecao_ativa && instance_exists(troca_item_origem)) {
     draw_set_halign(fa_center); draw_set_valign(fa_bottom); draw_set_color(c_aqua);
     draw_text_transformed(troca_item_origem.x, troca_item_origem.y - 55, "TRANSFERIR: escolha a tropa", 0.42, 0.42, 0);
-    with (obj_carta) if (id != other.troca_item_origem && travada && dono == "jogador" && mochila > 0 && !troca_item_usada_este_turno) {
+    with (obj_carta) if (id != other.troca_item_origem && travada && dono == other.troca_item_origem.dono && mochila > 0 && !troca_item_usada_este_turno) {
         draw_set_alpha(0.35); draw_set_color(c_aqua); draw_circle(x, y, 34, false); draw_set_alpha(1);
     }
 }

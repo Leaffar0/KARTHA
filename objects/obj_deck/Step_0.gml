@@ -1,6 +1,8 @@
 // Sincroniza a quantidade visual com o monte real e detecta quando uma carta foi comprada.
 if (instance_exists(obj_controlador)) {
-    var _quantidade_real = array_length(obj_controlador.monte);
+    var _monte_visivel = (partida_local_ativa() && obj_controlador.turno == "inimigo")
+        ? obj_controlador.monte_inimigo : obj_controlador.monte;
+    var _quantidade_real = array_length(_monte_visivel);
 
     if (_quantidade_real < quantidade_cartas) {
         // Uma ou mais cartas saíram do monte: dispara o "solavanco" de compra.

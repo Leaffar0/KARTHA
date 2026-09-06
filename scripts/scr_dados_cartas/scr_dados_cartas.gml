@@ -93,6 +93,40 @@ function direcao_avanco(_dono) {
 }
 
 // Para causar dano direto ao castelo, a tropa precisa sair do meio e avançar
+function partida_local_ativa() {
+    return instance_exists(obj_controlador) && obj_controlador.modo_partida == "local" || obj_controlador.modo_partida == "online";
+}
+
+function lado_oposto(_dono) {
+    return (_dono == "jogador") ? "inimigo" : "jogador";
+}
+
+function nome_jogador_lado(_dono) {
+    if (partida_local_ativa()) return (_dono == "jogador") ? "JOGADOR 1" : "JOGADOR 2";
+    return (_dono == "jogador") ? "JOGADOR" : "INIMIGO";
+}
+
+function lado_controlado_localmente(_dono) {
+    if (!instance_exists(obj_controlador)) return false;
+    if (obj_controlador.modo_partida == "online") {
+        return online_ativo() && !obj_controlador.passagem_turno_ativa
+            && obj_controlador.turno == _dono && online_lado_local() == _dono;
+    }
+    if (partida_local_ativa()) {
+        return !obj_controlador.passagem_turno_ativa && obj_controlador.turno == _dono;
+    }
+    return _dono == "jogador";
+}
+
+function primeiro_turno_do_lado(_dono) {
+    return (_dono == "jogador") ? obj_controlador.primeiro_turno_jogador
+        : obj_controlador.primeiro_turno_inimigo;
+}
+
+function recurso_ja_colocado_no_turno(_dono) {
+    return (_dono == "jogador") ? obj_controlador.recurso_colocado_no_turno
+        : obj_controlador.recurso_colocado_no_turno_inimigo;
+}
 // mais uma casa. A regra é espelhada para jogador e inimigo.
 function posicao_assalto(_dono) {
     return posicao_ataque() + direcao_avanco(_dono);
@@ -1392,15 +1426,16 @@ function montar_deck() {
 }
 
 // Compra a próxima carta do monte (consumindo ele, igual um baralho físico) e coloca na mão.
-function comprar_carta_do_deck(_x_inicial, _y_inicial) {
-    if (array_length(obj_controlador.monte) == 0) {
-        debug_combate("Monte vazio! Sem cartas pra comprar.");
-        return;
+function comprar_carta_do_deck(_x_inicial, _y_inicial, _dono = "jogador") {
+    var _monte_compra = (_dono == "jogador") ? obj_controlador.monte : obj_controlador.monte_inimigo;
+    if (array_length(_monte_compra) == 0) {
+        debug_combate("Monte de " + nome_jogador_lado(_dono) + " vazio! Sem cartas pra comprar.");
+        return noone;
     }
 
-    var _funcao_sorteada = obj_controlador.monte[0];
-    array_delete(obj_controlador.monte, 0, 1);
-    comprar_carta_do_deck_por_funcao(_funcao_sorteada, _x_inicial, _y_inicial);
+    var _funcao_sorteada = _monte_compra[0];
+    array_delete(_monte_compra, 0, 1);
+    return comprar_carta_do_deck_por_funcao(_funcao_sorteada, _x_inicial, _y_inicial, _dono);
 }
 
 // Procura no monte (baralho de compra) um recurso do tipo pedido, manda pra mão e embaralha o resto.
@@ -1420,14 +1455,14 @@ function buscar_recurso_no_deck(_tipo_recurso, _dono) {
     var _indice = array_get_index(_monte, _funcao_alvo);
     if (_indice == -1) {
         debug_combate("Busca: nenhum recurso de " + _tipo_recurso + " restou no deck.");
-        if (_dono == "jogador") mostrar_aviso_regra("Não há mais " + nome_recurso_exibicao(_tipo_recurso, 1) + " no baralho");
+        if (_dono == "jogador" || partida_local_ativa()) mostrar_aviso_regra("Não há mais " + nome_recurso_exibicao(_tipo_recurso, 1) + " no baralho");
         return false;
     }
 
     array_delete(_monte, _indice, 1);
 
-    if (_dono == "jogador") {
-        comprar_carta_do_deck_por_funcao(_funcao_alvo, obj_deck.x, obj_deck.y);
+    if (_dono == "jogador" || partida_local_ativa()) {
+        comprar_carta_do_deck_por_funcao(_funcao_alvo, obj_deck.x, obj_deck.y, _dono);
     } else {
         array_push(obj_controlador.mao_inimigo, _funcao_alvo);
     }
@@ -1438,7 +1473,7 @@ function buscar_recurso_no_deck(_tipo_recurso, _dono) {
 
 // Mesma lógica de sempre, mas recebe a função da carta já escolhida
 // (compra normal E efeitos de busca tipo Sangue Suga usam essa mesma função).
-function comprar_carta_do_deck_por_funcao(_funcao_sorteada, _x_inicial, _y_inicial) {
+function comprar_carta_do_deck_por_funcao(_funcao_sorteada, _x_inicial, _y_inicial, _dono = "jogador") {
     var _dados = _funcao_sorteada();
 
     var _carta = instance_create_layer(_x_inicial, _y_inicial, "Instances", obj_carta);
@@ -1552,6 +1587,7 @@ function comprar_carta_do_deck_por_funcao(_funcao_sorteada, _x_inicial, _y_inici
         _carta.efeito_tipo = "choque";
     }
 
+    _carta.dono = _dono;
     _carta.esta_na_mao = true;
     _carta.compra_animando = true;
     _carta.compra_progresso = 0;
@@ -1559,13 +1595,21 @@ function comprar_carta_do_deck_por_funcao(_funcao_sorteada, _x_inicial, _y_inici
     _carta.compra_origem_y = _y_inicial;
     _carta.depth = -5000;
 
-    array_push(obj_controlador.mao, _carta);
-    organizar_mao();
+    var _destino_mao_oculta = partida_local_ativa()
+        && ((_dono == "jogador" && obj_controlador.turno == "inimigo")
+        || (_dono == "inimigo" && obj_controlador.turno != "inimigo"));
+    if (_destino_mao_oculta) {
+        array_push(obj_controlador.mao_oculta, _carta);
+    } else {
+        array_push(obj_controlador.mao, _carta);
+        organizar_mao();
+    }
 
     _carta.x = _x_inicial;
     _carta.y = _y_inicial;
     if (obj_controlador.mao_inicial_comprada) {
-        mostrar_feedback("+ CARTA", _x_inicial, _y_inicial, c_aqua, 32);
+        mostrar_feedback("+ CARTA", _x_inicial, _y_inicial,
+            (_dono == "jogador") ? c_aqua : c_red, 32);
     }
     return _carta;
 }
@@ -1605,7 +1649,8 @@ function comprar_varias_cartas(_quantidade, _dono) {
             comprar_carta_do_deck(obj_deck.x, obj_deck.y);
         } else {
             if (array_length(obj_controlador.monte_inimigo) == 0) break;
-            comprar_carta_do_deck_ia();
+            if (partida_local_ativa()) comprar_carta_do_deck(obj_deck.x, obj_deck.y, "inimigo");
+            else comprar_carta_do_deck_ia();
         }
     }
 }
@@ -1635,6 +1680,17 @@ function comprar_mao_inicial_ia() {
     obj_controlador.mao_inimigo_inicial_comprada = true;
 }
 #endregion
+
+function comprar_mao_inicial_segundo_jogador() {
+    if (obj_controlador.mao_inimigo_inicial_comprada) return;
+
+    for (var i = 0; i < obj_controlador.quantidade_inicial; i++) {
+        if (array_length(obj_controlador.monte_inimigo) == 0) break;
+        var _carta = comprar_carta_do_deck(obj_deck.x, obj_deck.y, "inimigo");
+        if (instance_exists(_carta)) _carta.compra_atraso = i * 7;
+    }
+    obj_controlador.mao_inimigo_inicial_comprada = true;
+}
 
 #region Mão — leque, arco e scroll horizontal
 function organizar_mao() {
@@ -2684,7 +2740,7 @@ function processar_resultado_acerto(_dado_acerto, _atacante, _defensor, _tipo_at
 
     if (_dado_natural == 20) {
         debug_combate("ACERTO CRÍTICO! Escolhendo como dobrar o dano original.");
-        if (_atacante.dono == "jogador") {
+        if (_atacante.dono == "jogador" || partida_local_ativa()) {
             enfileirar_escolha_critico(_contexto_dano);
         } else {
             var _modo_ia = ia_escolher_modo_critico(_contexto_dano);
@@ -2722,7 +2778,7 @@ function processar_maquina_ima_na_morte(_carta) {
     if (array_length(_itens) <= 0) return false;
     if (!tem_maquina_ima_na_fileira(_carta.dono, _carta.lane_atual)) return false;
 
-    if (_carta.dono == "jogador") {
+    if (_carta.dono == "jogador" || partida_local_ativa()) {
         array_push(obj_controlador.maquina_ima_pendencias,
             { itens: _itens, x: _carta.x, y: _carta.y, dono: _carta.dono });
     } else {
@@ -2746,7 +2802,7 @@ function resolver_escolha_maquina_ima(_indice) {
     var _evento = obj_controlador.maquina_ima_escolha_atual;
     if (_indice < 0 || _indice >= array_length(_evento.itens)) return;
     var _item = _evento.itens[_indice];
-    if (_item.funcao != noone) comprar_carta_do_deck_por_funcao(_item.funcao, _evento.x, _evento.y);
+    if (_item.funcao != noone) comprar_carta_do_deck_por_funcao(_item.funcao, _evento.x, _evento.y, _evento.dono);
     descartar_itens_da_tropa(_evento.itens, _evento.dono, _indice);
     obj_controlador.maquina_ima_escolha_ativa = false;
     obj_controlador.maquina_ima_escolha_atual = noone;
@@ -2825,6 +2881,30 @@ function registrar_descarte(_carta) {
 }
 
 function consumir_carta_de_funcao(_funcao, _dono) {
+    if (partida_local_ativa()) {
+        var _usar_mao_oculta = ((_dono == "jogador" && obj_controlador.turno == "inimigo")
+            || (_dono == "inimigo" && obj_controlador.turno != "inimigo"));
+        var _mao_lado = _usar_mao_oculta ? obj_controlador.mao_oculta : obj_controlador.mao;
+        for (var i = 0; i < array_length(_mao_lado); i++) {
+            var _carta_local = _mao_lado[i];
+            if (instance_exists(_carta_local) && _carta_local.funcao_dados_origem == _funcao) {
+                if (_usar_mao_oculta) array_delete(obj_controlador.mao_oculta, i, 1);
+                else array_delete(obj_controlador.mao, i, 1);
+                instance_destroy(_carta_local);
+                if (!_usar_mao_oculta) organizar_mao();
+                return true;
+            }
+        }
+        var _monte_lado = (_dono == "jogador") ? obj_controlador.monte : obj_controlador.monte_inimigo;
+        var _indice_monte_local = array_get_index(_monte_lado, _funcao);
+        if (_indice_monte_local >= 0) {
+            if (_dono == "jogador") array_delete(obj_controlador.monte, _indice_monte_local, 1);
+            else array_delete(obj_controlador.monte_inimigo, _indice_monte_local, 1);
+            return true;
+        }
+        return false;
+    }
+
     if (_dono == "jogador") {
         for (var i = 0; i < array_length(obj_controlador.mao); i++) {
             var _carta_mao = obj_controlador.mao[i];
@@ -2875,10 +2955,11 @@ function executar_mitose(_carta) {
     var _slots_livres = slots_adjacentes_livres(_slot_morte);
 
     if (array_length(_slots_livres) > 0 && consumir_carta_de_funcao(_funcao_filhote, _carta.dono)) {
-        if (_carta.dono == "jogador") {
+        if (_carta.dono == "jogador" || partida_local_ativa()) {
             obj_controlador.mitose_selecao_ativa = true;
             obj_controlador.mitose_dados_pendentes = _dados_filhote;
             obj_controlador.mitose_funcao_pendente = _funcao_filhote;
+            obj_controlador.mitose_dono_pendente = _carta.dono;
             obj_controlador.mitose_slots_pendentes = _slots_livres;
         } else {
             criar_tropa_no_slot(_dados_filhote, _slots_livres[irandom(array_length(_slots_livres) - 1)], "inimigo");
@@ -3034,8 +3115,59 @@ function lancar_dado_disputa_inicial(_dado, _velocidade_arremesso) {
     if (!instance_exists(_dado) || obj_controlador.disputa_inicial_estado != "aguardando_arremesso") return;
 
     obj_controlador.disputa_inicial_estado = "rolando";
-    obj_controlador.disputa_inicial_resultado_jogador = -1;
+    // No segundo lançamento local, preserve o resultado do Jogador 1.
+    if (!partida_local_ativa() || obj_controlador.iniciativa_rolador == "jogador")
+        obj_controlador.disputa_inicial_resultado_jogador = -1;
     obj_controlador.disputa_inicial_resultado_inimigo = -1;
+
+    // No modo local cada pessoa arremessa o proprio D20. Entre os lancamentos
+    // a tela e escondida para que o segundo jogador possa assumir o computador.
+    if (partida_local_ativa()) {
+        var _lado_rolando = obj_controlador.iniciativa_rolador;
+        var _resultado_local = irandom_range(1, 20);
+        var _controle_local = {
+            controle: instance_find(obj_controlador, 0),
+            lado: _lado_rolando
+        };
+        var _margem_local = 58;
+        var _destino_local_x = clamp(_dado.x + _dado.iniciativa_velocidade_x * 7,
+            _margem_local, room_width - _margem_local);
+        var _destino_local_y = clamp(_dado.y + _dado.iniciativa_velocidade_y * 7,
+            90, room_height - 135);
+
+        _dado.interativo_iniciativa = false;
+        _dado.ocultar_resultado_ate_rolar = false;
+        _dado.tamanho_dado = 20;
+        _dado.valor_final = _resultado_local;
+        _dado.modificador_exibido = 0;
+        _dado.rotulo_resultado = "";
+        _dado.cor_resultado = (_lado_rolando == "jogador") ? c_aqua : c_red;
+        _dado.escala_texto_resultado = 1.22;
+        _dado.offset_texto_resultado = 2;
+        _dado.pos_inicial_x = _dado.x;
+        _dado.pos_inicial_y = _dado.y;
+        _dado.destino_x = _destino_local_x;
+        _dado.destino_y = _destino_local_y;
+        _dado.depth = -2000;
+        _dado.altura_maxima_dado = 75 + min(55, _velocidade_arremesso * 3);
+        _dado.tempo_total_giro = clamp(round(82 - _velocidade_arremesso * 1.5), 50, 82);
+        _dado.tempo_girando = 0;
+        _dado.girando = true;
+        _dado.callback = method(_controle_local, function(_resultado) {
+            if (!instance_exists(controle)) return;
+            if (lado == "jogador") {
+                controle.disputa_inicial_resultado_jogador = _resultado;
+                controle.disputa_inicial_estado = "troca_dado_local";
+            } else {
+                controle.disputa_inicial_resultado_inimigo = _resultado;
+                controle.disputa_inicial_estado = "resultado";
+                controle.disputa_inicial_timer = 55;
+            }
+            controle.dado_iniciativa_id = noone;
+        });
+        obj_controlador.rolagens_pendentes += 1;
+        return;
+    }
 
     var _resultado_jogador = irandom_range(1, 20);
     var _resultado_inimigo = irandom_range(1, 20);
@@ -3108,8 +3240,24 @@ function finalizar_disputa_inicial(_primeiro) {
         obj_controlador.disputa_inicial_primeiro_escolhido = _primeiro;
         obj_controlador.disputa_inicial_estado = "aguardando_deck";
         obj_controlador.disputa_inicial_vencedor = "";
-        mostrar_feedback((_primeiro == "jogador") ? "VOCÊ COMEÇA — COMPRE SUA MÃO" : "INIMIGO COMEÇA — COMPRE SUA MÃO",
+        mostrar_feedback(nome_jogador_lado(_primeiro) + " COMEÇA — COMPRE A MÃO",
             obj_deck.x, obj_deck.y - 55, (_primeiro == "jogador") ? c_aqua : c_red, 80);
+        return;
+    }
+
+    if (partida_local_ativa()) {
+        obj_controlador.disputa_inicial_estado = "concluida";
+        obj_controlador.disputa_inicial_vencedor = "";
+        obj_controlador.partida_iniciada = true;
+        if (_primeiro == "inimigo") {
+            var _mao_primeiro = obj_controlador.mao;
+            obj_controlador.mao = obj_controlador.mao_oculta;
+            obj_controlador.mao_oculta = _mao_primeiro;
+        }
+        obj_controlador.turno = _primeiro;
+        obj_controlador.passagem_turno_destino = _primeiro;
+        obj_controlador.passagem_turno_ativa = (obj_controlador.modo_partida == "local");
+        organizar_mao();
         return;
     }
 
@@ -3126,22 +3274,83 @@ function finalizar_disputa_inicial(_primeiro) {
     }
 }
 
+function aplicar_fim_turno_multijogador() {
+    if (!instance_exists(obj_controlador)) return;
+    var _lado_atual = obj_controlador.turno;
+    if (_lado_atual != "jogador" && _lado_atual != "inimigo") return;
+    if (_lado_atual == "inimigo") obj_controlador.turnos_completos += 1;
+    obj_controlador.carta_menu_aberto = noone;
+    if (_lado_atual == "jogador") obj_controlador.primeiro_turno_jogador = false;
+    else obj_controlador.primeiro_turno_inimigo = false;
+    expirar_condicoes(_lado_atual);
+
+    var _troca_mao = obj_controlador.mao;
+    obj_controlador.mao = obj_controlador.mao_oculta;
+    obj_controlador.mao_oculta = _troca_mao;
+    obj_controlador.online_aguardando_turno = false;
+    iniciar_turno_local(lado_oposto(_lado_atual));
+}
+
+function online_aplicar_fim_turno() {
+    if (!instance_exists(obj_controlador) || obj_controlador.modo_partida != "online") return;
+    aplicar_fim_turno_multijogador();
+}
+
 function passar_turno_jogador() {
-    if (obj_controlador.turno != "jogador") return;
     if (obj_controlador.rolagens_pendentes > 0 || obj_controlador.critico_escolha_ativa
         || array_length(obj_controlador.criticos_pendentes) > 0) return;
 
+    if (obj_controlador.modo_partida == "online") {
+        if (!lado_controlado_localmente(obj_controlador.turno)
+            || obj_controlador.online_aguardando_turno) return;
+        obj_controlador.online_aguardando_turno = true;
+        if (!online_enviar_acao("end_turn", {})) obj_controlador.online_aguardando_turno = false;
+        return;
+    }
+
+    if (partida_local_ativa()) {
+        aplicar_fim_turno_multijogador();
+        return;
+    }
+
+    if (obj_controlador.turno != "jogador") return;
     obj_controlador.carta_menu_aberto = noone;
     obj_controlador.primeiro_turno_jogador = false;
-    // Condições temporárias do jogador expiram somente após ele ter a chance de agir.
     expirar_condicoes("jogador");
-
     iniciar_turno_inimigo();
 }
+function iniciar_turno_local(_dono, _comprar_no_inicio = true) {
+    obj_controlador.turno = _dono;
+    obj_controlador.ia_ativa = false;
+    obj_controlador.ia_texto_acao = "";
+    obj_controlador.carta_menu_aberto = noone;
+    obj_controlador.tropa_selecionada = noone;
+
+    reiniciar_acoes_tropas(_dono);
+    processar_condicoes(_dono);
+    desvirar_recursos(_dono);
+    processar_construcoes_inicio_turno(_dono);
+
+    obj_controlador.itens_usados_este_turno = 0;
+    obj_controlador.magias_usadas_este_turno = 0;
+    obj_controlador.construcoes_jogadas_este_turno = 0;
+    obj_controlador.terrenos_jogados_este_turno = 0;
+    obj_controlador.cartas_jogadas_no_turno = 0;
+
+    if (_comprar_no_inicio && instance_exists(obj_deck)) {
+        comprar_carta_do_deck(obj_deck.x, obj_deck.y, _dono);
+    }
+
+    organizar_mao();
+    obj_controlador.passagem_turno_destino = _dono;
+    obj_controlador.passagem_turno_ativa = (obj_controlador.modo_partida == "local");
+}
+
 
 function anunciar_turno(_dono) {
     obj_controlador.onda_turno_timer = obj_controlador.onda_turno_duracao;
-    obj_controlador.anuncio_turno_texto = (_dono == "jogador") ? "SEU TURNO" : "TURNO DO INIMIGO";
+    obj_controlador.anuncio_turno_texto = partida_local_ativa()
+        ? nome_jogador_lado(_dono) + " — SEU TURNO" : ((_dono == "jogador") ? "SEU TURNO" : "TURNO DO INIMIGO");
     obj_controlador.anuncio_turno_timer = obj_controlador.anuncio_turno_duracao;
 }
 
@@ -4323,7 +4532,7 @@ function selecionar_recursos_para_custo(_custo, _dono, _categoria = "") {
 function pode_pagar_custo(_custo, _dono, _categoria = "") {
     if (_custo == noone) return true;
     var _selecao = selecionar_recursos_para_custo(_custo, _dono, _categoria);
-    if (!_selecao.sucesso && _dono == "jogador") {
+    if (!_selecao.sucesso && (_dono == "jogador" || partida_local_ativa())) {
         var _texto = "Falta ";
         for (var i = 0; i < array_length(_selecao.faltas); i++) {
             if (i > 0) _texto += (i == array_length(_selecao.faltas) - 1) ? " e " : ", ";
@@ -5078,7 +5287,7 @@ function tropa_tem_ataque_de_item(_carta) {
 
 function obter_opcoes_menu_principal(_carta) {
     var _opcoes = [];
-    var _pode_atacar = !(_carta.dono == "jogador" && obj_controlador.primeiro_turno_jogador);
+    var _pode_atacar = !primeiro_turno_do_lado(_carta.dono);
 
     var _tem_ataque = _carta.dado_dano > 0 || _carta.dado_dano_magico > 0 || tropa_tem_ataque_de_item(_carta);
     if (!_tem_ataque) array_push(_opcoes, "Ataque [sem ataque]");
@@ -5091,7 +5300,7 @@ function obter_opcoes_menu_principal(_carta) {
     else if (_carta.turnos_no_campo < 1) array_push(_opcoes, "Movimento [próximo turno]");
     else array_push(_opcoes, "Movimento");
     if (array_length(_carta.itens_equipados) > 0) array_push(_opcoes, "Itens");
-    if (_carta.dono == "jogador" && _carta.travada && _carta.posicao_atual == posicao_entrada("jogador")) {
+    if (_carta.travada && _carta.posicao_atual == posicao_entrada(_carta.dono)) {
         array_push(_opcoes, _carta.defendendo_castelo ? "Parar de Defender" : "Defender Castelo");
     }
     if (tem_habilidade_ativa(_carta) != noone) {
@@ -5160,7 +5369,7 @@ function categoria_bloqueada_primeiro_turno(_categoria) {
 
 function executar_opcao_menu(_carta, _opcao) {
     if (!instance_exists(_carta)) return;
-    if (obj_controlador.turno != "jogador") {
+    if (obj_controlador.turno != _carta.dono) {
         mostrar_aviso_regra("Você pode inspecionar; ações ficam para o seu turno", _carta.x, _carta.y);
         return;
     }

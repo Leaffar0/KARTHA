@@ -50,6 +50,7 @@
   "name":"KARTHA",
   "resources":[
     {"id":{"name":"tween_curves","path":"animcurves/tween_curves/tween_curves.yy",},},
+    {"id":{"name":"Colyseus_SDK","path":"extensions/Colyseus_SDK/Colyseus_SDK.yy",},},
     {"id":{"name":"fnt_botao","path":"fonts/fnt_botao/fnt_botao.yy",},},
     {"id":{"name":"fnt_vitoria","path":"fonts/fnt_vitoria/fnt_vitoria.yy",},},
     {"id":{"name":"Fontenil","path":"fonts/Fontenil/Fontenil.yy",},},
@@ -78,7 +79,10 @@
     {"id":{"name":"obj_tween","path":"objects/obj_tween/obj_tween.yy",},},
     {"id":{"name":"rm_jogo","path":"rooms/rm_jogo/rm_jogo.yy",},},
     {"id":{"name":"rm_menu","path":"rooms/rm_menu/rm_menu.yy",},},
+    {"id":{"name":"Colyseus","path":"scripts/Colyseus/Colyseus.yy",},},
+    {"id":{"name":"ColyseusPredict","path":"scripts/ColyseusPredict/ColyseusPredict.yy",},},
     {"id":{"name":"scr_dados_cartas","path":"scripts/scr_dados_cartas/scr_dados_cartas.yy",},},
+    {"id":{"name":"scr_online","path":"scripts/scr_online/scr_online.yy",},},
     {"id":{"name":"scr_tween","path":"scripts/scr_tween/scr_tween.yy",},},
     {"id":{"name":"snd_bencao","path":"sounds/snd_bencao/snd_bencao.yy",},},
     {"id":{"name":"snd_bola_fogo_fogo","path":"sounds/snd_bola_fogo_fogo/snd_bola_fogo_fogo.yy",},},

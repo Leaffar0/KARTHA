@@ -1,0 +1,13 @@
+{
+  "$GMScript":"v1",
+  "%Name":"scr_online",
+  "isCompatibility":false,
+  "isDnD":false,
+  "name":"scr_online",
+  "parent":{
+    "name":"Script",
+    "path":"folders/Script.yy",
+  },
+  "resourceType":"GMScript",
+  "resourceVersion":"2.0",
+}

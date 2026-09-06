@@ -1,5 +1,5 @@
-if (dono != "jogador") exit;
-if (obj_controlador.turno != "jogador") {
+if (!lado_controlado_localmente(dono)) exit;
+if (obj_controlador.turno != dono) {
     mostrar_aviso_regra("A construção estará disponível no seu turno", x, y);
     exit;
 }

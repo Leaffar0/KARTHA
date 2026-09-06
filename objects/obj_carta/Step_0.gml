@@ -1,3 +1,6 @@
+var _lado_acao = dono;
+var _lado_oposto = lado_oposto(_lado_acao);
+
 #region Morte visual
 // A regra já foi resolvida e o slot está livre; aqui só termina a animação.
 if (morrendo) {
@@ -50,7 +53,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         exit;
     }
     
-	if (obj_controlador.turno != "jogador") {
+	if (obj_controlador.turno != _lado_acao) {
 	    mostrar_aviso_regra("Aguarde o seu turno", x, y);
 	    iniciar_retorno_carta(id);
 	    esta_na_mao = true;
@@ -67,7 +70,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         exit;
     }
 	
-	if (dono == "jogador" && obj_controlador.primeiro_turno_jogador && categoria_bloqueada_primeiro_turno(categoria)) {
+	if (dono == _lado_acao && primeiro_turno_do_lado(_lado_acao) && categoria_bloqueada_primeiro_turno(categoria)) {
 	    debug_combate("Primeiro turno: não pode usar " + categoria + " ainda.");
 	    mostrar_aviso_regra("Não pode usar " + categoria + " no primeiro turno", x, y);
 	    iniciar_retorno_carta(id);
@@ -108,26 +111,26 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         
         with (obj_slot_batalha) {
             var _dist = point_distance(x, y, other.x, other.y);
-            if (posicao == posicao_entrada("jogador") && _dist < _distancia_maxima && _dist < _menor_distancia) {
+            if (posicao == posicao_entrada(_lado_acao) && _dist < _distancia_maxima && _dist < _menor_distancia) {
                 _menor_distancia = _dist;
                 _slot_mais_perto = id;
             }
         }
         
         var _coluna_ocupada = (_slot_mais_perto != noone
-            && buscar_tropa_na_coluna(_slot_mais_perto.lane, "jogador") != noone);
+            && buscar_tropa_na_coluna(_slot_mais_perto.lane, _lado_acao) != noone);
 
         if (_slot_mais_perto != noone && !_slot_mais_perto.ocupado && !_coluna_ocupada
             && obj_controlador.cartas_jogadas_no_turno < obj_controlador.max_cartas_por_turno
-            && pode_pagar_custo(custo, "jogador", categoria)) {
+            && pode_pagar_custo(custo, _lado_acao, categoria)) {
             _slot_mais_perto.ocupado = true;
             _slot_mais_perto.carta_atual = id;
             slot_atual = _slot_mais_perto;
             audio_play_sound(snd_colocar,1,0,.5,0,random_range(.5,2))
             lane_atual = _slot_mais_perto.lane;
             posicao_atual = _slot_mais_perto.posicao;
-            dono = "jogador";
-            pagar_custo(custo, "jogador", categoria);
+            dono = _lado_acao;
+            pagar_custo(custo, _lado_acao, categoria);
 
             esta_na_mao = false;
             travada = true;
@@ -170,17 +173,17 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         
         with (obj_slot_recurso) {
             var _dist = point_distance(x, y, other.x, other.y);
-            if (dono == "jogador" && !ocupado && _dist < _distancia_maxima && _dist < _menor_distancia) {
+            if (dono == _lado_acao && !ocupado && _dist < _distancia_maxima && _dist < _menor_distancia) {
                 _menor_distancia = _dist;
                 _slot_recurso_perto = id;
             }
         }
         
-        if (_slot_recurso_perto != noone && !obj_controlador.recurso_colocado_no_turno) {
-            var _resultado = colocar_recurso(tipo_recurso, "jogador", x, y, _slot_recurso_perto);
+        if (_slot_recurso_perto != noone && !recurso_ja_colocado_no_turno(_lado_acao)) {
+            var _resultado = colocar_recurso(tipo_recurso, _lado_acao, x, y, _slot_recurso_perto);
             
             if (_resultado == "colocado") {
-                registrar_ultima_carta_jogada(funcao_dados_origem, "jogador");
+                registrar_ultima_carta_jogada(funcao_dados_origem, _lado_acao);
                 var _index = array_get_index(obj_controlador.mao, id);
                 if (_index != -1) {
                     array_delete(obj_controlador.mao, _index, 1);
@@ -192,7 +195,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
                 esta_na_mao = true;
             }
         } else {
-            if (obj_controlador.recurso_colocado_no_turno) mostrar_aviso_regra("Você já colocou 1 recurso neste turno", x, y);
+            if (recurso_ja_colocado_no_turno(_lado_acao)) mostrar_aviso_regra("Você já colocou 1 recurso neste turno", x, y);
             else mostrar_aviso_regra("Área de recursos cheia ou posição inválida", x, y);
             iniciar_retorno_carta(id);
             esta_na_mao = true;
@@ -204,14 +207,14 @@ if (arrastando && mouse_check_button_released(mb_left)) {
     
     with (obj_slot_construcao) {
         var _dist = point_distance(x, y, other.x, other.y);
-        if (dono == "jogador" && !ocupado && _dist < _distancia_maxima && _dist < _menor_distancia) {
+        if (dono == _lado_acao && !ocupado && _dist < _distancia_maxima && _dist < _menor_distancia) {
             _menor_distancia = _dist;
             _slot_construcao_perto = id;
         }
     }
     
-    if (_slot_construcao_perto != noone && obj_controlador.construcoes_jogadas_este_turno < 1 && pode_pagar_custo(custo, "jogador", categoria)) {
-        pagar_custo(custo, "jogador", categoria);
+    if (_slot_construcao_perto != noone && obj_controlador.construcoes_jogadas_este_turno < 1 && pode_pagar_custo(custo, _lado_acao, categoria)) {
+        pagar_custo(custo, _lado_acao, categoria);
         obj_controlador.construcoes_jogadas_este_turno += 1;
         
         var _construcao = instance_create_layer(_slot_construcao_perto.x, _slot_construcao_perto.y, "Instances", obj_construcao);
@@ -231,7 +234,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         }
         _construcao.vida = vida;
         _construcao.vida_maxima = vida;
-        _construcao.dono = "jogador";
+        _construcao.dono = _lado_acao;
         _construcao.lane_atual = _slot_construcao_perto.lane;
         _construcao.slot_atual = _slot_construcao_perto;
 		_construcao.efeito_construcao = efeito_construcao;
@@ -246,7 +249,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
             array_delete(obj_controlador.mao, _index, 1);
             organizar_mao();
         }
-        registrar_ultima_carta_jogada(funcao_dados_origem, "jogador");
+        registrar_ultima_carta_jogada(funcao_dados_origem, _lado_acao);
         mostrar_feedback("USADA", x, y, c_gray, 30);
         instance_destroy(id);
     } else {
@@ -266,7 +269,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
 
     if (efeito_tipo == "dados_manipulados" || efeito_tipo == "refracao_temporal" || efeito_tipo == "buscar_sangue") {
         _pode_executar = _distancia_arrastada > 80;
-        if (efeito_tipo == "refracao_temporal" && ultima_carta_jogada("jogador") == noone) {
+        if (efeito_tipo == "refracao_temporal" && ultima_carta_jogada(_lado_acao) == noone) {
             mostrar_aviso_regra("Jogue outra carta antes da Refração Temporal", x, y);
             _pode_executar = false;
         }
@@ -283,7 +286,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
     } else {
         with (obj_carta) {
             if (id == other.id || !travada) continue;
-            var _aceita = (other.efeito_tipo == "eutanasia") ? (vida <= 5) : (dono == "inimigo");
+            var _aceita = (other.efeito_tipo == "eutanasia") ? (vida <= 5) : (dono == _lado_oposto);
             if (!_aceita) continue;
             var _dist = point_distance(x, y, other.x, other.y);
             if (_dist < _distancia_maxima_magia && _dist < _menor_distancia_magia) {
@@ -294,7 +297,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         }
         if (efeito_tipo == "bola_fogo") {
             with (obj_construcao) {
-                if (dono != "inimigo") continue;
+                if (dono != _lado_oposto) continue;
                 var _dist = point_distance(x, y, other.x, other.y);
                 if (_dist < _distancia_maxima_magia && _dist < _menor_distancia_magia) {
                     _menor_distancia_magia = _dist;
@@ -302,12 +305,12 @@ if (arrastando && mouse_check_button_released(mb_left)) {
                     _tipo_alvo_magia = "construcao";
                 }
             }
-            var _pos_castelo = obter_posicao_castelo("inimigo");
+            var _pos_castelo = obter_posicao_castelo(_lado_oposto);
             var _dist_castelo = point_distance(x, y, _pos_castelo.x, _pos_castelo.y);
             if (_dist_castelo < 95 && _dist_castelo < _menor_distancia_magia) {
                 _alvo_magia = noone;
                 _tipo_alvo_magia = "castelo";
-                _dono_castelo_alvo = "inimigo";
+                _dono_castelo_alvo = _lado_oposto;
                 _menor_distancia_magia = _dist_castelo;
             }
         }
@@ -319,30 +322,30 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         }
     }
 
-    if (_pode_executar && pode_pagar_custo(custo, "jogador", categoria)) {
+    if (_pode_executar && pode_pagar_custo(custo, _lado_acao, categoria)) {
         var _executou_magia = true;
         switch (efeito_tipo) {
-            case "dados_manipulados": ativar_dados_manipulados("jogador", x, y); break;
+            case "dados_manipulados": ativar_dados_manipulados(_lado_acao, x, y); break;
             case "refracao_temporal": _executou_magia = usar_refracao_temporal(id); break;
-            case "buscar_sangue": _executou_magia = buscar_recurso_no_deck("sangue", "jogador"); break;
+            case "buscar_sangue": _executou_magia = buscar_recurso_no_deck("sangue", _lado_acao); break;
             case "bloqueio_recurso": _executou_magia = bloquear_recurso(_alvo_magia, 3); break;
-            case "eutanasia": destruir_tropa(_alvo_magia, _alvo_magia.dono != "jogador"); break;
+            case "eutanasia": destruir_tropa(_alvo_magia, _alvo_magia.dono != _lado_acao); break;
             case "bola_fogo":
                 lancar_bola_de_fogo(_alvo_magia, dado_efeito, chance_queimar,
-                    _tipo_alvo_magia, _dono_castelo_alvo, "jogador");
+                    _tipo_alvo_magia, _dono_castelo_alvo, _lado_acao);
             break;
             case "veneno": _executou_magia = aplicar_envenenado(_alvo_magia); break;
             case "gelo": _executou_magia = aplicar_congelado(_alvo_magia); break;
             case "choque": _executou_magia = aplicar_eletrocutado(_alvo_magia); break;
             default:
                 if (array_length(efeitos_declarativos) > 0)
-                    _executou_magia = executar_efeitos_declarativos(efeitos_declarativos, _alvo_magia, "jogador");
+                    _executou_magia = executar_efeitos_declarativos(efeitos_declarativos, _alvo_magia, _lado_acao);
                 else _executou_magia = aplicar_condicao_por_chave(_alvo_magia, efeito_tipo);
             break;
         }
 
         if (_executou_magia) {
-            pagar_custo(custo, "jogador", categoria);
+            pagar_custo(custo, _lado_acao, categoria);
             obj_controlador.magias_usadas_este_turno += 1;
             var _index_magia = array_get_index(obj_controlador.mao, id);
             if (_index_magia != -1) {
@@ -364,13 +367,13 @@ if (arrastando && mouse_check_button_released(mb_left)) {
     var _alvo = noone;
     var _menor_distancia = 9999;
     with (obj_carta) {
-        if (id == other.id || !travada || dono != "jogador" || mochila <= 0 || troca_item_usada_este_turno) continue;
+        if (id == other.id || !travada || dono != _lado_acao || mochila <= 0 || troca_item_usada_este_turno) continue;
         if (nivel_inteligencia < other.requisito_inteligencia_item) continue;
         var _dist = point_distance(x, y, other.x, other.y);
         if (_dist < 60 && _dist < _menor_distancia) { _menor_distancia = _dist; _alvo = id; }
     }
-    if (_alvo != noone && pode_pagar_custo(custo, "jogador", categoria)) {
-        pagar_custo(custo, "jogador", categoria);
+    if (_alvo != noone && pode_pagar_custo(custo, _lado_acao, categoria)) {
+        pagar_custo(custo, _lado_acao, categoria);
         obj_controlador.itens_usados_este_turno += 1;
         var _dados_item = criar_dados_item_equipado(nome_carta, sprite_index, funcao_dados_origem,
             bonus_mod_dano_item, bonus_defesa_item, sobrescreve_dado_dano_item, sobrescreve_mod_dano_item, efeito_item);
@@ -379,7 +382,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         _alvo.troca_item_usada_este_turno = true;
         var _index = array_get_index(obj_controlador.mao, id);
         if (_index != -1) { array_delete(obj_controlador.mao, _index, 1); organizar_mao(); }
-        registrar_ultima_carta_jogada(funcao_dados_origem, "jogador");
+        registrar_ultima_carta_jogada(funcao_dados_origem, _lado_acao);
         mostrar_feedback("EQUIPADO", _alvo.x, _alvo.y - 40, c_aqua, 35);
         instance_destroy(id);
     } else {
@@ -393,9 +396,9 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         var _distancia_arrastada = point_distance(x, y, arrastar_inicio_x, arrastar_inicio_y);
         var _tipo_buscado = string_delete(efeito_tipo, 1, string_length("buscar_"));
 
-        if (_distancia_arrastada > 80 && pode_pagar_custo(custo, "jogador", categoria)) {
-            if (buscar_recurso_no_deck(_tipo_buscado, "jogador")) {
-                pagar_custo(custo, "jogador", categoria);
+        if (_distancia_arrastada > 80 && pode_pagar_custo(custo, _lado_acao, categoria)) {
+            if (buscar_recurso_no_deck(_tipo_buscado, _lado_acao)) {
+                pagar_custo(custo, _lado_acao, categoria);
                 obj_controlador.itens_usados_este_turno += 1;
                 var _index = array_get_index(obj_controlador.mao, id);
                 if (_index != -1) {
@@ -418,10 +421,10 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         // --- Baú ---
         var _distancia_arrastada = point_distance(x, y, arrastar_inicio_x, arrastar_inicio_y);
 
-        if (_distancia_arrastada > 80 && pode_pagar_custo(custo, "jogador", categoria)) {
-            pagar_custo(custo, "jogador", categoria);
+        if (_distancia_arrastada > 80 && pode_pagar_custo(custo, _lado_acao, categoria)) {
+            pagar_custo(custo, _lado_acao, categoria);
             obj_controlador.itens_usados_este_turno += 1;
-            comprar_varias_cartas(quantidade_efeito, "jogador");
+            comprar_varias_cartas(quantidade_efeito, _lado_acao);
 
             var _index = array_get_index(obj_controlador.mao, id);
             if (_index != -1) {
@@ -452,8 +455,8 @@ if (arrastando && mouse_check_button_released(mb_left)) {
             }
         }
 
-        if (_alvo != noone && pode_pagar_custo(custo, "jogador", categoria)) {
-            pagar_custo(custo, "jogador", categoria);
+        if (_alvo != noone && pode_pagar_custo(custo, _lado_acao, categoria)) {
+            pagar_custo(custo, _lado_acao, categoria);
             obj_controlador.itens_usados_este_turno += 1;
             aplicar_corrosao(_alvo);
 
@@ -475,9 +478,9 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         // --- Frasco de Sangue ---
         var _distancia_arrastada = point_distance(x, y, arrastar_inicio_x, arrastar_inicio_y);
 
-        if (_distancia_arrastada > 80 && pode_pagar_custo(custo, "jogador", categoria)) {
-            if (revirar_recurso("sangue", "jogador")) {
-                pagar_custo(custo, "jogador", categoria);
+        if (_distancia_arrastada > 80 && pode_pagar_custo(custo, _lado_acao, categoria)) {
+            if (revirar_recurso("sangue", _lado_acao)) {
+                pagar_custo(custo, _lado_acao, categoria);
                 obj_controlador.itens_usados_este_turno += 1;
                 var _index = array_get_index(obj_controlador.mao, id);
                 if (_index != -1) {
@@ -505,7 +508,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
 
         with (obj_carta) {
             if (id == other.id) continue;
-            if (!travada || dono != "jogador") continue;
+            if (!travada || dono != _lado_acao) continue;
 
             var _dist = point_distance(x, y, other.x, other.y);
             if (_dist < 60 && _dist < _menor_distancia) {
@@ -514,8 +517,8 @@ if (arrastando && mouse_check_button_released(mb_left)) {
             }
         }
 
-        if (_alvo != noone && pode_pagar_custo(custo, "jogador", categoria)) {
-            pagar_custo(custo, "jogador", categoria);
+        if (_alvo != noone && pode_pagar_custo(custo, _lado_acao, categoria)) {
+            pagar_custo(custo, _lado_acao, categoria);
             obj_controlador.itens_usados_este_turno += 1;
 
             if (efeito_tipo == "aumentar_intelig") {
@@ -558,8 +561,8 @@ if (arrastando && mouse_check_button_released(mb_left)) {
     var _distancia_maxima = global.CARTA_LARGURA * 0.7;
 
 	   with (obj_slot_batalha) {
-	    if (dono_slot_armadilha(id) != "jogador") continue;
-	    if (posicao < posicao_ataque()) continue; // bloqueia só posições 0 e 1 (lado inimigo)
+	    if (_lado_acao == "jogador" && posicao < posicao_ataque()) continue;
+	    if (_lado_acao == "inimigo" && posicao > posicao_ataque()) continue;
 
 	    var _dist = point_distance(x, y, other.x, other.y);
 	    if (_dist < _distancia_maxima && _dist < _menor_distancia) {
@@ -571,13 +574,13 @@ if (arrastando && mouse_check_button_released(mb_left)) {
     var _slot_armadilha_ocupado = (_slot_armadilha != noone
         && slot_tem_armadilha(_slot_armadilha.lane, _slot_armadilha.posicao, id));
 
-    if (_slot_armadilha != noone && !_slot_armadilha_ocupado && pode_pagar_custo(custo, "jogador", categoria)) {
-        pagar_custo(custo, "jogador", categoria);
+    if (_slot_armadilha != noone && !_slot_armadilha_ocupado && pode_pagar_custo(custo, _lado_acao, categoria)) {
+        pagar_custo(custo, _lado_acao, categoria);
 
         armadilha_lane = _slot_armadilha.lane;
         armadilha_posicao = _slot_armadilha.posicao;
         armadilha_estado = "vigiando";
-        registrar_ultima_carta_jogada(funcao_dados_origem, "jogador");
+        registrar_ultima_carta_jogada(funcao_dados_origem, _lado_acao);
 
         // Efeito visual de "esconder a armadilha" no slot -- reaproveita o objeto de terreno
         // ativo só pelo visual de "cair e assentar no chão", sem afetar regras.
@@ -615,8 +618,8 @@ if (arrastando && mouse_check_button_released(mb_left)) {
 	} else if (categoria == "terreno") {
     var _distancia_arrastada = point_distance(x, y, arrastar_inicio_x, arrastar_inicio_y);
 
-    if (_distancia_arrastada > 80 && obj_controlador.terrenos_jogados_este_turno < 1 && pode_pagar_custo(custo, "jogador", categoria)) {
-        pagar_custo(custo, "jogador", categoria);
+    if (_distancia_arrastada > 80 && obj_controlador.terrenos_jogados_este_turno < 1 && pode_pagar_custo(custo, _lado_acao, categoria)) {
+        pagar_custo(custo, _lado_acao, categoria);
         obj_controlador.terrenos_jogados_este_turno += 1;
 
         var _slot_terreno_destino = noone;
@@ -648,7 +651,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         // Anúncio dramático na tela
         obj_controlador.terreno_anuncio_texto = string_upper(nome_carta);
         obj_controlador.terreno_anuncio_timer = obj_controlador.terreno_anuncio_duracao;
-        registrar_ultima_carta_jogada(funcao_dados_origem, "jogador");
+        registrar_ultima_carta_jogada(funcao_dados_origem, _lado_acao);
 
         var _index = array_get_index(obj_controlador.mao, id);
         if (_index != -1) {
@@ -664,15 +667,15 @@ if (arrastando && mouse_check_button_released(mb_left)) {
 	} else if (categoria == "bencao" || categoria == "maldicao") {
     var _distancia_arrastada = point_distance(x, y, arrastar_inicio_x, arrastar_inicio_y);
     
-    if (_distancia_arrastada > 80 && pode_pagar_custo(custo, "jogador", categoria)) {
+    if (_distancia_arrastada > 80 && pode_pagar_custo(custo, _lado_acao, categoria)) {
         var _sucesso = (categoria == "bencao")
-            ? adicionar_bencao("jogador", efeito_passivo, nome_carta, sprite_index)
-            : adicionar_maldicao("jogador", efeito_passivo, nome_carta, sprite_index);
+            ? adicionar_bencao(_lado_acao, efeito_passivo, nome_carta, sprite_index)
+            : adicionar_maldicao(_lado_acao, efeito_passivo, nome_carta, sprite_index);
         
         if (_sucesso) {
-            pagar_custo(custo, "jogador", categoria);
+            pagar_custo(custo, _lado_acao, categoria);
             iniciar_animacao_bencao_maldicao(categoria, nome_carta);
-            registrar_ultima_carta_jogada(funcao_dados_origem, "jogador");
+            registrar_ultima_carta_jogada(funcao_dados_origem, _lado_acao);
             
             var _index = array_get_index(obj_controlador.mao, id);
             if (_index != -1) {

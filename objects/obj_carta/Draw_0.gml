@@ -1,8 +1,13 @@
+// No modo local, somente a mão do jogador ativo pode ser vista.
+if (esta_na_mao && partida_local_ativa()
+    && (obj_controlador.passagem_turno_ativa || dono != obj_controlador.turno)) exit;
+
 #region Preparação e desenho base da carta
 draw_set_font(Fontenil)
 
 
-var _rotacao_extra = (dono == "inimigo") ? 180 : 0;
+var _rotacao_extra = (dono == "inimigo"
+    && !(partida_local_ativa() && esta_na_mao && obj_controlador.turno == "inimigo")) ? 180 : 0;
 var _rotacao_total = rotacao_atual + rotacao_animacao + rotacao_evolucao + arrasto_rotacao + _rotacao_extra;
 
 var _x_desenho = x + ataque_offset_x + arrasto_offset_visual_x + recuo_dano_x;
@@ -63,7 +68,7 @@ if (travada && categoria == "tropa" && array_length(itens_equipados) > 0) {
     var _qtd_equipamentos = array_length(itens_equipados);
     var _largura_tropa_visual = sprite_get_width(sprite_index) * _escala_final;
     var _altura_tropa_visual = sprite_get_height(sprite_index) * _escala_final;
-    var _passo_equipamento = clamp(_altura_tropa_visual * 0.070, 15, 23);
+    var _passo_equipamento = clamp(_altura_tropa_visual * 0.055, 12, 19);
 
     for (var _indice_equip = 0; _indice_equip < _qtd_equipamentos; _indice_equip++) {
         var _item_visual = itens_equipados[_indice_equip];
@@ -300,10 +305,11 @@ draw_set_alpha(1);
 if (arrastando && categoria == "magica" && efeito_tipo == "bola_fogo") {
     draw_set_alpha(0.7);
     draw_set_color(c_red);
+    var _lado_alvo_bola = lado_oposto(dono);
     with (obj_construcao) {
-        if (dono == "inimigo") draw_circle(x, y, 38, true);
+        if (dono == _lado_alvo_bola) draw_circle(x, y, 38, true);
     }
-    var _castelo = obter_posicao_castelo("inimigo");
+    var _castelo = obter_posicao_castelo(_lado_alvo_bola);
     draw_circle(_castelo.x, _castelo.y, 46, true);
     draw_set_halign(fa_center);
     draw_set_valign(fa_bottom);

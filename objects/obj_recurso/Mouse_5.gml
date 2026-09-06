@@ -1,7 +1,7 @@
 // obj_recurso não usa sprite/máscara no editor, então o evento de mouse pode
 // ser recebido fora da imagem. Confere manualmente a área realmente desenhada.
-if (dono != "jogador") exit;
-if (obj_controlador.turno != "jogador") {
+if (!lado_controlado_localmente(dono)) exit;
+if (obj_controlador.turno != dono) {
     mostrar_aviso_regra("Você poderá retirar o recurso no seu turno", x, y);
     exit;
 }
