@@ -150,13 +150,17 @@ if (online_aberto) {
     var _online_conectado = online_ativo();
     var _online_ocupado = global.online_status == "conectando" || global.online_status == "reconectando";
 
-    if (!_online_conectado && !_online_ocupado) {
-        draw_set_halign(fa_left);
-        draw_set_color(c_ltgray);
-        draw_text(_online_cx - 190, _online_cy - 121, "NOME");
-        draw_text(_online_cx - 190, _online_cy - 71, "CÓDIGO DA SALA");
-        draw_text(_online_cx - 190, _online_cy - 21, "SERVIDOR");
-        draw_set_halign(fa_center);
+	   if (!_online_conectado && !_online_ocupado) {
+	    draw_set_halign(fa_left);
+	    draw_set_color(c_ltgray);
+	    draw_set_alpha(0.55);
+
+	    draw_text(_online_cx - 160, _online_cy - 105, "NOME");
+	    draw_text(_online_cx - 160, _online_cy - 55, "CÓDIGO DA SALA");
+	    draw_text(_online_cx - 160, _online_cy - 5, "SERVIDOR");
+
+	    draw_set_alpha(1);
+	    draw_set_halign(fa_center);
 
         for (var _online_i = 0; _online_i < 3; _online_i++) {
             var _online_y = _online_cy - 105 + _online_i * 50;

@@ -40,16 +40,36 @@ if (online_aberto) {
                 : ((online_foco == 1) ? online_codigo_input : online_servidor_input);
         }
 
-        if (online_foco == 0) {
-            online_nome_input = string_copy(keyboard_string, 1, 24);
-            keyboard_string = online_nome_input;
-        } else if (online_foco == 1) {
-            online_codigo_input = string_copy(keyboard_string, 1, 64);
-            keyboard_string = online_codigo_input;
-        } else {
-            online_servidor_input = string_copy(keyboard_string, 1, 120);
-            keyboard_string = online_servidor_input;
-        }
+       if (online_foco == 0) {
+    online_nome_input = string_copy(keyboard_string, 1, 24);
+    keyboard_string = online_nome_input;
+
+} else if (online_foco == 1) {
+    online_codigo_input = string_copy(keyboard_string, 1, 64);
+    keyboard_string = online_codigo_input;
+
+	} else if (online_foco == 2) {
+
+	    if (keyboard_check_pressed(ord("V")) && keyboard_check(vk_control)) {
+
+	        show_debug_message("CTRL+V detectado");
+
+	        var _tem_clip = clipboard_has_text();
+	        show_debug_message("clipboard_has_text = " + string(_tem_clip));
+
+	        var _clip = clipboard_get_text();
+	        show_debug_message("clipboard_get_text = [" + _clip + "]");
+
+	        if (_clip != "") {
+	            online_servidor_input = string_copy(_clip, 1, 200);
+	            keyboard_string = online_servidor_input;
+	        }
+
+	    } else {
+	        online_servidor_input = string_copy(keyboard_string, 1, 200);
+	        keyboard_string = online_servidor_input;
+	    }
+	}
     } else if (_online_conectado) {
         if (mouse_check_button_pressed(mb_left)) {
             if (global.online_fase == "waiting"
