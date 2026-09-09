@@ -212,7 +212,7 @@ function online_configurar_callbacks(_sala) {
     });
 }
 
-function online_conectar(_criar, _codigo, _nome, _endpoint = "https://doily-pointy-nurture.ngrok-free.dev ") {
+function online_conectar(_criar, _codigo, _nome, _endpoint = "https://doily-pointy-nurture.ngrok-free.dev") {
     online_inicializar();
     if (!colyseus_is_ready()) {
         global.online_status = "erro";
