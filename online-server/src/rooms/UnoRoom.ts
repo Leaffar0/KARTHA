@@ -104,6 +104,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
   private pendingCritical?: { seat: number; cardId: string; targetId?: string; targetSeat?: number; targetType: "card" | "castle"; attackType: "fisica" | "magica"; die: number; dice: number; modifier: number; defense: number; itemDefinitionId?: string; repeatAfter?: number };
   private pendingMagnet: PendingMagnetChoice[][] = [[], []];
   private pendingMitosis: Array<PendingMitosisChoice | undefined> = [undefined, undefined];
+  private rematchVotes = new Set<number>();
 
   private sendJson(client: Client, type: string, payload: unknown) {
     client.send(type, JSON.stringify(payload));
@@ -202,6 +203,34 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       this.state.winner = 1 - player.seatIndex;
       this.state.phase = "finished";
       this.bump("concede");
+      this.sendPublicState();
+    });
+
+    this.onMessage("rematch", (client: Client) => {
+      const player = this.findPlayer(client.sessionId);
+      if (!player || this.state.phase !== "finished") return;
+      this.rematchVotes.add(player.seatIndex);
+      this.broadcastJson("rematch_status", { seats: [...this.rematchVotes] });
+      if (this.rematchVotes.size < 2) return;
+
+      this.rematchVotes.clear();
+      this.pendingCritical = undefined;
+      this.pendingMagnet = [[], []];
+      this.pendingMitosis = [undefined, undefined];
+      this.state.cards.clear();
+      this.state.terrainDefinitionId = "";
+      this.state.currentPlayer = -1;
+      this.state.initiativeWinner = -1;
+      this.state.winner = -1;
+      this.state.turnNumber = 0;
+      this.state.phase = "initiative";
+      this.state.players.forEach((participant: PlayerState) => {
+        participant.initiative = 0;
+        participant.ready = true;
+      });
+      this.bump("rematch_started");
+      this.broadcastJson("rematch_started", { revision: this.state.revision });
+      this.sendPublicState();
     });
   }
 
@@ -255,6 +284,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
   }
 
   private startMatch(firstSeat: number) {
+    this.rematchVotes.clear();
     this.state.cards.clear();
     this.nextCardId = 1;
     for (let seat = 0; seat < 2; seat++) {

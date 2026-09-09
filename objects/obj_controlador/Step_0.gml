@@ -63,7 +63,7 @@ if (vida_jogador <= 0 || vida_inimigo <= 0) {
     var _fim_centro_y = display_get_gui_height() / 2;
     var _clicou_reiniciar = point_in_rectangle(_fim_gui_x, _fim_gui_y, _fim_centro_x - 120, _fim_centro_y + 85, _fim_centro_x + 120, _fim_centro_y + 130);
     if (keyboard_check_pressed(vk_enter) || keyboard_check_pressed(ord("R")) || (mouse_check_button_pressed(mb_left) && _clicou_reiniciar)) {
-        room_restart();
+        if (modo_partida == "online") online_solicitar_revanche(); else room_restart();
     }
     exit;
 }

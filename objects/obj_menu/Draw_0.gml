@@ -169,7 +169,14 @@ if (online_aberto) {
         }
         draw_set_color(c_white);
         draw_text(_online_cx, _online_cy - 87, online_nome_input);
-        draw_text(_online_cx, _online_cy - 37, online_codigo_input == "" ? "para entrar em uma sala" : online_codigo_input);
+        draw_text(_online_cx - 28, _online_cy - 37, online_codigo_input == "" ? "Ctrl+V para colar" : online_codigo_input);
+        var _hover_colar_codigo = point_in_rectangle(mouse_x, mouse_y, _online_cx + 125, _online_cy - 55, _online_cx + 190, _online_cy - 19);
+        draw_set_color(c_black);
+        draw_roundrect(_online_cx + 125, _online_cy - 55, _online_cx + 190, _online_cy - 19, false);
+        draw_set_color(_hover_colar_codigo ? c_aqua : c_white);
+        draw_roundrect(_online_cx + 125, _online_cy - 55, _online_cx + 190, _online_cy - 19, true);
+        draw_text(_online_cx + 157, _online_cy - 37, "COLAR");
+        draw_set_color(c_white);
         draw_text(_online_cx, _online_cy + 13, online_servidor_input);
 
         var _hover_criar = point_in_rectangle(mouse_x, mouse_y, _online_cx - 190, _online_cy + 55, _online_cx - 10, _online_cy + 101);

@@ -43,6 +43,9 @@ function online_inicializar() {
     global.online_deck_count = 50;
     global.online_descarte_privado = [];
     global.online_mao_pendente = false;
+    global.online_revanche_solicitada = false;
+    global.online_animacoes_pendentes = [];
+    global.online_criou_sala = false;
 }
 
 function online_ativo() {
@@ -98,6 +101,22 @@ function online_atualizar_nomes(_jogadores) {
         else global.online_nome_inimigo = _nome;
     }
 }
+function online_copiar_codigo_sala() {
+    if (!variable_global_exists("net_room_id") || string_trim(global.net_room_id) == "") return false;
+    clipboard_set_text(string(global.net_room_id));
+    if (instance_exists(obj_menu)) obj_menu.online_copiado_timer = 120;
+    return true;
+}
+
+function online_colar_codigo_sala() {
+    if (!clipboard_has_text()) return "";
+    var _codigo_colado = string_trim(clipboard_get_text());
+    _codigo_colado = string_replace_all(_codigo_colado, "\r", "");
+    var _quebra_codigo = string_pos("\n", _codigo_colado);
+    if (_quebra_codigo > 0) _codigo_colado = string_copy(_codigo_colado, 1, _quebra_codigo - 1);
+    return string_copy(string_trim(_codigo_colado), 1, 64);
+}
+
 
 function online_configurar_callbacks(_sala) {
     colyseus_on_error(_sala, function(_codigo, _mensagem) {
@@ -130,6 +149,7 @@ function online_configurar_callbacks(_sala) {
         global.net_session_id = colyseus_room_get_session_id(_ref);
         global.online_status = "na_sala";
         global.online_erro = "";
+        if (global.online_criou_sala) online_copiar_codigo_sala();
         colyseus_send(_ref, "ready", json_stringify({ name: global.online_nome, deck: online_montar_deck_ids() }));
     });
 
@@ -226,6 +246,11 @@ function online_configurar_callbacks(_sala) {
                 if (instance_exists(obj_controlador)) {
                     if (global.online_mao_pendente) online_reconstruir_mao_privada();
                     online_aplicar_estado_publico(_dados);
+                    if (array_length(global.online_animacoes_pendentes) > 0) {
+                        for (var _ap = 0; _ap < array_length(global.online_animacoes_pendentes); _ap++)
+                            online_animar_confirmacao(global.online_animacoes_pendentes[_ap]);
+                        global.online_animacoes_pendentes = [];
+                    }
                 }
                 break;
             case "match_started":
@@ -235,9 +260,27 @@ function online_configurar_callbacks(_sala) {
                 random_set_seed(global.online_seed);
                 room_goto(rm_jogo);
                 break;
+            case "rematch_status":
+                global.online_revanche_solicitada = false;
+                if (variable_struct_exists(_dados, "seats") && is_array(_dados.seats)) {
+                    for (var _rv = 0; _rv < array_length(_dados.seats); _rv++)
+                        if (_dados.seats[_rv] == global.online_assento) global.online_revanche_solicitada = true;
+                }
+                break;
+            case "rematch_started":
+                global.online_revanche_solicitada = false;
+                global.online_fase = "initiative";
+                global.online_iniciativa = [-1, -1];
+                global.online_vencedor_iniciativa = -1;
+                global.online_primeiro = -1;
+                global.online_estado_publico = noone;
+                if (room == rm_jogo) room_restart();
+                break;
             case "action_confirmed":
                 global.online_revisao = _dados.revision;
-                online_animar_confirmacao(_dados);
+                var _adiar_animacao = _dados.kind == "play_troop" || _dados.kind == "play_construction" || _dados.kind == "evolve_troop";
+                if (_adiar_animacao) array_push(global.online_animacoes_pendentes, _dados);
+                else online_animar_confirmacao(_dados);
                 break;
             case "action_rejected":
                 global.online_revisao = _dados.revision;
@@ -259,11 +302,18 @@ function online_configurar_callbacks(_sala) {
     });
 }
 
+function online_solicitar_revanche() {
+    if (!online_ativo() || global.online_fase != "finished" || global.online_revanche_solicitada) return false;
+    global.online_revanche_solicitada = true;
+    colyseus_send(global.net_room, "rematch", {});
+    return true;
+}
+
 function online_conectar(_criar, _codigo, _nome, _endpoint = "wss://doily-pointy-nurture.ngrok-free.dev") {
     online_inicializar();
     if (!colyseus_is_ready()) {
         global.online_status = "erro";
-        global.online_erro = "O módulo online ainda está carregando.";
+        global.online_erro = "Não foi possível carregar o módulo online.";
         return false;
     }
     if (global.net_room != 0) online_desconectar();
@@ -275,7 +325,10 @@ function online_conectar(_criar, _codigo, _nome, _endpoint = "wss://doily-pointy
     global.online_mao_privada = [];
     global.online_armadilhas_privadas = [];
     global.online_efeitos_privados = [];
+    global.online_revanche_solicitada = false;
+    global.online_animacoes_pendentes = [];
     global.online_erro = "";
+    global.online_criou_sala = _criar;
     global.net_client = colyseus_client_create(_endpoint);
     global.net_room = _criar
         ? colyseus_client_create_room(global.net_client, "kartha", { name: global.online_nome })
@@ -736,6 +789,11 @@ function online_criar_carta_publica(_registro) {
         _carta.slot_atual = _slot;
         _carta.x = _slot.x; _carta.y = _slot.y;
         _slot.ocupado = true; _slot.carta_atual = _carta;
+        var _destino_entrada_x = _slot.x; var _destino_entrada_y = _slot.y;
+        _carta.x = room_width / 2;
+        _carta.y = (_dono == "jogador") ? room_height + 45 : -45;
+        iniciar_pulo_tropa(_carta, _destino_entrada_x, _destino_entrada_y, true);
+        audio_play_sound(snd_colocar, 1, false, 0.55, 0, random_range(0.85, 1.15));
         return _carta;
     }
 
@@ -768,6 +826,7 @@ function online_criar_carta_publica(_registro) {
         }
         _slot_construcao.ocupado = true;
         _slot_construcao.construcao_atual = _construcao;
+        audio_play_sound(snd_colocar, 1, false, 0.55, 0, random_range(0.85, 1.15));
         return _construcao;
     }
     return noone;
@@ -1012,6 +1071,7 @@ function online_aplicar_estado_publico(_estado) {
     if (!instance_exists(obj_controlador) || obj_controlador.modo_partida != "online") return;
     if (_estado.revision < obj_controlador.online_estado_aplicado_revisao) return;
 
+    global.online_fase = _estado.phase;
     global.online_revisao = _estado.revision;
     obj_controlador.online_estado_aplicado_revisao = _estado.revision;
     obj_controlador.turno = online_lado_do_assento(_estado.currentPlayer);
@@ -1052,12 +1112,35 @@ function online_encontrar_carta_campo(_instance_id) {
 function online_animar_confirmacao(_mensagem) {
     if (!instance_exists(obj_controlador) || !is_struct(_mensagem) || !is_struct(_mensagem.payload)) return;
     var _dados = _mensagem.payload;
+    if (_mensagem.kind == "place_resource") {
+        audio_play_sound(snd_colocar, 1, false, 0.55, 0, random_range(0.88, 1.12));
+        mostrar_feedback("RECURSO COLOCADO", room_width / 2, (_mensagem.seat == global.online_assento) ? room_height - 155 : 120, c_aqua, 48);
+        return;
+    }
+    if (_mensagem.kind == "play_troop" || _mensagem.kind == "play_construction" || _mensagem.kind == "evolve_troop") {
+        var _entrada_campo = (_mensagem.kind == "play_construction")
+            ? online_encontrar_construcao_campo(_dados.instanceId) : online_encontrar_carta_campo(_dados.instanceId);
+        if (!instance_exists(_entrada_campo) && variable_struct_exists(_dados, "cardId")) {
+            _entrada_campo = (_mensagem.kind == "play_construction")
+                ? online_encontrar_construcao_campo(_dados.cardId) : online_encontrar_carta_campo(_dados.cardId);
+        }
+        if (instance_exists(_entrada_campo)) mostrar_feedback(_mensagem.kind == "evolve_troop" ? "EVOLUIU!" : "CARTA COLOCADA", _entrada_campo.x, _entrada_campo.y - 46, c_lime, 52);
+        return;
+    }
+    if (_mensagem.kind == "set_castle_defense") {
+        var _defensor_online = online_encontrar_carta_campo(_dados.cardId);
+        if (instance_exists(_defensor_online)) mostrar_feedback(_dados.defending ? "DEFENDENDO" : "DEFESA REMOVIDA", _defensor_online.x, _defensor_online.y - 42, c_aqua, 48);
+        return;
+    }
     if (_mensagem.kind == "use_ability") {
         var _origem_habilidade = online_encontrar_carta_campo(_dados.cardId);
         if (variable_struct_exists(_dados, "attacks") && is_array(_dados.attacks)) {
-            for (var _ga = 0; _ga < array_length(_dados.attacks); _ga++)
-                if (is_struct(_dados.attacks[_ga]))
+            for (var _ga = 0; _ga < array_length(_dados.attacks); _ga++) {
+                if (is_struct(_dados.attacks[_ga])) {
+                    _dados.attacks[_ga].visualDelay = _ga * irandom_range(145, 175);
                     online_animar_confirmacao({ kind: "attack", payload: _dados.attacks[_ga] });
+                }
+            }
         }
         if (variable_struct_exists(_dados, "counter") && is_struct(_dados.counter))
             online_animar_confirmacao({ kind: "attack", payload: _dados.counter });
@@ -1079,7 +1162,7 @@ function online_animar_confirmacao(_mensagem) {
             var _torre_ar = online_encontrar_construcao_campo(_evento_ar.cardId);
             var _alvo_ar = online_encontrar_carta_campo(_evento_ar.targetId);
             if (instance_exists(_torre_ar) && instance_exists(_alvo_ar)) {
-                rolar_dado_visual(_torre_ar.x, _torre_ar.y, _alvo_ar.x, _alvo_ar.y - 35, 6, _evento_ar.damage, noone, _ar * 8, 0, 55);
+                rolar_dado_visual(_torre_ar.x, _torre_ar.y, _alvo_ar.x, _alvo_ar.y - 35, 6, _evento_ar.damage, noone, _ar * 60, 0, 78);
                 mostrar_feedback("ARTILHARIA " + string(_evento_ar.damage), _alvo_ar.x, _alvo_ar.y - 50, c_yellow, 60);
             }
         }
@@ -1095,6 +1178,31 @@ function online_animar_confirmacao(_mensagem) {
         }
         var _fx = instance_exists(_alvo_especial) ? _alvo_especial.x : room_width / 2;
         var _fy = instance_exists(_alvo_especial) ? _alvo_especial.y - 45 : room_height / 2;
+        if (_mensagem.kind == "play_effect" && variable_struct_exists(_dados, "category")
+            && (_dados.category == "bencao" || _dados.category == "maldicao")) {
+            var _funcao_ritual_online = online_funcao_carta_por_id(_dados.definitionId);
+            var _nome_ritual_online = "EFEITO";
+            if (_funcao_ritual_online != noone) _nome_ritual_online = _funcao_ritual_online().nome;
+            iniciar_animacao_bencao_maldicao(_dados.category, _nome_ritual_online);
+        } else {
+            audio_play_sound(snd_colocar, 1, false, 0.48, 0, random_range(0.88, 1.12));
+        }
+        if (_mensagem.kind == "play_item" && instance_exists(_alvo_especial) && variable_struct_exists(_dados, "definitionId")) {
+            var _funcao_item_online = online_funcao_carta_por_id(_dados.definitionId);
+            if (_funcao_item_online != noone) {
+                var _dados_item_online = _funcao_item_online();
+                criar_animacao_item(variable_struct_exists(_dados_item_online, "sprite_carta") ? _dados_item_online.sprite_carta : noone, room_width / 2,
+                    (_mensagem.seat == global.online_assento) ? room_height - 40 : 40, _alvo_especial.x, _alvo_especial.y, c_aqua);
+            }
+        }
+        if (_mensagem.kind == "play_spell" && variable_struct_exists(_dados, "effect") && _dados.effect == "bola_fogo") {
+            var _origem_fogo_y = (_mensagem.seat == global.online_assento) ? room_height - 30 : 30;
+            var _projetil_online = instance_create_layer(room_width / 2, _origem_fogo_y, "Instances", obj_bola_fogo_projetil);
+            _projetil_online.origem_x = room_width / 2; _projetil_online.origem_y = _origem_fogo_y;
+            _projetil_online.destino_x = _fx; _projetil_online.destino_y = _fy + 45;
+            audio_play_sound(snd_bola_fogo_fogo, 1, false, 0.55, 0, random_range(0.92, 1.08));
+            _projetil_online.som_voo = audio_play_sound(snd_bola_fogo_voo, 1, false, 0.5, 0, random_range(0.95, 1.05));
+        }
         var _texto = "CARTA USADA";
         var _cor = c_aqua;
         if (_mensagem.kind == "play_item") _texto = variable_struct_exists(_dados, "equipment") ? "EQUIPADO" : "ITEM USADO";
@@ -1111,7 +1219,7 @@ function online_animar_confirmacao(_mensagem) {
             if (variable_struct_exists(_dados, "definitionId") && _dados.definitionId == "destrocos") _lados = 4;
             for (var d = 0; d < array_length(_dados.damageRolls); d++) {
                 rolar_dado_visual(_fx - 20 + d * 40, _fy + 55, _fx - 20 + d * 40, _fy,
-                    _lados, _dados.damageRolls[d], noone, d * 8, 0, 48);
+                    _lados, _dados.damageRolls[d], noone, 0, d * irandom_range(30, 44), 78 + irandom_range(-5, 14));
             }
         }
         if (variable_struct_exists(_dados, "roll") && _dados.effect == "dados_manipulados") {
@@ -1179,39 +1287,60 @@ function online_animar_confirmacao(_mensagem) {
         obj_controlador.critico_escolha_ativa = true;
         obj_controlador.carta_menu_aberto = noone;
     }
+    var _atraso_online = variable_struct_exists(_dados, "visualDelay") ? _dados.visualDelay : 0;
     var _destino_x = instance_exists(_alvo) ? _alvo.x : _atacante.x;
     var _destino_y = instance_exists(_alvo) ? _alvo.y : _atacante.y - 70;
     if (variable_struct_exists(_dados, "stealRoll") && _dados.stealRoll > 0) {
-        rolar_dado_visual(_atacante.x, _atacante.y, _destino_x, _destino_y - 70, 10, _dados.stealRoll, noone, 0, 0, 55);
+        rolar_dado_visual(_atacante.x, _atacante.y, _destino_x, _destino_y - 70, 10, _dados.stealRoll, noone, 0, _atraso_online, 78);
         if (variable_struct_exists(_dados, "stolenItem") && _dados.stolenItem != "")
             mostrar_feedback("ROUBOU O EQUIPAMENTO", _destino_x, _destino_y - 55, c_yellow, 65);
     }
-    if (variable_struct_exists(_dados, "counter") && is_struct(_dados.counter))
+    if (variable_struct_exists(_dados, "counter") && is_struct(_dados.counter)) {
+        _dados.counter.visualDelay = _atraso_online + irandom_range(145, 175);
         online_animar_confirmacao({ kind: "attack", payload: _dados.counter });
-    if (variable_struct_exists(_dados, "accuracy")) {
-        rolar_dado_visual(_atacante.x, _atacante.y, _destino_x, _destino_y - 48, 20, _dados.accuracy, noone, 0, 0, 58);
-        if (variable_struct_exists(_dados, "hit") && !_dados.hit) {
-            mostrar_feedback("ERROU — " + string(_dados.accuracy), _destino_x, _destino_y - 55, c_gray, 60);
-            return;
-        }
     }
-    if (variable_struct_exists(_dados, "damageRolls") && is_array(_dados.damageRolls)) {
+    if (variable_struct_exists(_dados, "accuracy")) {
+        var _callback_erro_online = noone;
+        if (variable_struct_exists(_dados, "hit") && !_dados.hit) {
+            _callback_erro_online = method({ px: _destino_x, py: _destino_y, valor: _dados.accuracy }, function(_ignorado) {
+                mostrar_feedback("ERROU — " + string(valor), px, py - 55, c_gray, 60);
+            });
+        }
+        rolar_dado_visual(_atacante.x, _atacante.y, _destino_x, _destino_y - 48, 20, _dados.accuracy, _callback_erro_online, 0, _atraso_online, 82 + irandom_range(-4, 10));
+        if (variable_struct_exists(_dados, "hit") && !_dados.hit) return;
+    }
+    var _qtd_dados_online = variable_struct_exists(_dados, "damageRolls") && is_array(_dados.damageRolls) ? array_length(_dados.damageRolls) : 0;
+    if (_qtd_dados_online > 0) {
         var _tamanho = (_dados.attackType == "magica") ? _atacante.dado_dano_magico : _atacante.dado_dano;
         if (variable_struct_exists(_dados, "itemDefinitionId") && _dados.itemDefinitionId != "") {
             var _funcao_arma_dado = online_funcao_carta_por_id(_dados.itemDefinitionId);
             if (_funcao_arma_dado != noone) {
                 var _dados_arma_dado = _funcao_arma_dado();
-                if (variable_struct_exists(_dados_arma_dado, "sobrescreve_dado_dano"))
-                    _tamanho = _dados_arma_dado.sobrescreve_dado_dano;
+                if (variable_struct_exists(_dados_arma_dado, "sobrescreve_dado_dano")) _tamanho = _dados_arma_dado.sobrescreve_dado_dano;
             }
         }
-        for (var d = 0; d < array_length(_dados.damageRolls); d++) {
-            var _deslocamento = (d - (array_length(_dados.damageRolls) - 1) * 0.5) * 34;
-            rolar_dado_visual(_atacante.x, _atacante.y, _destino_x + _deslocamento, _destino_y - 28, _tamanho, _dados.damageRolls[d], noone, 0, 14 + d * 8, 62 + irandom_range(-5, 7));
+        var _texto_impacto_online = "DANO " + string(_dados.damage);
+        if (_qtd_dados_online > 1) {
+            _texto_impacto_online = "";
+            for (var _soma_online = 0; _soma_online < _qtd_dados_online; _soma_online++) {
+                if (_soma_online > 0) _texto_impacto_online += " + ";
+                _texto_impacto_online += string(_dados.damageRolls[_soma_online]);
+            }
+            _texto_impacto_online += " = DANO " + string(_dados.damage);
         }
-    }
-    if (variable_struct_exists(_dados, "damage")) {
+        var _cor_impacto_online = (variable_struct_exists(_dados, "critical") && _dados.critical) ? c_yellow : c_red;
+        var _contexto_impacto_online = { atacante: _atacante, alvo: _alvo, px: _destino_x, py: _destino_y, texto: _texto_impacto_online, cor: _cor_impacto_online };
+        var _callback_impacto_online = method(_contexto_impacto_online, function(_ignorado) {
+            if (instance_exists(atacante)) iniciar_animacao_ataque(atacante, alvo, 18, 18);
+            mostrar_feedback(texto, px, py - 55, cor, 70);
+        });
+        for (var d = 0; d < _qtd_dados_online; d++) {
+            var _deslocamento = (d - (_qtd_dados_online - 1) * 0.5) * 78;
+            var _callback_dado_online = (d == _qtd_dados_online - 1) ? _callback_impacto_online : noone;
+            rolar_dado_visual(_atacante.x, _atacante.y, _destino_x + _deslocamento, _destino_y - 28, _tamanho, _dados.damageRolls[d], _callback_dado_online, 0, _atraso_online + 98 + d * irandom_range(34, 48), 82 + irandom_range(-5, 12));
+        }
+    } else if (variable_struct_exists(_dados, "damage")) {
         iniciar_animacao_ataque(_atacante, _alvo, 18, 18);
-        mostrar_feedback("DANO " + string(_dados.damage), _destino_x, _destino_y - 55, (variable_struct_exists(_dados, "critical") && _dados.critical) ? c_yellow : c_red, 70);
+        mostrar_feedback("DANO " + string(_dados.damage), _destino_x, _destino_y - 55, c_red, 70);
     }
 }

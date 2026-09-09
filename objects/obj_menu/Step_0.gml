@@ -16,8 +16,16 @@ if (online_aberto) {
     }
 
     if (!_online_conectado && !_online_ocupado) {
+        if (online_foco == 0) online_nome_input = string_copy(keyboard_string, 1, 24);
+        else if (online_foco == 1) online_codigo_input = string_copy(keyboard_string, 1, 64);
+        else if (online_foco == 2) online_servidor_input = string_copy(keyboard_string, 1, 200);
         if (mouse_check_button_pressed(mb_left)) {
-            if (point_in_rectangle(mouse_x, mouse_y, _online_cx - 190, _online_cy - 105, _online_cx + 190, _online_cy - 69)) {
+            if (point_in_rectangle(mouse_x, mouse_y, _online_cx + 125, _online_cy - 55, _online_cx + 190, _online_cy - 19)) {
+                online_foco = 1;
+                var _codigo_clicado = online_colar_codigo_sala();
+                if (_codigo_clicado != "") { online_codigo_input = _codigo_clicado; keyboard_string = online_codigo_input; global.online_erro = ""; }
+                else global.online_erro = "Não há código para colar.";
+            } else if (point_in_rectangle(mouse_x, mouse_y, _online_cx - 190, _online_cy - 105, _online_cx + 190, _online_cy - 69)) {
                 online_foco = 0; keyboard_string = online_nome_input;
             } else if (point_in_rectangle(mouse_x, mouse_y, _online_cx - 190, _online_cy - 55, _online_cx + 190, _online_cy - 19)) {
                 online_foco = 1; keyboard_string = online_codigo_input;
@@ -47,8 +55,19 @@ if (online_aberto) {
     keyboard_string = online_nome_input;
 
 } else if (online_foco == 1) {
-    online_codigo_input = string_copy(keyboard_string, 1, 64);
-    keyboard_string = online_codigo_input;
+    var _atalho_colar_codigo = keyboard_check(vk_control) && keyboard_check_pressed(ord("V"));
+    var _atalho_inserir_codigo = keyboard_check(vk_shift) && keyboard_check_pressed(vk_insert);
+    if (_atalho_colar_codigo || _atalho_inserir_codigo) {
+        var _codigo_da_area = online_colar_codigo_sala();
+        if (_codigo_da_area != "") {
+            online_codigo_input = _codigo_da_area;
+            keyboard_string = online_codigo_input;
+            global.online_erro = "";
+        } else global.online_erro = "Não há código para colar.";
+    } else {
+        online_codigo_input = string_copy(keyboard_string, 1, 64);
+        keyboard_string = online_codigo_input;
+    }
 
 	} else if (online_foco == 2) {
 
@@ -76,8 +95,7 @@ if (online_aberto) {
         if (mouse_check_button_pressed(mb_left)) {
             if (global.online_fase == "waiting"
                 && point_in_rectangle(mouse_x, mouse_y, _online_cx - 105, _online_cy + 35, _online_cx + 105, _online_cy + 75)) {
-                clipboard_set_text(global.net_room_id);
-                online_copiado_timer = 90;
+                online_copiar_codigo_sala();
             } else if (global.online_fase == "initiative"
                 && global.online_assento >= 0 && global.online_iniciativa[global.online_assento] < 0
                 && point_in_rectangle(mouse_x, mouse_y, _online_cx - 130, _online_cy + 45, _online_cx + 130, _online_cy + 95)) {

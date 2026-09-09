@@ -978,7 +978,7 @@ function ativar_armadilha(_carta_armadilha) {
     for (var i = 0; i < _qtd_dados; i++) {
         var _resultado_dado = irandom_range(1, _carta_armadilha.dado_efeito);
         var _offset_dado = (i - ((_qtd_dados - 1) / 2)) * 110;
-        var _atraso_dado = (i == 0) ? 0 : i * irandom_range(8, 15);
+        var _atraso_dado = (i == 0) ? 0 : i * irandom_range(26, 42);
         var _duracao_dado = 78 + irandom_range(-8, 18);
         rolar_dado_visual(
             _carta_armadilha.x + _offset_dado * 0.22,
@@ -2078,7 +2078,7 @@ function rolar_dano_direto(_carta, _tipo_ataque) {
 function rolar_ataque_direto_com_acerto(_carta, _tipo_ataque, _callback_final, _indice_ataque = 0, _total_ataques = 1) {
     var _resultado = irandom_range(1, 20);
     var _offset = (_indice_ataque - ((_total_ataques - 1) / 2)) * 110;
-    var _atraso = (_indice_ataque == 0) ? 0 : _indice_ataque * irandom_range(9, 15);
+    var _atraso = (_indice_ataque == 0) ? 0 : _indice_ataque * irandom_range(68, 92);
     var _contexto = { carta: _carta, tipo: _tipo_ataque, callback_final: _callback_final, indice: _indice_ataque, total: _total_ataques };
     rolar_dado_visual(_carta.x + _offset * 0.22, _carta.y, _carta.x + _offset, _carta.y - 55,
         20, _resultado, method(_contexto, function(_d20) {
@@ -2127,7 +2127,7 @@ function rolar_dano_direto_visual(_carta, _tipo_ataque, _callback_final, _indice
     var _quantidade = _usando_item ? 1 : ((_tipo_ataque == "magica") ? _carta.qtd_dados_dano_magico : _carta.qtd_dados_dano);
     var _modificador = _usando_item ? _carta.item_ataque_atual.modificador : ((_tipo_ataque == "magica") ? _carta.mod_dano_magico : _carta.mod_dano);
     var _offset_grupo = (_indice_ataque - ((_total_ataques - 1) / 2)) * 250;
-    var _atraso_grupo = (_indice_ataque == 0) ? 0 : _indice_ataque * irandom_range(10, 16);
+    var _atraso_grupo = (_indice_ataque == 0) ? 0 : _indice_ataque * irandom_range(70, 95);
 
     var _bonus_carnica = (_carta.carnica_estado_proximo_ataque == "bonus");
     if (_bonus_carnica) _carta.carnica_estado_proximo_ataque = "";
@@ -2429,7 +2429,7 @@ function rolar_teste_acerto_visual(_atacante, _defensor, _tipo_ataque, _indice_a
         : ((_atacante.condicao == "confusao") ? "desvantagem" : "normal");
     var _bonus = bonus_cemiterio_acerto(_atacante);
     var _offset_golpe = (_indice_ataque - ((_total_ataques - 1) / 2)) * 110;
-    var _atraso_golpe = (_indice_ataque == 0) ? 0 : _indice_ataque * irandom_range(9, 15);
+    var _atraso_golpe = (_indice_ataque == 0) ? 0 : _indice_ataque * irandom_range(68, 92);
 
     if (_modo == "normal") {
         var _resultado_natural = irandom_range(1, 20);
@@ -2469,7 +2469,7 @@ function rolar_teste_acerto_visual(_atacante, _defensor, _tipo_ataque, _indice_a
         rolar_dado_visual(_atacante.x + _offset_golpe * 0.22, _atacante.y,
             _defensor.x + _offset_golpe + _offset_teste, _defensor.y,
             20, _valor_teste, _callback_teste, 0,
-            _atraso_golpe + ((_i_teste == 0) ? 0 : irandom_range(8, 14)),
+            _atraso_golpe + ((_i_teste == 0) ? 0 : irandom_range(24, 38)),
             78 + irandom_range(-7, 16), _atacante.dono);
     }
 }
@@ -2537,7 +2537,7 @@ function rolar_varios_dados_visuais(_origem_x, _origem_y, _destino_x, _destino_y
     var _espacamento = 110;
     for (var i = 0; i < _qtd; i++) {
         var _offset_x = (i - ((_qtd - 1) / 2)) * _espacamento;
-        var _atraso = _atraso_grupo + ((i == 0) ? 0 : i * irandom_range(8, 15));
+        var _atraso = _atraso_grupo + ((i == 0) ? 0 : i * irandom_range(26, 42));
         var _duracao = 78 + irandom_range(-8, 18);
         var _resultado = irandom_range(1, _tamanho_dado);
         array_push(_grupo.resultados, _resultado);

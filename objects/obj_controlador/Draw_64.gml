@@ -829,7 +829,7 @@ if (vida_jogador <= 0 || vida_inimigo <= 0) {
     draw_roundrect(_fim_x - 120, _fim_y + 85, _fim_x + 120, _fim_y + 130, false);
     draw_set_color(c_white);
     draw_roundrect(_fim_x - 120, _fim_y + 85, _fim_x + 120, _fim_y + 130, true);
-    draw_text(_fim_x, _fim_y + 107, "REINICIAR PARTIDA");
+    draw_text(_fim_x, _fim_y + 107, (modo_partida == "online" && global.online_revanche_solicitada) ? "AGUARDANDO OPONENTE" : "JOGAR NOVAMENTE");
     draw_set_font(-1);
     draw_set_halign(fa_left);
     draw_set_valign(fa_top);
