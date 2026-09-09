@@ -92,11 +92,10 @@ if (disputa_inicial_estado != "concluida") {
     var _iniciativa_cy = _tutorial_altura_gui / 2;
 
     if (disputa_inicial_estado == "online_preparar") {
-        if (instance_exists(obj_deck)) {
-            comprar_mao_inicial();
-            comprar_mao_inicial_segundo_jogador();
-            disputa_inicial_estado = "distribuindo";
-            disputa_inicial_timer = quantidade_inicial * 7 + 45;
+        if (instance_exists(obj_deck) && variable_global_exists("online_estado_publico")
+            && is_struct(global.online_estado_publico)) {
+            online_reconstruir_mao_privada();
+            online_aplicar_estado_publico(global.online_estado_publico);
         }
     } else if (disputa_inicial_estado == "preparando_dado") {
         disputa_inicial_timer--;
@@ -665,7 +664,8 @@ for (var i = 0; i < _total; i++) {
 
 if (mouse_check_button_pressed(mb_left)) {
     if (hover_atual != noone && instance_exists(hover_atual) && hover_atual.armadilha_estado == "pronta") {
-        ativar_armadilha(hover_atual.id);
+        if (modo_partida == "online") online_enviar_acao("activate_trap", { trapId: hover_atual.online_instance_id });
+        else ativar_armadilha(hover_atual.id);
     } else if (hover_atual != noone && instance_exists(hover_atual)
         && hover_atual.categoria == "armadilha" && hover_atual.armadilha_estado == "vigiando") {
         mostrar_aviso_regra("Armadilha já posicionada", hover_atual.x, hover_atual.y - 35);

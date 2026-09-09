@@ -28,6 +28,11 @@ export interface CardDefinition {
   itemSlots?: number;
   abilities?: string[];
   effect?: string;
+  bonusAttack?: number;
+  bonusDefense?: number;
+  overrideAttackDie?: number;
+  intelligenceRequired?: number;
+  effectValue?: number;
 }
 
 const cost = (type: CostPart["type"], amount: number): CostPart[] => [{ type, amount }];
@@ -86,10 +91,10 @@ export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
   bloqueio_recurso: { id: "bloqueio_recurso", name: "Bloqueio de Recurso", category: "magica", cost: [], effect: "bloqueio_recurso" },
   sangue_suga: { id: "sangue_suga", name: "Sangue Suga", category: "magica", cost: [], effect: "buscar_sangue" },
 
-  espada_enferrujada: { id: "espada_enferrujada", name: "Espada Enferrujada", category: "item_equipavel", cost: cost("sucata", 1) },
-  escudo_madeira: { id: "escudo_madeira", name: "Escudo de Madeira", category: "item_equipavel", cost: cost("sucata", 1) },
-  pocao_cura: { id: "pocao_cura", name: "Poção de Cura", category: "item_consumivel", cost: cost("mana", 1), effect: "cura" },
-  grimorio_iniciante: { id: "grimorio_iniciante", name: "Grimório Iniciante", category: "item_equipavel", cost: [], effect: "grimorio_iniciante" },
+  espada_enferrujada: { id: "espada_enferrujada", name: "Espada Enferrujada", category: "item_equipavel", cost: cost("sucata", 1), bonusAttack: 2 },
+  escudo_madeira: { id: "escudo_madeira", name: "Escudo de Madeira", category: "item_equipavel", cost: cost("sucata", 1), bonusDefense: 2 },
+  pocao_cura: { id: "pocao_cura", name: "Poção de Cura", category: "item_consumivel", cost: cost("mana", 1), effect: "cura", effectValue: 5 },
+  grimorio_iniciante: { id: "grimorio_iniciante", name: "Grimório Iniciante", category: "item_equipavel", cost: [], effect: "grimorio_iniciante", intelligenceRequired: 1 },
   pocao_mana: { id: "pocao_mana", name: "Poção de Mãna", category: "item_consumivel", cost: [], effect: "buscar_mana" },
 
   armadilha_urso: { id: "armadilha_urso", name: "Armadilha de Urso", category: "armadilha", cost: [], effect: "armadilha_urso" },
@@ -105,13 +110,13 @@ export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
   bau: { id: "bau", name: "Baú", category: "item_consumivel", cost: [], effect: "comprar_cartas" },
   frasco_sangue: { id: "frasco_sangue", name: "Frasco de Sangue", category: "item_consumivel", cost: [], effect: "revirar_sangue" },
   vitamina_cerebro: { id: "vitamina_cerebro", name: "Vitamina de Cérebro", category: "item_consumivel", cost: [], effect: "aumentar_inteligencia" },
-  elmo_ferro: { id: "elmo_ferro", name: "Elmo de Ferro", category: "item_equipavel", cost: cost("sucata", 1) },
+  elmo_ferro: { id: "elmo_ferro", name: "Elmo de Ferro", category: "item_equipavel", cost: cost("sucata", 1), bonusDefense: 1 },
   frasco_acido: { id: "frasco_acido", name: "Frasco de Ácido", category: "item_consumivel", cost: [], effect: "aplicar_corrosao" },
 
   pantano_sombrio: { id: "pantano_sombrio", name: "Pântano Sombrio", category: "terreno", cost: cost("ossos", 1), effect: "pantano" },
   cemiterio: { id: "cemiterio", name: "Cemitério", category: "terreno", cost: cost("ossos", 3), effect: "cemiterio" },
   planicies_profanas: { id: "planicies_profanas", name: "Planícies Profanas", category: "terreno", cost: [], effect: "planicies_profanas" },
-  espada_quebrada: { id: "espada_quebrada", name: "Espada Quebrada", category: "item_equipavel", cost: [] },
+  espada_quebrada: { id: "espada_quebrada", name: "Espada Quebrada", category: "item_equipavel", cost: [], overrideAttackDie: 8, intelligenceRequired: 1 },
 
   esquilo_gigante: troop("esquilo_gigante", "Esquilo Gigante", 12, 10, 1, 1, 0, 1, 2, cost("ossos", 1)),
   lobo_alfa: troop("lobo_alfa", "Lobo Alfa", 20, 10, 2, 2, 0, 2, 2, cost("sangue", 1), ["golpe_duplo"]),

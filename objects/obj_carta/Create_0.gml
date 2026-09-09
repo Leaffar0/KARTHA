@@ -66,6 +66,7 @@ grimorio_usado_este_turno = false;
 grimorio_escudo_ativo = false;
 movimento_bloqueado_turnos = 0;
 funcao_dados_origem = noone;
+online_instance_id = ""; // ID autoritativo recebido do servidor online
 dados_carta = noone;
 imune_armadilha_usos = 0;
 bonus_mod_dano_item = 0;

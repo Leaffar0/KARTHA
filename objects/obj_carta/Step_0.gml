@@ -102,6 +102,8 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         exit;
     }
 	
+    if (obj_controlador.modo_partida == "online" && online_tentar_jogar_carta_especial(id)) exit;
+
     if (categoria == "tropa") {
         // --- código de soltar tropa que já existe, sem mudar nada ---
 		depth = -100;
@@ -123,6 +125,10 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         if (_slot_mais_perto != noone && !_slot_mais_perto.ocupado && !_coluna_ocupada
             && obj_controlador.cartas_jogadas_no_turno < obj_controlador.max_cartas_por_turno
             && pode_pagar_custo(custo, _lado_acao, categoria)) {
+            if (obj_controlador.modo_partida == "online") {
+                if (online_instance_id != "") online_enviar_acao("play_troop", { cardId: online_instance_id, lane: _slot_mais_perto.lane });
+                iniciar_retorno_carta(id); esta_na_mao = true; exit;
+            }
             _slot_mais_perto.ocupado = true;
             _slot_mais_perto.carta_atual = id;
             slot_atual = _slot_mais_perto;
@@ -180,6 +186,10 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         }
         
         if (_slot_recurso_perto != noone && !recurso_ja_colocado_no_turno(_lado_acao)) {
+            if (obj_controlador.modo_partida == "online") {
+                if (online_instance_id != "") online_enviar_acao("place_resource", { cardId: online_instance_id });
+                iniciar_retorno_carta(id); esta_na_mao = true; exit;
+            }
             var _resultado = colocar_recurso(tipo_recurso, _lado_acao, x, y, _slot_recurso_perto);
             
             if (_resultado == "colocado") {
@@ -214,6 +224,10 @@ if (arrastando && mouse_check_button_released(mb_left)) {
     }
     
     if (_slot_construcao_perto != noone && obj_controlador.construcoes_jogadas_este_turno < 1 && pode_pagar_custo(custo, _lado_acao, categoria)) {
+        if (obj_controlador.modo_partida == "online") {
+            if (online_instance_id != "") online_enviar_acao("play_construction", { cardId: online_instance_id, lane: _slot_construcao_perto.lane });
+            iniciar_retorno_carta(id); esta_na_mao = true; exit;
+        }
         pagar_custo(custo, _lado_acao, categoria);
         obj_controlador.construcoes_jogadas_este_turno += 1;
         

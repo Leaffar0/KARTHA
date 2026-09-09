@@ -36,6 +36,7 @@ baralho = catalogo_cartas();
 monte = (variable_global_exists("deck_contagens") && validar_contagens_baralho(baralho, global.deck_contagens))
     ? montar_deck_personalizado(baralho, global.deck_contagens) : montar_deck();
 monte_inimigo = montar_deck();
+if (modo_partida == "online") { monte = []; monte_inimigo = []; }
 quantidade_inicial = 7;;
 #endregion
 
@@ -106,6 +107,8 @@ disputa_inicial_primeiro_escolhido = "";
 disputa_inicial_vencedor = "";
 partida_iniciada = false;
 online_aguardando_turno = false;
+online_recursos_assinatura = "";
+online_estado_aplicado_revisao = -1;
 if (modo_partida == "online") {
     disputa_inicial_estado = "online_preparar";
     disputa_inicial_primeiro_escolhido = online_lado_do_assento(global.online_primeiro);

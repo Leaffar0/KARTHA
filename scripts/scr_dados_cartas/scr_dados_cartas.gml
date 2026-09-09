@@ -94,7 +94,7 @@ function direcao_avanco(_dono) {
 
 // Para causar dano direto ao castelo, a tropa precisa sair do meio e avançar
 function partida_local_ativa() {
-    return instance_exists(obj_controlador) && obj_controlador.modo_partida == "local" || obj_controlador.modo_partida == "online";
+    return instance_exists(obj_controlador) && (obj_controlador.modo_partida == "local" || obj_controlador.modo_partida == "online");
 }
 
 function lado_oposto(_dono) {
@@ -2064,6 +2064,25 @@ function rolar_dano_direto(_carta, _tipo_ataque) {
 
 // Versão visual do dano direto. Mantém grupos de Golpe Duplo afastados e
 // entrega ao callback o total dos dados já somado ao modificador.
+// Todo ataque direto contra construção ou castelo também exige o D20 de acerto.
+function rolar_ataque_direto_com_acerto(_carta, _tipo_ataque, _callback_final, _indice_ataque = 0, _total_ataques = 1) {
+    var _resultado = irandom_range(1, 20);
+    var _offset = (_indice_ataque - ((_total_ataques - 1) / 2)) * 110;
+    var _atraso = (_indice_ataque == 0) ? 0 : _indice_ataque * irandom_range(9, 15);
+    var _contexto = { carta: _carta, tipo: _tipo_ataque, callback_final: _callback_final, indice: _indice_ataque, total: _total_ataques };
+    rolar_dado_visual(_carta.x + _offset * 0.22, _carta.y, _carta.x + _offset, _carta.y - 55,
+        20, _resultado, method(_contexto, function(_d20) {
+            if (!instance_exists(carta)) return;
+            if (_d20 <= 10) {
+                mostrar_feedback("ERROU — " + string(_d20), carta.x, carta.y - 48, c_gray, 55);
+                debug_combate(carta.nome_carta + " errou o ataque direto no D20 (" + string(_d20) + ").");
+                return;
+            }
+            mostrar_feedback(_d20 == 20 ? "ACERTO CRÍTICO!" : "ACERTOU — " + string(_d20), carta.x, carta.y - 48, _d20 == 20 ? c_yellow : c_lime, 45);
+            rolar_dano_direto_visual(carta, tipo, callback_final, indice, total);
+        }), 0, _atraso, 78 + ((_total_ataques > 1) ? irandom_range(-7, 16) : 0), _carta.dono);
+}
+
 function rolar_dano_direto_visual(_carta, _tipo_ataque, _callback_final, _indice_ataque = 0, _total_ataques = 1) {
     var _usando_item = (_tipo_ataque == "fisica" && is_struct(_carta.item_ataque_atual) && _carta.item_ataque_atual.dado > 0);
     var _dado = _usando_item ? _carta.item_ataque_atual.dado : ((_tipo_ataque == "magica") ? _carta.dado_dano_magico : _carta.dado_dano);
@@ -2259,7 +2278,7 @@ function processar_combate(_lado_atacante) {
                 if (_construcao_alvo != noone) {
                     var _tipo_construcao = ia_escolher_tipo_ataque_direto(_atacante);
                     var _dados_construcao = { alvo: _construcao_alvo };
-                    rolar_dano_direto_visual(_atacante, _tipo_construcao,
+                    rolar_ataque_direto_com_acerto(_atacante, _tipo_construcao,
                         method(_dados_construcao, function(_dano_construcao) {
                             if (!instance_exists(alvo)) return;
                             alvo.vida -= _dano_construcao;
@@ -2275,7 +2294,7 @@ function processar_combate(_lado_atacante) {
                     } else {
                         var _tipo_direto = ia_escolher_tipo_ataque_direto(_atacante);
                         var _dados_castelo = { lado_defensor: _lado_defensor };
-                        rolar_dano_direto_visual(_atacante, _tipo_direto,
+                        rolar_ataque_direto_com_acerto(_atacante, _tipo_direto,
                             method(_dados_castelo, function(_dano_direto) {
                                 causar_dano_castelo(lado_defensor, _dano_direto);
                             })
@@ -2331,7 +2350,7 @@ function processar_combate_tropa(_carta, _tipo_ataque, _indice_ataque = 0, _tota
 
         if (_construcao_alvo != noone) {
             var _dados_construcao = { alvo: _construcao_alvo };
-            rolar_dano_direto_visual(_carta, _tipo_ataque,
+            rolar_ataque_direto_com_acerto(_carta, _tipo_ataque,
                 method(_dados_construcao, function(_dano_construcao) {
                     if (!instance_exists(alvo)) return;
                     alvo.vida -= _dano_construcao;
@@ -2348,7 +2367,7 @@ function processar_combate_tropa(_carta, _tipo_ataque, _indice_ataque = 0, _tota
                 rolar_combate(_carta, _defensor_castelo, _tipo_ataque);
             } else {
                 var _dados_castelo = { lado_defensor: _lado_defensor };
-                rolar_dano_direto_visual(_carta, _tipo_ataque,
+                rolar_ataque_direto_com_acerto(_carta, _tipo_ataque,
                     method(_dados_castelo, function(_dano_direto) {
                         causar_dano_castelo(lado_defensor, _dano_direto);
                     }),
@@ -2623,6 +2642,15 @@ function enfileirar_escolha_critico(_contexto) {
 function resolver_escolha_critico(_modo) {
     if (!obj_controlador.critico_escolha_ativa) return;
     var _contexto = obj_controlador.critico_contexto;
+    if (obj_controlador.modo_partida == "online" && is_struct(_contexto)
+        && variable_struct_exists(_contexto, "online") && _contexto.online) {
+        obj_controlador.critico_escolha_ativa = false;
+        obj_controlador.critico_contexto = noone;
+        online_enviar_acao("choose_critical", { choice: _modo });
+        mostrar_feedback(_modo == "dobrar_dados" ? "CRÍTICO: +DADOS" : "CRÍTICO: RESULTADO ×2",
+            _contexto.atacante.x, _contexto.atacante.y - 45, c_yellow, 55);
+        return;
+    }
     obj_controlador.critico_escolha_ativa = false;
     obj_controlador.critico_contexto = noone;
     if (instance_exists(_contexto.atacante)) {
@@ -5369,7 +5397,7 @@ function categoria_bloqueada_primeiro_turno(_categoria) {
 
 function executar_opcao_menu(_carta, _opcao) {
     if (!instance_exists(_carta)) return;
-    if (obj_controlador.turno != _carta.dono) {
+    if (obj_controlador.turno != _carta.dono || (obj_controlador.modo_partida == "online" && !lado_controlado_localmente(_carta.dono))) {
         mostrar_aviso_regra("Você pode inspecionar; ações ficam para o seu turno", _carta.x, _carta.y);
         return;
     }
@@ -5380,6 +5408,21 @@ function executar_opcao_menu(_carta, _opcao) {
     if (string_pos("[", _opcao) > 0) {
         mostrar_aviso_regra(string_delete(_opcao, 1, string_pos("[", _opcao) - 1), _carta.x, _carta.y);
         return;
+    }
+    if (obj_controlador.modo_partida == "online") {
+        if (_opcao == "Avançar" || _opcao == "Recuar") {
+            online_enviar_acao("move_troop", { cardId: _carta.online_instance_id, direction: (_opcao == "Avançar") ? "advance" : "retreat" });
+            return;
+        }
+        if (string_pos("Atacar", _opcao) == 1) {
+            if (string_pos("Atacar com ", _opcao) == 1) {
+                mostrar_aviso_regra("Ataques com itens entram na próxima etapa online", _carta.x, _carta.y);
+                return;
+            }
+            var _tipo_online = (_opcao == "Atacar (Mágica)") ? "magica" : "fisica";
+            online_enviar_acao("attack", { cardId: _carta.online_instance_id, attackType: _tipo_online });
+            return;
+        }
     }
     if (string_pos("Atacar com ", _opcao) == 1) {
         var _nome_item_ataque = string_delete(_opcao, 1, string_length("Atacar com "));
