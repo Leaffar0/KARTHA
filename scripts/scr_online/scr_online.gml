@@ -2,7 +2,7 @@
 
 function online_carregar_endpoint() {
     ini_open("kartha_online.ini");
-    var _endpoint = ini_read_string("online", "servidor", "ws://127.0.0.1:2567");
+    var _endpoint = ini_read_string("online", "servidor", "https://doily-pointy-nurture.ngrok-free.dev");
     ini_close();
     return _endpoint;
 }
@@ -212,7 +212,7 @@ function online_configurar_callbacks(_sala) {
     });
 }
 
-function online_conectar(_criar, _codigo, _nome, _endpoint = "ws://127.0.0.1:2567") {
+function online_conectar(_criar, _codigo, _nome, _endpoint = "https://doily-pointy-nurture.ngrok-free.dev ") {
     online_inicializar();
     if (!colyseus_is_ready()) {
         global.online_status = "erro";
