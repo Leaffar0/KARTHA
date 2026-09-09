@@ -93,12 +93,25 @@ function numberInRange(value: unknown, min: number, max: number): number | undef
   return Number.isInteger(parsed) && parsed >= min && parsed <= max ? parsed : undefined;
 }
 
+function decodeIncoming<T extends object>(message: T | string): T | undefined {
+  if (typeof message !== "string") return message;
+  try { return JSON.parse(message) as T; } catch { return undefined; }
+}
+
 export class KarthaRoom extends Room<{ state: RoomState }> {
   private privatePlayers: PrivatePlayer[] = [];
   private nextCardId = 1;
   private pendingCritical?: { seat: number; cardId: string; targetId?: string; targetSeat?: number; targetType: "card" | "castle"; attackType: "fisica" | "magica"; die: number; dice: number; modifier: number; defense: number; itemDefinitionId?: string; repeatAfter?: number };
   private pendingMagnet: PendingMagnetChoice[][] = [[], []];
   private pendingMitosis: Array<PendingMitosisChoice | undefined> = [undefined, undefined];
+
+  private sendJson(client: Client, type: string, payload: unknown) {
+    client.send(type, JSON.stringify(payload));
+  }
+
+  private broadcastJson(type: string, payload: unknown) {
+    this.broadcast(type, JSON.stringify(payload));
+  }
 
   onCreate() {
     this.maxClients = 2;
@@ -115,7 +128,8 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     this.state.discardCount1 = 0;
     this.state.lastAction = "";
 
-    this.onMessage("ready", (client: Client, message: { name?: string; deck?: unknown }) => {
+    this.onMessage("ready", (client: Client, rawMessage: { name?: string; deck?: unknown } | string) => {
+      const message = decodeIncoming<{ name?: string; deck?: unknown }>(rawMessage) ?? {};
       const player = this.findPlayer(client.sessionId);
       if (!player || this.state.phase !== "waiting") return;
       player.name = safeName(message?.name);
@@ -137,7 +151,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       const player = this.findPlayer(client.sessionId);
       if (!player || this.state.phase !== "initiative" || player.initiative > 0) return;
       player.initiative = Math.floor(Math.random() * 20) + 1;
-      this.broadcast("initiative_result", { seat: player.seatIndex, value: player.initiative });
+      this.broadcastJson("initiative_result", { seat: player.seatIndex, value: player.initiative });
       this.finishInitiativeIfReady();
     });
 
@@ -150,7 +164,8 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       this.startMatch(seat);
     });
 
-    this.onMessage("action", (client: Client, message: ActionMessage) => {
+    this.onMessage("action", (client: Client, rawMessage: ActionMessage | string) => {
+      const message = decodeIncoming<ActionMessage>(rawMessage) ?? {};
       const player = this.findPlayer(client.sessionId);
       const kind = typeof message?.kind === "string" ? message.kind : "";
       if (!player) return;
@@ -171,7 +186,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
 
       this.state.revision += 1;
       this.state.lastAction = kind;
-      this.broadcast("action_confirmed", {
+      this.broadcastJson("action_confirmed", {
         revision: this.state.revision,
         seat: player.seatIndex,
         kind,
@@ -210,7 +225,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     this.state.players.set(client.sessionId, player);
     this.privatePlayers[seat] = { deck: [], hand: [], discard: [], configuredDeck: defaultDeck(), traps: [], effects: [], lastNonTroopDefinitionId: "" };
     this.setMetadata({ players: this.clients.length, phase: this.state.phase });
-    client.send("seat", { seat, roomId: this.roomId, seed: this.state.seed });
+    this.sendJson(client, "seat", { seat, roomId: this.roomId, seed: this.state.seed });
   }
 
   async onLeave(client: Client, code?: number) {
@@ -229,7 +244,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       player.sessionId = reconnected.sessionId;
       player.connected = true;
       this.state.players.set(reconnected.sessionId, player);
-      reconnected.send("seat", { seat: player.seatIndex, roomId: this.roomId, seed: this.state.seed });
+      this.sendJson(reconnected, "seat", { seat: player.seatIndex, roomId: this.roomId, seed: this.state.seed });
       this.sendPrivateState(player.seatIndex);
       this.sendPublicState(reconnected);
     } catch {
@@ -270,7 +285,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     this.state.winner = -1;
     this.bump("match_started");
     for (let seat = 0; seat < 2; seat++) this.sendPrivateState(seat);
-    this.broadcast("match_started", {
+    this.broadcastJson("match_started", {
       currentPlayer: firstSeat,
       seed: this.state.seed,
       revision: this.state.revision,
@@ -902,7 +917,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       const enemy = this.privatePlayers[1 - seat];
       if (!choice) {
         const viewer = this.clientBySeat(seat);
-        if (viewer) viewer.send("veil_options", {
+        if (viewer) this.sendJson(viewer, "veil_options", {
           cardId,
           cards: enemy.hand.map((item) => ({
             instanceId: item.instanceId,
@@ -1048,7 +1063,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
   private sendNextMagnetChoice(seat: number) {
     const pending = this.pendingMagnet[seat]?.[0];
     const client = this.clientBySeat(seat);
-    if (pending && client) client.send("magnet_choice", {
+    if (pending && client) this.sendJson(client, "magnet_choice", {
       sourceCardId: pending.sourceCardId,
       items: pending.equipment.map((definitionId, index) => ({ index, definitionId, name: CARD_DEFINITIONS[definitionId]?.name ?? "Item" })),
     });
@@ -1506,7 +1521,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     if (!second) return;
     this.pendingMitosis[parent.owner] = { source: second, owner: parent.owner, candidates };
     const client = this.clientBySeat(parent.owner);
-    if (client) client.send("mitosis_choice", { sourceCardId: parent.instanceId, candidates: candidates.map(([lane, position]) => ({ lane, position })) });
+    if (client) this.sendJson(client, "mitosis_choice", { sourceCardId: parent.instanceId, candidates: candidates.map(([lane, position]) => ({ lane, position })) });
   }
 
   private handCard(seat: number, cardId: unknown) {
@@ -1544,7 +1559,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     const client = this.clientBySeat(seat);
     const data = this.privatePlayers[seat];
     if (!client || !data) return;
-    client.send("private_state", {
+    this.sendJson(client, "private_state", {
       hand: data.hand.map((card) => {
         const definition = CARD_DEFINITIONS[card.definitionId];
         return {
@@ -1600,7 +1615,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       discardCounts: [this.state.discardCount0, this.state.discardCount1],
       players, cards, traps,
     };
-    client.send("public_state", payload);
+    this.sendJson(client, "public_state", payload);
   }
 
   private updateCounts(seat: number) {
@@ -1708,7 +1723,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     if (players[0].initiative === players[1].initiative) {
       players.forEach((player) => { player.initiative = 0; });
       this.bump("initiative_tie");
-      this.broadcast("initiative_tie", {});
+      this.broadcastJson("initiative_tie", {});
       return;
     }
     const winner = players[0].initiative > players[1].initiative ? players[0] : players[1];
@@ -1718,7 +1733,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
   }
 
   private reject(client: Client, reason: string) {
-    client.send("action_rejected", { reason, revision: this.state.revision });
+    this.sendJson(client, "action_rejected", { reason, revision: this.state.revision });
   }
 
   private bump(action: string) {

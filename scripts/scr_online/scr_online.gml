@@ -2,7 +2,7 @@
 
 function online_carregar_endpoint() {
     ini_open("kartha_online.ini");
-    var _endpoint = ini_read_string("online", "servidor", "https://doily-pointy-nurture.ngrok-free.dev");
+    var _endpoint = ini_read_string("online", "servidor", "wss://doily-pointy-nurture.ngrok-free.dev");
     ini_close();
     return _endpoint;
 }
@@ -86,10 +86,12 @@ function online_configurar_callbacks(_sala) {
         global.net_session_id = colyseus_room_get_session_id(_ref);
         global.online_status = "na_sala";
         global.online_erro = "";
-        colyseus_send(_ref, "ready", { name: global.online_nome, deck: online_montar_deck_ids() });
+        colyseus_send(_ref, "ready", json_stringify({ name: global.online_nome, deck: online_montar_deck_ids() }));
     });
 
     colyseus_on_message(_sala, function(_ref, _tipo, _dados) {
+        // Mensagens estruturadas chegam como JSON para preservar arrays e structs aninhados.
+        if (is_string(_dados)) _dados = json_parse(_dados);
         switch (_tipo) {
             case "seat":
                 global.online_assento = _dados.seat;
@@ -164,12 +166,12 @@ function online_configurar_callbacks(_sala) {
                 break;
 
             case "private_state":
-                global.online_mao_privada = _dados.hand;
-                global.online_armadilhas_privadas = variable_struct_exists(_dados, "activeTraps") ? _dados.activeTraps : [];
-                global.online_efeitos_privados = variable_struct_exists(_dados, "activeEffects") ? _dados.activeEffects : [];
+                global.online_mao_privada = variable_struct_exists(_dados, "hand") && is_array(_dados.hand) ? _dados.hand : [];
+                global.online_armadilhas_privadas = variable_struct_exists(_dados, "activeTraps") && is_array(_dados.activeTraps) ? _dados.activeTraps : [];
+                global.online_efeitos_privados = variable_struct_exists(_dados, "activeEffects") && is_array(_dados.activeEffects) ? _dados.activeEffects : [];
                 global.online_mao_pendente = true;
                 global.online_deck_count = _dados.deckCount;
-                global.online_descarte_privado = _dados.discard;
+                global.online_descarte_privado = variable_struct_exists(_dados, "discard") && is_array(_dados.discard) ? _dados.discard : [];
                 global.online_revisao = _dados.revision;
                 if (instance_exists(obj_controlador)) online_reconstruir_mao_privada();
                 break;
@@ -212,7 +214,7 @@ function online_configurar_callbacks(_sala) {
     });
 }
 
-function online_conectar(_criar, _codigo, _nome, _endpoint = "https://doily-pointy-nurture.ngrok-free.dev") {
+function online_conectar(_criar, _codigo, _nome, _endpoint = "wss://doily-pointy-nurture.ngrok-free.dev") {
     online_inicializar();
     if (!colyseus_is_ready()) {
         global.online_status = "erro";
@@ -251,9 +253,9 @@ function online_escolher_primeiro(_assento) {
 
 function online_enviar_acao(_tipo, _dados = {}) {
     if (!online_ativo()) return false;
-    colyseus_send(global.net_room, "action", {
+    colyseus_send(global.net_room, "action", json_stringify({
         kind: _tipo, payload: _dados, revision: global.online_revisao
-    });
+    }));
     return true;
 }
 
@@ -513,7 +515,9 @@ function online_reconstruir_mao_privada() {
         }
     }
 
-    var _registros_visiveis = array_concat(global.online_mao_privada, global.online_armadilhas_privadas);
+    var _mao_online = is_array(global.online_mao_privada) ? global.online_mao_privada : [];
+    var _armadilhas_online = is_array(global.online_armadilhas_privadas) ? global.online_armadilhas_privadas : [];
+    var _registros_visiveis = array_concat(_mao_online, _armadilhas_online);
     var _turno_anterior = obj_controlador.turno;
     var _lado = online_lado_local();
     obj_controlador.turno = _lado;
