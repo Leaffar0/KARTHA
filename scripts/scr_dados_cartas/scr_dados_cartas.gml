@@ -1512,6 +1512,7 @@ function comprar_carta_do_deck_por_funcao(_funcao_sorteada, _x_inicial, _y_inici
         _carta.dado_dano_base = _carta.dado_dano;
         _carta.mod_dano_base = _carta.mod_dano;
         _carta.defesa_fisica_base = _carta.defesa_fisica;
+        _carta.defesa_magica_base = _carta.defesa_magica;
 
         _carta.vida_pos_x = variable_struct_exists(_dados, "vida_pos_x") ? _dados.vida_pos_x : 0.10;
         _carta.vida_pos_y = variable_struct_exists(_dados, "vida_pos_y") ? _dados.vida_pos_y : 0.07;
@@ -3058,6 +3059,7 @@ function criar_tropa_no_slot(_dados, _slot, _dono) {
 	_carta.dado_dano_base = _carta.dado_dano;
 	_carta.mod_dano_base = _carta.mod_dano;
 	_carta.defesa_fisica_base = _carta.defesa_fisica;
+        _carta.defesa_magica_base = _carta.defesa_magica;
 
 	_carta.vida_pos_x = variable_struct_exists(_dados, "vida_pos_x") ? _dados.vida_pos_x : 0.10;
 	_carta.vida_pos_y = variable_struct_exists(_dados, "vida_pos_y") ? _dados.vida_pos_y : 0.07;
@@ -4226,6 +4228,7 @@ function ia_jogar_cartas() {
 				_carta.dado_dano_base = _carta.dado_dano;
 				_carta.mod_dano_base = _carta.mod_dano;
 				_carta.defesa_fisica_base = _carta.defesa_fisica;
+        _carta.defesa_magica_base = _carta.defesa_magica;
 
 				_carta.vida_pos_x = variable_struct_exists(_dados, "vida_pos_x") ? _dados.vida_pos_x : 0.10;
 				_carta.vida_pos_y = variable_struct_exists(_dados, "vida_pos_y") ? _dados.vida_pos_y : 0.07;
@@ -5145,6 +5148,7 @@ function evoluir_tropa(_carta) {
 	_carta.dado_dano_base = _carta.dado_dano;
 	_carta.mod_dano_base = _carta.mod_dano;
 	_carta.defesa_fisica_base = _carta.defesa_fisica;
+        _carta.defesa_magica_base = _carta.defesa_magica;
 	recalcular_itens_tropa(_carta);
 
 	_carta.vida_pos_x = variable_struct_exists(_dados_evo, "vida_pos_x") ? _dados_evo.vida_pos_x : 0.10;

@@ -28,6 +28,7 @@ defesa_magica = 0;
 dado_dano_base = dado_dano;
 mod_dano_base = mod_dano;
 defesa_fisica_base = defesa_fisica;
+defesa_magica_base = defesa_magica;
 mochila_maxima = 1;
 requisito_inteligencia_item = 0;
 sobrescreve_dado_dano_item = 0;

@@ -839,7 +839,10 @@ function online_atualizar_carta_publica(_registro) {
                 && _habilidade_estado.grimoireUsed;
             _instancia.grimorio_escudo_ativo = variable_struct_exists(_habilidade_estado, "grimoireShield")
                 && _habilidade_estado.grimoireShield;
-            _instancia.defesa_magica = _instancia.defesa_magica_base + (_instancia.grimorio_escudo_ativo ? 2 : 0);
+            var _defesa_magica_base_online = variable_instance_exists(_instancia, "defesa_magica_base")
+                ? _instancia.defesa_magica_base : _instancia.defesa_magica;
+            _instancia.defesa_magica_base = _defesa_magica_base_online;
+            _instancia.defesa_magica = _defesa_magica_base_online + (_instancia.grimorio_escudo_ativo ? 2 : 0);
         }
         _instancia.condicao = (_registro.condition == "") ? noone : _registro.condition;
         _instancia.condicao_turnos_restantes = variable_struct_exists(_registro, "conditionTurns") ? _registro.conditionTurns : 0;
