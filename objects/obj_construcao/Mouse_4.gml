@@ -7,4 +7,8 @@ if (obj_controlador.rolagens_pendentes > 0) {
     mostrar_aviso_regra("Aguarde a rolagem terminar", x, y);
     exit;
 }
-if (efeito_construcao == "hemodrenario") usar_habilidade_hemodrenario(id);
+if (efeito_construcao == "hemodrenario") {
+    if (obj_controlador.modo_partida == "online")
+        online_enviar_acao("use_construction", { cardId: online_instance_id });
+    else usar_habilidade_hemodrenario(id);
+}

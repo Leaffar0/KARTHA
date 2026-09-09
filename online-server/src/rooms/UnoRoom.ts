@@ -41,10 +41,38 @@ interface ActionResult {
   privateSeats?: number[];
 }
 
+interface AbilityState {
+  used?: boolean;
+  shadowTurns?: number;
+  shadowCooldown?: number;
+  illusion?: boolean;
+  gazeTested?: boolean;
+  veilUsed?: boolean;
+  trapImmunity?: number;
+  digestionUses?: number;
+  corpseAvailable?: boolean;
+  frenzy?: "bonus" | "self";
+  itemActionUsed?: boolean;
+  grimoireUsed?: boolean;
+  grimoireShield?: boolean;
+}
+
+interface PendingMagnetChoice {
+  sourceCardId: string;
+  equipment: string[];
+}
+
+interface PendingMitosisChoice {
+  source: PrivateCard;
+  owner: number;
+  candidates: Array<[number, number]>;
+}
+
 const ACTIONS = new Set([
   "place_resource", "play_troop", "play_construction",
-  "move_troop", "attack", "choose_critical", "end_turn",
+  "move_troop", "attack", "choose_critical", "end_turn", "set_castle_defense", "evolve_troop",
   "play_spell", "play_item", "play_trap", "activate_trap", "play_effect",
+  "use_ability", "use_construction", "remove_item", "transfer_item", "use_item_ability", "choose_magnet", "choose_mitosis",
 ]);
 
 const RESOURCE_FIELDS: Record<ResourceType, "mana" | "sangue" | "ossos" | "sucata"> = {
@@ -68,7 +96,9 @@ function numberInRange(value: unknown, min: number, max: number): number | undef
 export class KarthaRoom extends Room<{ state: RoomState }> {
   private privatePlayers: PrivatePlayer[] = [];
   private nextCardId = 1;
-  private pendingCritical?: { seat: number; cardId: string; targetId: string; attackType: "fisica" | "magica"; die: number; dice: number; modifier: number; defense: number };
+  private pendingCritical?: { seat: number; cardId: string; targetId?: string; targetSeat?: number; targetType: "card" | "castle"; attackType: "fisica" | "magica"; die: number; dice: number; modifier: number; defense: number; itemDefinitionId?: string; repeatAfter?: number };
+  private pendingMagnet: PendingMagnetChoice[][] = [[], []];
+  private pendingMitosis: Array<PendingMitosisChoice | undefined> = [undefined, undefined];
 
   onCreate() {
     this.maxClients = 2;
@@ -125,9 +155,14 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       const kind = typeof message?.kind === "string" ? message.kind : "";
       if (!player) return;
       if (this.state.phase !== "playing") return this.reject(client, "partida_inativa");
-      if (player.seatIndex !== this.state.currentPlayer && kind !== "activate_trap") return this.reject(client, "fora_do_turno");
+      const choiceOutOfTurn = kind === "activate_trap" || kind === "choose_magnet" || kind === "choose_mitosis";
+      if (player.seatIndex !== this.state.currentPlayer && !choiceOutOfTurn) return this.reject(client, "fora_do_turno");
       if (this.pendingCritical && (kind !== "choose_critical" || player.seatIndex !== this.pendingCritical.seat))
         return this.reject(client, "escolha_critico_pendente");
+      const choiceSeat = this.pendingChoiceSeat();
+      if (choiceSeat >= 0 && (player.seatIndex !== choiceSeat
+        || (kind !== "choose_magnet" && kind !== "choose_mitosis")))
+        return this.reject(client, "escolha_pendente");
       if (!ACTIONS.has(kind)) return this.reject(client, "acao_desconhecida");
       if (Number(message?.revision) !== this.state.revision) return this.reject(client, "revisao");
 
@@ -142,7 +177,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
         kind,
         payload: result.details ?? {},
       });
-      for (const seat of result.privateSeats ?? []) this.sendPrivateState(seat);
+      for (let seat = 0; seat < 2; seat++) this.sendPrivateState(seat);
       if (!result.details?.criticalChoice) this.sendPublicState();
     });
 
@@ -167,9 +202,11 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     player.handCount = 0;
     player.deckCount = 50;
     player.initiative = 0;
+    player.hasTakenTurn = false;
     this.resetPlayerTurn(player);
     player.mana = 0; player.sangue = 0; player.ossos = 0; player.sucata = 0;
       player.blockedResource = ""; player.blockedTurns = 0;
+    player.evolutionsUsed = 0;
     this.state.players.set(client.sessionId, player);
     this.privatePlayers[seat] = { deck: [], hand: [], discard: [], configuredDeck: defaultDeck(), traps: [], effects: [], lastNonTroopDefinitionId: "" };
     this.setMetadata({ players: this.clients.length, phase: this.state.phase });
@@ -212,12 +249,16 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       data.traps = [];
       data.effects = [];
       data.lastNonTroopDefinitionId = "";
+      this.pendingMagnet[seat] = [];
+      this.pendingMitosis[seat] = undefined;
       data.deck = this.shuffle(data.configuredDeck.map((definitionId) => this.makePrivateCard(seat, definitionId)));
       const player = this.playerBySeat(seat);
       if (!player) continue;
       player.life = 20;
+      player.hasTakenTurn = false;
       player.mana = 0; player.sangue = 0; player.ossos = 0; player.sucata = 0;
       player.blockedResource = ""; player.blockedTurns = 0;
+    player.evolutionsUsed = 0;
       player.manaUsed = 0; player.sangueUsed = 0; player.ossosUsed = 0; player.sucataUsed = 0;
       this.resetPlayerTurn(player);
       this.drawCards(seat, 7);
@@ -247,9 +288,18 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       case "play_trap": return this.playTrap(seat, payload);
       case "activate_trap": return this.activateTrap(seat, payload);
       case "play_effect": return this.playEffect(seat, payload);
+      case "use_ability": return this.useAbility(seat, payload);
+      case "use_construction": return this.useConstruction(seat, payload);
+      case "remove_item": return this.removeItem(seat, payload);
+      case "transfer_item": return this.transferItem(seat, payload);
+      case "use_item_ability": return this.useItemAbility(seat, payload);
       case "move_troop": return this.moveTroop(seat, payload);
       case "attack": return this.attack(seat, payload);
       case "choose_critical": return this.chooseCritical(seat, payload);
+      case "set_castle_defense": return this.setCastleDefense(seat, payload);
+      case "evolve_troop": return this.evolveTroop(seat, payload);
+      case "choose_magnet": return this.chooseMagnet(seat, payload);
+      case "choose_mitosis": return this.chooseMitosis(seat, payload);
       case "end_turn": return this.endTurn(seat);
       default: return { ok: false, reason: "acao_desconhecida" };
     }
@@ -288,17 +338,6 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     if (!found || found.definition.category !== "tropa")
       return { ok: false, reason: "carta_tropa_invalida" };
     if (!this.payCost(player, found.definition)) return { ok: false, reason: "recursos_insuficientes" };
-    if (effect === "refracao_temporal") {
-      const copiedId = this.privatePlayers[seat].lastNonTroopDefinitionId;
-      const copied = this.makePrivateCard(seat, copiedId);
-      if (CARD_DEFINITIONS[copiedId]?.category === "construcao") copied.lifeScale = 0.5;
-      this.privatePlayers[seat].hand.push(copied);
-      this.discardPlayedCard(seat, found);
-      this.updateCounts(seat);
-      player.spellsUsed += 1;
-      return { ok: true, details: { cardId: found.card.instanceId, definitionId: found.card.definitionId, copiedDefinitionId: copiedId, copiedCardId: copied.instanceId }, privateSeats: [seat] };
-    }
-
     const position = seat === 0 ? 4 : 0;
     if (this.findPublic((card) => card.category === "tropa" && card.lane === lane && card.position === position))
       return { ok: false, reason: "base_ocupada" };
@@ -330,6 +369,21 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     this.removeHandCard(seat, found.index);
     player.constructionsPlayed += 1;
     return { ok: true, details: this.publicCardPayload(publicCard), privateSeats: [seat] };
+  }
+
+  private abilityState(card: PublicCardState): AbilityState {
+    try {
+      const value = JSON.parse(card.abilityStateJson || "{}");
+      return value && typeof value === "object" ? value as AbilityState : {};
+    } catch { return {}; }
+  }
+
+  private setAbilityState(card: PublicCardState, state: AbilityState) {
+    card.abilityStateJson = JSON.stringify(state);
+  }
+
+  private hasAbility(card: PublicCardState, ability: string): boolean {
+    return CARD_DEFINITIONS[card.definitionId]?.abilities?.includes(ability) ?? false;
   }
 
   private equipmentIds(card: PublicCardState): string[] {
@@ -379,6 +433,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
   }
 
   private playSpell(seat: number, payload: Record<string, unknown>): ActionResult {
+    if (!this.playerBySeat(seat)!.hasTakenTurn) return { ok: false, reason: "primeiro_turno_bloqueado" };
     const player = this.playerBySeat(seat)!;
     if (player.spellsUsed >= 2) return { ok: false, reason: "limite_magias_turno" };
     const found = this.handCard(seat, payload.cardId);
@@ -405,8 +460,13 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     } else if (effect === "dados_manipulados") {
       details = { ...details, roll: this.roll(4), remaining: 3 };
     } else if (effect === "refracao_temporal") {
-      return { ok: false, reason: "refracao_exige_alvo" };
+      if (!this.privatePlayers[seat].lastNonTroopDefinitionId) return { ok: false, reason: "refracao_sem_carta" };
     } else if (!target && targetType !== "castle") {
+      return { ok: false, reason: "alvo_invalido" };
+    } else if (["veneno", "gelo", "choque"].includes(effect) && target?.category != "tropa") {
+      return { ok: false, reason: "alvo_invalido" };
+    } else if (effect === "bola_fogo" && targetType != "castle"
+      && (!target || target.category != targetType)) {
       return { ok: false, reason: "alvo_invalido" };
     } else if (effect === "eutanasia") {
       if (!target || target.category !== "tropa" || target.life > 5) return { ok: false, reason: "eutanasia_vida" };
@@ -417,6 +477,19 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     }
 
     if (!this.payCost(player, found.definition)) return { ok: false, reason: "recursos_insuficientes" };
+    if (effect === "refracao_temporal") {
+      const copiedId = this.privatePlayers[seat].lastNonTroopDefinitionId;
+      const copied = this.makePrivateCard(seat, copiedId);
+      if (CARD_DEFINITIONS[copiedId]?.category === "construcao") copied.lifeScale = 0.5;
+      this.privatePlayers[seat].hand.push(copied);
+      this.discardPlayedCard(seat, found);
+      this.updateCounts(seat);
+      player.spellsUsed += 1;
+      return { ok: true, details: {
+        cardId: found.card.instanceId, definitionId: found.card.definitionId,
+        copiedDefinitionId: copiedId, copiedCardId: copied.instanceId,
+      }, privateSeats: [seat] };
+    }
 
     if (searched) {
       const drawn = this.pullResourceFromDeck(seat, searched)!;
@@ -432,8 +505,8 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       this.destroyPublicCard(target);
       details = { ...details, targetId, destroyed: true };
     } else if (effect === "bola_fogo") {
-      const roll = this.roll(8);
-      const coin = this.roll(2);
+      const roll = this.rollForSeat(seat, 8);
+      const coin = this.rollForSeat(seat, 2);
       if (targetType === "castle") {
         const defender = this.playerBySeat(1 - seat)!;
         defender.life = Math.max(0, defender.life - roll);
@@ -451,7 +524,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       if (effect === "gelo") this.applyCondition(target, "congelado", 1, 0);
       if (effect === "choque") {
         target.life -= 2;
-        const coin = this.roll(2);
+        const coin = this.rollForSeat(seat, 2);
         if (target.life > 0) this.applyCondition(target, coin === 1 ? "paralisado" : "eletrocutado", 1, 0);
         else this.destroyPublicCard(target);
         details = { ...details, targetId, damage: 2, coin, destroyed: target.life <= 0 };
@@ -467,6 +540,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
   }
 
   private playItem(seat: number, payload: Record<string, unknown>): ActionResult {
+    if (!this.playerBySeat(seat)!.hasTakenTurn) return { ok: false, reason: "primeiro_turno_bloqueado" };
     const player = this.playerBySeat(seat)!;
     if (player.itemsUsed >= 3) return { ok: false, reason: "limite_itens_turno" };
     const found = this.handCard(seat, payload.cardId);
@@ -490,6 +564,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       this.removeHandCard(seat, found.index);
       details = { ...details, targetId, equipment };
     } else {
+      if (target && target.category != "tropa") return { ok: false, reason: "alvo_item_invalido" };
       if ((effect === "cura" || effect === "aumentar_inteligencia" || effect === "aplicar_corrosao") && !target)
         return { ok: false, reason: "alvo_item_invalido" };
       if ((effect === "cura" || effect === "aumentar_inteligencia") && target?.owner !== seat)
@@ -541,12 +616,24 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     const target = trap.targetId ? this.state.cards.get(trap.targetId) : undefined;
     let details: Record<string, unknown> = { trapId, definitionId: trap.definitionId, targetId: trap.targetId };
 
+    if (target) {
+      const targetState = this.abilityState(target);
+      if ((targetState.trapImmunity ?? 0) > 0) {
+        targetState.trapImmunity = Math.max(0, (targetState.trapImmunity ?? 0) - 1);
+        this.setAbilityState(target, targetState);
+        data.traps.splice(index, 1);
+        data.discard.push({ instanceId: trap.instanceId, definitionId: trap.definitionId });
+        this.updateCounts(seat);
+        return { ok: true, details: { ...details, blockedByVeil: true }, privateSeats: [seat] };
+      }
+    }
+
     if (trap.definitionId === "armadilha_urso") {
       if (!target) return { ok: false, reason: "alvo_invalido" };
-      const rolls = [this.roll(6), this.roll(6)];
+      const rolls = [this.rollForSeat(seat, 6), this.rollForSeat(seat, 6)];
       const damage = rolls[0] + rolls[1];
       target.life -= damage;
-      const coin = this.roll(2);
+      const coin = this.rollForSeat(seat, 2);
       if (target.life > 0 && coin === 1) this.applyCondition(target, "sangrando", 1, 3);
       else if (target.life <= 0) this.destroyPublicCard(target);
       details = { ...details, damageRolls: rolls, damage, coin, destroyed: target.life <= 0 };
@@ -581,6 +668,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     const found = this.handCard(seat, payload.cardId);
     if (!found || !["terreno", "bencao", "maldicao"].includes(found.definition.category))
       return { ok: false, reason: "carta_efeito_invalida" };
+    if (found.definition.category === "terreno" && !player.hasTakenTurn) return { ok: false, reason: "primeiro_turno_bloqueado" };
     if (found.definition.category === "terreno" && player.terrainPlayed) return { ok: false, reason: "limite_terreno_turno" };
     if (!this.payCost(player, found.definition)) return { ok: false, reason: "recursos_insuficientes" };
 
@@ -591,8 +679,278 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       this.privatePlayers[seat].effects.push(found.definition.effect ?? found.card.definitionId);
     }
     this.discardPlayedCard(seat, found);
-    if (effect !== "refracao_temporal") this.privatePlayers[seat].lastNonTroopDefinitionId = found.card.definitionId;
+    this.privatePlayers[seat].lastNonTroopDefinitionId = found.card.definitionId;
     return { ok: true, details: { cardId: found.card.instanceId, definitionId: found.card.definitionId, category: found.definition.category }, privateSeats: [seat] };
+  }
+
+
+
+  private removeItem(seat: number, payload: Record<string, unknown>): ActionResult {
+    const cardId = typeof payload.cardId === "string" ? payload.cardId : "";
+    const card = this.state.cards.get(cardId);
+    if (!card || card.owner !== seat || card.category !== "tropa")
+      return { ok: false, reason: "tropa_invalida" };
+    const state = this.abilityState(card);
+    if (state.itemActionUsed) return { ok: false, reason: "acao_item_ja_usada" };
+    const equipment = this.equipmentIds(card);
+    if (equipment.length <= 0) return { ok: false, reason: "tropa_sem_item" };
+    const itemDefinitionId = equipment.pop()!;
+    this.setEquipment(card, equipment);
+    this.privatePlayers[seat].hand.push(this.makePrivateCard(seat, itemDefinitionId));
+    state.itemActionUsed = true;
+    this.setAbilityState(card, state);
+    this.updateCounts(seat);
+    return { ok: true, details: { cardId, itemDefinitionId, equipment }, privateSeats: [seat] };
+  }
+
+  private transferItem(seat: number, payload: Record<string, unknown>): ActionResult {
+    const fromId = typeof payload.cardId === "string" ? payload.cardId : "";
+    const toId = typeof payload.targetId === "string" ? payload.targetId : "";
+    const from = this.state.cards.get(fromId);
+    const to = this.state.cards.get(toId);
+    if (!from || !to || from === to || from.owner !== seat || to.owner !== seat
+      || from.category !== "tropa" || to.category !== "tropa")
+      return { ok: false, reason: "transferencia_invalida" };
+    const fromState = this.abilityState(from);
+    const toState = this.abilityState(to);
+    if (fromState.itemActionUsed || toState.itemActionUsed)
+      return { ok: false, reason: "acao_item_ja_usada" };
+    const sourceEquipment = this.equipmentIds(from);
+    if (sourceEquipment.length <= 0) return { ok: false, reason: "tropa_sem_item" };
+    const destinationEquipment = this.equipmentIds(to);
+    const capacity = CARD_DEFINITIONS[to.definitionId]?.itemSlots ?? 0;
+    if (destinationEquipment.length >= capacity) return { ok: false, reason: "mochila_cheia" };
+    const itemDefinitionId = sourceEquipment.pop()!;
+    destinationEquipment.push(itemDefinitionId);
+    this.setEquipment(from, sourceEquipment);
+    this.setEquipment(to, destinationEquipment);
+    fromState.itemActionUsed = true;
+    toState.itemActionUsed = true;
+    this.setAbilityState(from, fromState);
+    this.setAbilityState(to, toState);
+    return { ok: true, details: {
+      cardId: fromId, targetId: toId, itemDefinitionId,
+      sourceEquipment, destinationEquipment,
+    } };
+  }
+
+
+  private useItemAbility(seat: number, payload: Record<string, unknown>): ActionResult {
+    const cardId = typeof payload.cardId === "string" ? payload.cardId : "";
+    const card = this.state.cards.get(cardId);
+    if (!card || card.owner !== seat || card.category !== "tropa")
+      return { ok: false, reason: "tropa_invalida" };
+    if (!this.equipmentIds(card).includes("grimorio_iniciante"))
+      return { ok: false, reason: "grimorio_nao_equipado" };
+    const state = this.abilityState(card);
+    if (state.grimoireUsed) return { ok: false, reason: "grimorio_ja_usado" };
+    const spell = payload.spell === "raio" ? "raio"
+      : payload.spell === "escudo" ? "escudo"
+      : payload.spell === "curazinha" ? "curazinha" : "";
+    if (!spell) return { ok: false, reason: "habilidade_item_invalida" };
+    const player = this.playerBySeat(seat)!;
+    if (player.blockedResource === "mana" || player.mana - player.manaUsed < 1)
+      return { ok: false, reason: "recursos_insuficientes" };
+    let target: PublicCardState | undefined;
+    if (spell === "raio") {
+      target = this.findPublic((other) => other.category === "tropa"
+        && other.owner !== seat && other.lane === card.lane);
+      if (!target) return { ok: false, reason: "habilidade_sem_alvo" };
+    }
+    player.manaUsed += 1;
+    state.grimoireUsed = true;
+    let damage = 0;
+    let roll = 0;
+    if (spell === "raio" && target) {
+      roll = this.rollForSeat(seat, 4);
+      const targetDefinition = CARD_DEFINITIONS[target.definitionId];
+      const targetState = this.abilityState(target);
+      const defense = (targetDefinition.magicDefense ?? 0) + (targetState.grimoireShield ? 2 : 0);
+      damage = Math.max(0, roll - defense);
+      target.life -= damage;
+      if (target.life <= 0) this.destroyPublicCard(target);
+    } else if (spell === "escudo") {
+      state.grimoireShield = true;
+    } else {
+      card.life = Math.min(card.maxLife, card.life + 1);
+    }
+    this.setAbilityState(card, state);
+    return { ok: true, details: {
+      cardId, ability: "grimorio_iniciante", spell,
+      targetId: target?.instanceId ?? "", roll, damage,
+      destroyed: Boolean(target && target.life <= 0), life: card.life,
+    } };
+  }
+
+  private useAbility(seat: number, payload: Record<string, unknown>): ActionResult {
+    const cardId = typeof payload.cardId === "string" ? payload.cardId : "";
+    const card = this.state.cards.get(cardId);
+    if (!card || card.owner !== seat || card.category !== "tropa")
+      return { ok: false, reason: "tropa_invalida" };
+    const definition = CARD_DEFINITIONS[card.definitionId];
+    const ability = typeof payload.ability === "string" && definition.abilities?.includes(payload.ability)
+      ? payload.ability : definition.abilities?.find((value) =>
+        ["golpe_duplo", "sombra_translucida", "ferida_exposta", "imitacao", "visao_do_veu", "digestao", "carnica_frenetica"].includes(value));
+    if (!ability) return { ok: false, reason: "habilidade_indisponivel" };
+    const state = this.abilityState(card);
+    if (state.used && ability !== "visao_do_veu") return { ok: false, reason: "habilidade_ja_usada" };
+
+    if (ability === "golpe_duplo") {
+      if (card.attacked) return { ok: false, reason: "tropa_ja_atacou" };
+      const first = this.attack(seat, { cardId, attackType: definition.magicDie && !definition.attackDie ? "magica" : "fisica" });
+      if (!first.ok) return first;
+      state.used = true;
+      this.setAbilityState(card, state);
+      if (this.pendingCritical) {
+        this.pendingCritical.repeatAfter = 1;
+        return { ok: true, details: { ability, cardId, attacks: [first.details], criticalChoice: true } };
+      }
+      card.attacked = false;
+      const second = this.attack(seat, { cardId, attackType: definition.magicDie && !definition.attackDie ? "magica" : "fisica" });
+      card.attacked = true;
+      return { ok: true, details: { ability, cardId, attacks: [first.details, second.details] } };
+    }
+
+    if (ability === "sombra_translucida") {
+      if ((state.shadowCooldown ?? 0) > 0) return { ok: false, reason: "sombra_recarregando" };
+      const player = this.playerBySeat(seat)!;
+      if (player.blockedResource === "mana" || player.mana - player.manaUsed < 2)
+        return { ok: false, reason: "recursos_insuficientes" };
+      player.manaUsed += 2;
+      state.shadowTurns = 1;
+      state.shadowCooldown = 2;
+      state.used = true;
+      this.setAbilityState(card, state);
+      return { ok: true, details: { ability, cardId, shadowTurns: 1, shadowCooldown: 2 } };
+    }
+
+    const direction = seat === 0 ? -1 : 1;
+    const front = this.findPublic((other) => other.category === "tropa" && other.owner !== seat
+      && other.lane === card.lane && other.position === card.position + direction);
+
+    if (ability === "ferida_exposta") {
+      if (!front) return { ok: false, reason: "habilidade_sem_alvo" };
+      state.used = true; this.setAbilityState(card, state);
+      const coin = this.rollForSeat(seat, 2);
+      let damage = 0;
+      if (coin === 1) {
+        damage = this.rollForSeat(seat, Math.max(1, definition.attackDie ?? 1));
+        front.life -= damage;
+        if (front.life > 0) this.applyCondition(front, "sangrando", 1, 3);
+        else this.destroyPublicCard(front);
+      }
+      return { ok: true, details: { ability, cardId, targetId: front.instanceId, coin, damage, destroyed: front.life <= 0 } };
+    }
+
+    if (ability === "imitacao") {
+      if (!front) return { ok: false, reason: "habilidade_sem_alvo" };
+      if (front.intelligence > 0) state.used = true;
+      const attackerRoll = this.rollForSeat(seat, 20) + card.intelligence;
+      const defenderRoll = this.rollForSeat(1 - seat, 20) + front.intelligence;
+      let counter: ActionResult | undefined;
+      if (attackerRoll > defenderRoll) {
+        const targetState = this.abilityState(front);
+        targetState.illusion = true;
+        this.setAbilityState(front, targetState);
+        const previous = card.attacked;
+        card.attacked = false;
+        counter = this.attack(seat, { cardId, attackType: definition.magicDie && !definition.attackDie ? "magica" : "fisica" });
+        card.attacked = previous;
+      }
+      this.setAbilityState(card, state);
+      return { ok: true, details: { ability, cardId, targetId: front.instanceId, attackerRoll, defenderRoll, success: attackerRoll > defenderRoll, counter: counter?.details, criticalChoice: Boolean(counter?.details?.criticalChoice) } };
+    }
+
+    if (ability === "digestao") {
+      const maximum = Math.max(0, Math.floor(card.maxLife / 10));
+      if ((state.digestionUses ?? 0) >= maximum) return { ok: false, reason: "digestao_sem_usos" };
+      let consumed: PublicCardState | undefined;
+      if (!state.corpseAvailable) {
+        const targetId = typeof payload.targetId === "string" ? payload.targetId : "";
+        consumed = this.state.cards.get(targetId);
+        if (!consumed || consumed.owner === seat || consumed.category !== "tropa" || consumed.life >= 4
+          || Math.abs(consumed.lane - card.lane) + Math.abs(consumed.position - card.position) !== 1)
+          return { ok: false, reason: "digestao_alvo_invalido" };
+        this.destroyPublicCard(consumed);
+      }
+      state.digestionUses = (state.digestionUses ?? 0) + 1;
+      state.corpseAvailable = false;
+      state.used = true;
+      card.maxLife += 1;
+      const regeneration = this.rollForSeat(seat, 4);
+      this.applyCondition(card, "regeneracao", regeneration, 1);
+      this.setAbilityState(card, state);
+      return { ok: true, details: { ability, cardId, targetId: consumed?.instanceId ?? "", maxLife: card.maxLife, regeneration } };
+    }
+
+    if (ability === "carnica_frenetica") {
+      if (state.frenzy) return { ok: false, reason: "carnica_preparada" };
+      const player = this.playerBySeat(seat)!;
+      if (player.blockedResource === "sangue" || player.sangue - player.sangueUsed < 2)
+        return { ok: false, reason: "recursos_insuficientes" };
+      player.sangueUsed += 2;
+      const coin = this.rollForSeat(seat, 2);
+      state.frenzy = coin === 1 ? "bonus" : "self";
+      state.used = true;
+      this.setAbilityState(card, state);
+      return { ok: true, details: { ability, cardId, coin, frenzy: state.frenzy } };
+    }
+
+    if (ability === "visao_do_veu") {
+      if (state.veilUsed) return { ok: false, reason: "visao_ja_usada" };
+      const choice = payload.choice === "destroy" ? "destroy" : payload.choice === "protect" ? "protect" : "";
+      const enemy = this.privatePlayers[1 - seat];
+      if (!choice) {
+        const viewer = this.clientBySeat(seat);
+        if (viewer) viewer.send("veil_options", {
+          cardId,
+          cards: enemy.hand.map((item) => ({
+            instanceId: item.instanceId,
+            name: CARD_DEFINITIONS[item.definitionId]?.name ?? "Carta",
+            category: CARD_DEFINITIONS[item.definitionId]?.category ?? "",
+          })),
+        });
+        return { ok: true, details: { ability, cardId, waitingChoice: true } };
+      }
+      const trapId = typeof payload.trapId === "string" ? payload.trapId : "";
+      const trapIndex = enemy.hand.findIndex((item) => item.instanceId === trapId
+        && CARD_DEFINITIONS[item.definitionId]?.category === "armadilha");
+      if (choice === "destroy" && trapIndex < 0) return { ok: false, reason: "armadilha_invalida" };
+      state.veilUsed = true;
+      state.used = true;
+      if (choice === "destroy") {
+        const discarded = enemy.hand.splice(trapIndex, 1)[0];
+        enemy.discard.push(discarded);
+        this.updateCounts(1 - seat);
+      } else state.trapImmunity = 1;
+      this.setAbilityState(card, state);
+      return { ok: true, details: { ability, cardId, destroyedTrap: choice === "destroy" }, privateSeats: [seat, 1 - seat] };
+    }
+
+    return { ok: false, reason: "habilidade_indisponivel" };
+  }
+
+  private useConstruction(seat: number, payload: Record<string, unknown>): ActionResult {
+    const cardId = typeof payload.cardId === "string" ? payload.cardId : "";
+    const card = this.state.cards.get(cardId);
+    if (!card || card.owner !== seat || card.category !== "construcao")
+      return { ok: false, reason: "construcao_invalida" };
+    const state = this.abilityState(card);
+    if (state.used) return { ok: false, reason: "habilidade_ja_usada" };
+    if (CARD_DEFINITIONS[card.definitionId]?.effect !== "hemodrenario")
+      return { ok: false, reason: "habilidade_indisponivel" };
+    const enemy = this.playerBySeat(1 - seat)!;
+    const owner = this.playerBySeat(seat)!;
+    if (enemy.blockedResource === "sangue" || enemy.sangue - enemy.sangueUsed <= 0)
+      return { ok: false, reason: "hemodrenario_sem_sangue" };
+    const spent = RESOURCE_ORDER.find((type) => owner[USED_FIELDS[type]] > 0
+      && !(owner.blockedResource === type && owner.blockedTurns > 0));
+    if (!spent) return { ok: false, reason: "hemodrenario_sem_recurso_gasto" };
+    enemy.sangueUsed += 1;
+    owner[USED_FIELDS[spent]] -= 1;
+    state.used = true;
+    this.setAbilityState(card, state);
+    return { ok: true, details: { cardId, ability: "hemodrenario", restoredResource: spent } };
   }
 
   private updateTrapReadiness() {
@@ -628,11 +986,119 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       return { ok: false, reason: "casa_ocupada" };
 
     card.position = destination;
+    if (destination !== (seat === 0 ? 4 : 0)) card.defendingCastle = false;
+    let gazeRoll = 0;
+    const state = this.abilityState(card);
+    if (!state.gazeTested) {
+      const hollow = this.findPublic((other) => other.category === "tropa" && other.owner !== seat
+        && other.lane === card.lane && other.position === card.position + advanceDelta
+        && this.hasAbility(other, "olhar_vazio"));
+      if (hollow) {
+        state.gazeTested = true;
+        gazeRoll = this.rollForSeat(seat, 20);
+        this.setAbilityState(card, state);
+        if (gazeRoll <= 10) this.applyCondition(card, "paralisado", 1, 0);
+      }
+    }
     this.updateTrapReadiness();
     card.moved = true;
-    return { ok: true, details: { cardId, lane: card.lane, position: destination, direction } };
+    return { ok: true, details: { cardId, lane: card.lane, position: destination, direction, gazeRoll, condition: card.condition } };
   }
 
+
+  private pendingChoiceSeat(): number {
+    for (let seat = 0; seat < 2; seat++) {
+      if ((this.pendingMagnet[seat]?.length ?? 0) > 0 || this.pendingMitosis[seat]) return seat;
+    }
+    return -1;
+  }
+
+  private setCastleDefense(seat: number, payload: Record<string, unknown>): ActionResult {
+    const cardId = typeof payload.cardId === "string" ? payload.cardId : "";
+    const defending = payload.defending === true;
+    const card = this.state.cards.get(cardId);
+    if (!card || card.owner !== seat || card.category !== "tropa") return { ok: false, reason: "tropa_invalida" };
+    const entry = seat === 0 ? 4 : 0;
+    if (defending && card.position !== entry) return { ok: false, reason: "defesa_fora_da_base" };
+    card.defendingCastle = defending;
+    return { ok: true, details: { cardId, defending } };
+  }
+
+  private evolveTroop(seat: number, payload: Record<string, unknown>): ActionResult {
+    const cardId = typeof payload.cardId === "string" ? payload.cardId : "";
+    const card = this.state.cards.get(cardId);
+    if (!card || card.owner !== seat || card.category !== "tropa") return { ok: false, reason: "tropa_invalida" };
+    const current = CARD_DEFINITIONS[card.definitionId];
+    const evolved = current.evolvesTo ? CARD_DEFINITIONS[current.evolvesTo] : undefined;
+    if (!evolved) return { ok: false, reason: "evolucao_indisponivel" };
+    if (card.turnsInPlay < 1) return { ok: false, reason: "evolucao_muito_cedo" };
+    const player = this.playerBySeat(seat)!;
+    if (player.evolutionsUsed >= 1) return { ok: false, reason: "limite_evolucoes_turno" };
+    if (!this.payCost(player, evolved)) return { ok: false, reason: "recursos_insuficientes" };
+    const damageTaken = Math.max(0, card.maxLife - card.life);
+    card.definitionId = evolved.id;
+    card.name = evolved.name;
+    card.maxLife = evolved.life ?? card.maxLife;
+    card.life = Math.max(1, card.maxLife - damageTaken);
+    card.intelligence = evolved.intelligence ?? 0;
+    player.evolutionsUsed += 1;
+    return { ok: true, details: { cardId, definitionId: evolved.id, name: evolved.name, life: card.life, maxLife: card.maxLife } };
+  }
+
+  private sendNextMagnetChoice(seat: number) {
+    const pending = this.pendingMagnet[seat]?.[0];
+    const client = this.clientBySeat(seat);
+    if (pending && client) client.send("magnet_choice", {
+      sourceCardId: pending.sourceCardId,
+      items: pending.equipment.map((definitionId, index) => ({ index, definitionId, name: CARD_DEFINITIONS[definitionId]?.name ?? "Item" })),
+    });
+  }
+
+  private chooseMagnet(seat: number, payload: Record<string, unknown>): ActionResult {
+    const pending = this.pendingMagnet[seat]?.[0];
+    const index = numberInRange(payload.index, 0, Math.max(0, (pending?.equipment.length ?? 0) - 1));
+    if (!pending || index === undefined) return { ok: false, reason: "escolha_ima_invalida" };
+    const data = this.privatePlayers[seat];
+    const selected = pending.equipment[index];
+    data.hand.push(this.makePrivateCard(seat, selected));
+    pending.equipment.forEach((definitionId, itemIndex) => {
+      if (itemIndex !== index) data.discard.push(this.makePrivateCard(seat, definitionId));
+    });
+    this.pendingMagnet[seat].shift();
+    this.updateCounts(seat);
+    this.sendNextMagnetChoice(seat);
+    return { ok: true, details: { sourceCardId: pending.sourceCardId, index, itemDefinitionId: selected } };
+  }
+
+  private chooseMitosis(seat: number, payload: Record<string, unknown>): ActionResult {
+    const pending = this.pendingMitosis[seat];
+    const lane = numberInRange(payload.lane, 0, 2);
+    const position = numberInRange(payload.position, 0, 4);
+    if (!pending || lane === undefined || position === undefined
+      || !pending.candidates.some(([candidateLane, candidatePosition]) => candidateLane === lane && candidatePosition === position))
+      return { ok: false, reason: "escolha_mitose_invalida" };
+    if (this.findPublic((card) => card.category === "tropa" && (card.lane === lane && card.position === position
+      || card.owner === seat && card.lane === lane))) return { ok: false, reason: "coluna_ocupada" };
+    const child = this.createPublicCard(pending.source, CARD_DEFINITIONS.slimet, seat, lane, position);
+    child.moved = true;
+    this.state.cards.set(child.instanceId, child);
+    this.pendingMitosis[seat] = undefined;
+    return { ok: true, details: this.publicCardPayload(child) };
+  }
+
+  private counterAttack(defender: PublicCardState, attacker: PublicCardState): Record<string, unknown> {
+    const definition = CARD_DEFINITIONS[defender.definitionId];
+    const die = this.effectiveAttackDie(defender, Math.max(1, definition.attackDie ?? 1));
+    const dice = Math.max(1, definition.attackDice ?? 1);
+    const damageRolls = Array.from({ length: dice }, () => this.rollForSeat(defender.owner, die));
+    const modifier = (definition.attackModifier ?? 0) + this.equipmentAttackBonus(defender);
+    const defense = (CARD_DEFINITIONS[attacker.definitionId]?.physicalDefense ?? 0) + this.equipmentDefenseBonus(attacker);
+    const damage = Math.max(0, damageRolls.reduce((sum, value) => sum + value, 0) + modifier - defense);
+    attacker.life -= damage;
+    const destroyed = attacker.life <= 0;
+    if (destroyed) this.destroyPublicCard(attacker);
+    return { cardId: defender.instanceId, targetId: attacker.instanceId, attackType: "fisica", hit: true, damageRolls, modifier, defense, damage, destroyed, counterAttack: true };
+  }
 
   private attack(seat: number, payload: Record<string, unknown>): ActionResult {
     const cardId = typeof payload.cardId === "string" ? payload.cardId : "";
@@ -641,44 +1107,130 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     if (!attacker || attacker.category !== "tropa" || attacker.owner !== seat)
       return { ok: false, reason: "tropa_invalida" };
     if (attacker.attacked) return { ok: false, reason: "tropa_ja_atacou" };
+    const attackerState = this.abilityState(attacker);
+    if (attackerState.illusion) {
+      attackerState.illusion = false;
+      this.setAbilityState(attacker, attackerState);
+      attacker.attacked = true;
+      return { ok: true, details: { cardId, attackType, illusion: true, hit: false, damageRolls: [] } };
+    }
     if (["paralisado", "congelado", "adormecido", "loucura"].includes(attacker.condition)) return { ok: false, reason: "tropa_incapacitada" };
     const definition = CARD_DEFINITIONS[attacker.definitionId];
-    const baseDie = attackType === "magica" ? definition.magicDie ?? 0 : definition.attackDie ?? 0;
-    const die = attackType === "magica" ? baseDie : this.effectiveAttackDie(attacker, baseDie);
-    const dice = attackType === "magica" ? definition.magicDice ?? 1 : definition.attackDice ?? 1;
-    const modifier = (attackType === "magica" ? definition.magicModifier ?? 0 : definition.attackModifier ?? 0)
-      + (attackType === "fisica" ? this.equipmentAttackBonus(attacker) : 0);
+    const itemDefinitionId = typeof payload.itemDefinitionId === "string" ? payload.itemDefinitionId : "";
+    const equipped = this.equipmentIds(attacker);
+    const weaponDefinition = itemDefinitionId ? CARD_DEFINITIONS[itemDefinitionId] : undefined;
+    if (itemDefinitionId && (!equipped.includes(itemDefinitionId)
+      || weaponDefinition?.category !== "item_equipavel" || !(weaponDefinition.overrideAttackDie && weaponDefinition.overrideAttackDie > 0)))
+      return { ok: false, reason: "arma_invalida" };
+    const usingWeapon = Boolean(weaponDefinition);
+    const baseDie = usingWeapon ? weaponDefinition!.overrideAttackDie!
+      : attackType === "magica" ? definition.magicDie ?? 0 : definition.attackDie ?? 0;
+    const die = baseDie;
+    const dice = usingWeapon ? 1 : attackType === "magica" ? definition.magicDice ?? 1 : definition.attackDice ?? 1;
+    let modifier = usingWeapon ? weaponDefinition!.attackModifier ?? 0
+      : (attackType === "magica" ? definition.magicModifier ?? 0 : definition.attackModifier ?? 0)
+        + (attackType === "fisica" ? this.equipmentAttackBonus(attacker) : 0);
+    let ignoreDefense = false;
+    let frenzyBonus = 0;
+    if (attackerState.frenzy === "self") {
+      attackerState.frenzy = undefined;
+      this.setAbilityState(attacker, attackerState);
+      const adjacentAlly = this.findPublic((other) => other.instanceId !== attacker.instanceId
+        && other.category === "tropa" && other.owner === seat
+        && Math.abs(other.lane - attacker.lane) + Math.abs(other.position - attacker.position) === 1);
+      if (!adjacentAlly) {
+        const selfRolls = Array.from({ length: Math.max(1, definition.attackDice ?? 1) },
+          () => this.rollForSeat(seat, Math.max(1, definition.attackDie ?? 1)));
+        const selfDamage = Math.max(0, selfRolls.reduce((sum, value) => sum + value, 0)
+          + (definition.attackModifier ?? 0) - (definition.physicalDefense ?? 0) - this.equipmentDefenseBonus(attacker));
+        attacker.attacked = true;
+        attacker.life -= selfDamage;
+        if (attacker.life <= 0) this.destroyPublicCard(attacker);
+        return { ok: true, details: { cardId, attackType, frenzySelf: true, damageRolls: selfRolls, damage: selfDamage, destroyed: attacker.life <= 0 } };
+      }
+    } else if (attackerState.frenzy === "bonus") {
+      frenzyBonus = this.rollForSeat(seat, 8);
+      modifier += frenzyBonus;
+      ignoreDefense = true;
+      attackerState.frenzy = undefined;
+      this.setAbilityState(attacker, attackerState);
+    }
     if (die <= 0) return { ok: false, reason: "ataque_indisponivel" };
     const direction = seat === 0 ? -1 : 1;
     const range = definition.abilities?.some((ability) => ability === "alcance" || ability === "alcance_magico") ? 2 : 1;
-    const target = this.firstEnemyAhead(attacker, direction, range);
+    let target = this.firstEnemyAhead(attacker, direction, range);
+    if (!target && range > 1) target = this.findPublic((other) =>
+      other.category === "construcao" && other.owner !== seat && other.lane === attacker.lane);
     const assaultPosition = seat === 0 ? 1 : 3;
     if (!target && attacker.position !== assaultPosition) return { ok: false, reason: "avance_para_assalto" };
-    const accuracy = this.roll(20);
-    attacker.attacked = true;
-    if (target) {
-      if (accuracy <= 10) return { ok: true, details: { cardId, targetId: target.instanceId, attackType, accuracy, hit: false, damageRolls: [] } };
-      const targetDefinition = CARD_DEFINITIONS[target.definitionId];
-      const defense = (attackType === "magica" ? targetDefinition.magicDefense ?? 0 : targetDefinition.physicalDefense ?? 0)
-        + (attackType === "fisica" ? this.equipmentDefenseBonus(target) : 0);
-      if (accuracy === 20) {
-        this.pendingCritical = { seat, cardId, targetId: target.instanceId, attackType, die, dice, modifier, defense };
-        return { ok: true, details: { cardId, targetId: target.instanceId, attackType, accuracy, hit: true, critical: true, criticalChoice: true, die, dice } };
+    let stealRoll = 0;
+    let stolenItem = "";
+    if (target?.category === "tropa" && usingWeapon && this.hasAbility(target, "roubo")) {
+      const targetEquipment = this.equipmentIds(target);
+      const capacity = CARD_DEFINITIONS[target.definitionId]?.itemSlots ?? 0;
+      if (targetEquipment.length < capacity) {
+        stealRoll = this.rollForSeat(target.owner, 10);
+        if (stealRoll === 10) {
+          const attackerEquipment = this.equipmentIds(attacker);
+          const weaponIndex = attackerEquipment.lastIndexOf(itemDefinitionId);
+          if (weaponIndex >= 0) {
+            attackerEquipment.splice(weaponIndex, 1);
+            targetEquipment.push(itemDefinitionId);
+            this.setEquipment(attacker, attackerEquipment);
+            this.setEquipment(target, targetEquipment);
+            stolenItem = itemDefinitionId;
+          }
+        }
       }
-      const damageRolls = Array.from({ length: dice }, () => this.roll(die));
+    }
+    const accuracy = this.rollForSeat(seat, 20);
+    attacker.attacked = true;
+    if (accuracy === 20 && this.hasAbility(attacker, "tiro_burro")) {
+      const candidates: PublicCardState[] = [];
+      this.state.cards.forEach((other: PublicCardState) => {
+        if (other.category === "tropa") candidates.push(other);
+      });
+      if (candidates.length > 0) target = candidates[this.roll(candidates.length) - 1];
+    }
+    if (target) {
+      if (accuracy <= 10) {
+        const counter = (accuracy === 1 || attacker.condition === "confusao") && target.category === "tropa"
+          ? this.counterAttack(target, attacker) : undefined;
+        return { ok: true, details: { cardId, targetId: target.instanceId, attackType, accuracy, hit: false, damageRolls: [], itemDefinitionId, stealRoll, stolenItem, counter } };
+      }
+      const targetDefinition = CARD_DEFINITIONS[target.definitionId];
+      const targetState = this.abilityState(target);
+      const defense = ignoreDefense ? 0 : (attackType === "magica"
+        ? (targetDefinition.magicDefense ?? 0) + (targetState.grimoireShield ? 2 : 0)
+        : (targetDefinition.physicalDefense ?? 0) + this.equipmentDefenseBonus(target));
+      if (accuracy === 20) {
+        this.pendingCritical = { seat, cardId, targetId: target.instanceId, targetType: "card", attackType, die, dice, modifier, defense, itemDefinitionId };
+        return { ok: true, details: { cardId, targetId: target.instanceId, attackType, accuracy, hit: true, critical: true, criticalChoice: true, die, dice, itemDefinitionId, stealRoll, stolenItem } };
+      }
+      const damageRolls = Array.from({ length: dice }, () => this.rollForSeat(seat, die));
       const damage = Math.max(0, damageRolls.reduce((sum, value) => sum + value, 0) + modifier - defense);
       target.life -= damage;
       const destroyed = target.life <= 0;
-      if (destroyed) this.destroyPublicCard(target);
-      return { ok: true, details: { cardId, targetId: target.instanceId, attackType, accuracy, hit: true, critical: false, damageRolls, modifier, defense, damage, destroyed } };
+      if (destroyed) {
+        if (this.hasAbility(attacker, "digestao")) {
+          attackerState.corpseAvailable = true;
+          this.setAbilityState(attacker, attackerState);
+        }
+        this.destroyPublicCard(target);
+      }
+      return { ok: true, details: { cardId, targetId: target.instanceId, attackType, accuracy, hit: true, critical: false, damageRolls, modifier, defense, damage, destroyed, frenzyBonus, itemDefinitionId, stealRoll, stolenItem } };
     }
-    if (accuracy <= 10) return { ok: true, details: { cardId, target: "castle", attackType, accuracy, hit: false, damageRolls: [] } };
-    const damageRolls = Array.from({ length: dice }, () => this.roll(die));
+    if (accuracy <= 10) return { ok: true, details: { cardId, target: "castle", attackType, accuracy, hit: false, damageRolls: [], itemDefinitionId } };
+    if (accuracy === 20) {
+      this.pendingCritical = { seat, cardId, targetSeat: 1 - seat, targetType: "castle", attackType, die, dice, modifier, defense: 0, itemDefinitionId };
+      return { ok: true, details: { cardId, target: "castle", attackType, accuracy, hit: true, critical: true, criticalChoice: true, die, dice, itemDefinitionId } };
+    }
+    const damageRolls = Array.from({ length: dice }, () => this.rollForSeat(seat, die));
     const damage = Math.max(0, damageRolls.reduce((sum, value) => sum + value, 0) + modifier);
     const defender = this.playerBySeat(1 - seat)!;
     defender.life = Math.max(0, defender.life - damage);
     if (defender.life <= 0) { this.state.winner = seat; this.state.phase = "finished"; }
-    return { ok: true, details: { cardId, target: "castle", attackType, accuracy, hit: true, critical: false, damageRolls, modifier, damage, defenderLife: defender.life } };
+    return { ok: true, details: { cardId, target: "castle", attackType, accuracy, hit: true, critical: false, damageRolls, modifier, damage, defenderLife: defender.life, itemDefinitionId } };
   }
 
   private chooseCritical(seat: number, payload: Record<string, unknown>): ActionResult {
@@ -686,23 +1238,51 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     if (!pending || pending.seat !== seat) return { ok: false, reason: "critico_inexistente" };
     const choice = payload.choice === "dobrar_dados" ? "dobrar_dados" : payload.choice === "dobrar_resultado" ? "dobrar_resultado" : "";
     if (!choice) return { ok: false, reason: "escolha_critico_invalida" };
-    const target = this.state.cards.get(pending.targetId);
-    if (!target) { this.pendingCritical = undefined; return { ok: false, reason: "alvo_invalido" }; }
+    const target = pending.targetType === "card" && pending.targetId ? this.state.cards.get(pending.targetId) : undefined;
+    if (pending.targetType === "card" && !target) { this.pendingCritical = undefined; return { ok: false, reason: "alvo_invalido" }; }
     const rollCount = choice === "dobrar_dados" ? pending.dice * 2 : pending.dice;
-    const damageRolls = Array.from({ length: rollCount }, () => this.roll(pending.die));
+    const damageRolls = Array.from({ length: rollCount }, () => this.rollForSeat(seat, pending.die));
     const rolled = damageRolls.reduce((sum, value) => sum + value, 0);
     const original = choice === "dobrar_resultado" ? rolled * 2 : rolled;
     const damage = Math.max(0, original + pending.modifier - pending.defense);
-    target.life -= damage;
-    const destroyed = target.life <= 0;
-    if (destroyed) this.destroyPublicCard(target);
+    const attacker = this.state.cards.get(pending.cardId);
+    let destroyed = false;
+    let defenderLife: number | undefined;
+    if (target) {
+      target.life -= damage;
+      destroyed = target.life <= 0;
+      if (destroyed) {
+        if (attacker && this.hasAbility(attacker, "digestao")) {
+          const state = this.abilityState(attacker);
+          state.corpseAvailable = true;
+          this.setAbilityState(attacker, state);
+        }
+        this.destroyPublicCard(target);
+      }
+    } else {
+      const defender = this.playerBySeat(pending.targetSeat ?? (1 - seat))!;
+      defender.life = Math.max(0, defender.life - damage);
+      defenderLife = defender.life;
+      if (defender.life <= 0) { this.state.winner = seat; this.state.phase = "finished"; }
+    }
+    const repeatAfter = pending.repeatAfter ?? 0;
     this.pendingCritical = undefined;
-    return { ok: true, details: { cardId: pending.cardId, targetId: pending.targetId, attackType: pending.attackType, criticalResolved: true, critical: true, choice, damageRolls, modifier: pending.modifier, defense: pending.defense, damage, destroyed } };
+    let followUp: Record<string, unknown> | undefined;
+    if (repeatAfter > 0 && attacker && this.state.cards.has(attacker.instanceId)) {
+      attacker.attacked = false;
+      const repeated = this.attack(seat, { cardId: attacker.instanceId, attackType: pending.attackType });
+      followUp = repeated.details;
+      const chainedCritical = this.pendingCritical as unknown as { repeatAfter?: number } | undefined;
+      if (chainedCritical) chainedCritical.repeatAfter = repeatAfter - 1;
+      attacker.attacked = true;
+    }
+    return { ok: true, details: { cardId: pending.cardId, targetId: pending.targetId ?? "", target: pending.targetType === "castle" ? "castle" : "card", attackType: pending.attackType, criticalResolved: true, critical: true, choice, damageRolls, modifier: pending.modifier, defense: pending.defense, damage, destroyed, defenderLife, itemDefinitionId: pending.itemDefinitionId ?? "", followUp, criticalChoice: Boolean(this.pendingCritical) } };
   }
   private endTurn(seat: number): ActionResult {
     if (seat !== this.state.currentPlayer) return { ok: false, reason: "fora_do_turno" };
     const nextSeat = 1 - seat;
     const endingPlayer = this.playerBySeat(seat)!;
+    endingPlayer.hasTakenTurn = true;
     if (endingPlayer.blockedTurns > 0) {
       endingPlayer.blockedTurns -= 1;
       if (endingPlayer.blockedTurns <= 0) endingPlayer.blockedResource = "";
@@ -710,7 +1290,14 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     const nextPlayer = this.playerBySeat(nextSeat)!;
     // Expira as condições do jogador que terminou o turno.
     this.state.cards.forEach((card: PublicCardState) => {
-      if (card.owner !== seat || card.category !== "tropa" || card.conditionTurns <= 0) return;
+      if (card.owner !== seat || card.category !== "tropa") return;
+      const ability = this.abilityState(card);
+      if ((ability.shadowCooldown ?? 0) > 0) {
+        ability.shadowCooldown = Math.max(0, (ability.shadowCooldown ?? 0) - 1);
+        if (ability.shadowCooldown === 1) ability.shadowTurns = 0;
+        this.setAbilityState(card, ability);
+      }
+      if (card.conditionTurns <= 0) return;
       card.conditionTurns -= 1;
       if (card.conditionTurns <= 0) {
         card.condition = "";
@@ -735,17 +1322,54 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     this.state.turnNumber += 1;
     this.resetPlayerTurn(nextPlayer);
     this.state.cards.forEach((card: PublicCardState) => {
+      if (card.owner === nextSeat) {
+        const ability = this.abilityState(card);
+        ability.used = false;
+        ability.itemActionUsed = false;
+        ability.grimoireUsed = false;
+        ability.grimoireShield = false;
+        this.setAbilityState(card, ability);
+      }
       if (card.owner === nextSeat && card.category === "tropa") {
+        card.turnsInPlay += 1;
         card.moved = false;
         card.attacked = false;
       }
     });
+    const artillery = this.processArtillery(nextSeat);
     this.drawCards(nextSeat, 1);
     return {
       ok: true,
-      details: { currentPlayer: nextSeat, turnNumber: this.state.turnNumber },
+      details: { currentPlayer: nextSeat, turnNumber: this.state.turnNumber, artillery },
       privateSeats: [nextSeat],
     };
+  }
+
+  private processArtillery(seat: number): Record<string, unknown>[] {
+    const events: Record<string, unknown>[] = [];
+    const towers: PublicCardState[] = [];
+    this.state.cards.forEach((card: PublicCardState) => {
+      if (card.owner === seat && card.category === "construcao"
+        && CARD_DEFINITIONS[card.definitionId]?.effect === "artilharia") towers.push(card);
+    });
+    for (const tower of towers) {
+      let target: PublicCardState | undefined;
+      let bestDistance = Infinity;
+      this.state.cards.forEach((card: PublicCardState) => {
+        if (card.category !== "tropa" || card.owner === seat || card.lane !== tower.lane) return;
+        const entry = seat === 0 ? 4 : 0;
+        const distance = Math.abs(card.position - entry);
+        if (distance < bestDistance) { bestDistance = distance; target = card; }
+      });
+      if (!target) continue;
+      const damage = this.rollForSeat(seat, 6);
+      target.life -= damage;
+      const destroyed = target.life <= 0;
+      const targetId = target.instanceId;
+      if (destroyed) this.destroyPublicCard(target);
+      events.push({ cardId: tower.instanceId, targetId, damageRolls: [damage], damage, destroyed });
+    }
+    return events;
   }
 
   private payCost(player: PlayerState, definition: CardDefinition): boolean {
@@ -791,20 +1415,33 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     result.maxLife = result.life;
     result.moved = false;
     result.attacked = false;
+    result.defendingCastle = false;
+    result.turnsInPlay = 0;
     result.condition = "";
     result.conditionTurns = 0;
     result.conditionPower = 0;
     result.intelligence = definition.intelligence ?? 0;
     result.equipmentJson = "[]";
+    result.abilityStateJson = "{}";
     return result;
   }
 
   private firstEnemyAhead(attacker: PublicCardState, direction: number, range: number): PublicCardState | undefined {
     for (let distance = 1; distance <= range; distance++) {
       const position = attacker.position + direction * distance;
-      const target = this.findPublic((card) =>
-        card.category === "tropa" && card.owner !== attacker.owner
-        && card.lane === attacker.lane && card.position === position);
+      const target = this.findPublic((card) => {
+        if (card.category !== "tropa" || card.owner === attacker.owner
+          || card.lane !== attacker.lane || card.position !== position) return false;
+        const abilities = CARD_DEFINITIONS[attacker.definitionId]?.abilities ?? [];
+        const targetAbilities = CARD_DEFINITIONS[card.definitionId]?.abilities ?? [];
+        if (targetAbilities.includes("voar") && !abilities.includes("voar")
+          && !abilities.includes("alcance") && !abilities.includes("alcance_magico")) return false;
+        if ((this.abilityState(card).shadowTurns ?? 0) > 0) return false;
+        const assault = attacker.owner === 0 ? 1 : 3;
+        const enemyEntry = attacker.owner === 0 ? 0 : 4;
+        if (attacker.position === assault && position === enemyEntry && !card.defendingCastle) return false;
+        return true;
+      });
       if (target) return target;
       if (distance === 1 && range === 1) break;
     }
@@ -812,11 +1449,21 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
   }
 
   private destroyPublicCard(card: PublicCardState) {
+    if (!this.state.cards.has(card.instanceId)) return;
     this.state.cards.delete(card.instanceId);
     const privatePlayer = this.privatePlayers[card.owner];
     privatePlayer.discard.push({ instanceId: card.instanceId, definitionId: card.definitionId });
-    for (const [index, definitionId] of this.equipmentIds(card).entries())
-      privatePlayer.discard.push({ instanceId: card.instanceId + "-item-" + index, definitionId });
+    const equipment = this.equipmentIds(card);
+    const hasMagnet = Boolean(this.findPublic((other) => other.category === "construcao"
+      && other.owner === card.owner && other.lane === card.lane
+      && CARD_DEFINITIONS[other.definitionId]?.effect === "maquina_ima"));
+    if (card.category === "tropa" && hasMagnet && equipment.length > 0) {
+      this.pendingMagnet[card.owner].push({ sourceCardId: card.instanceId, equipment: [...equipment] });
+      if (this.pendingMagnet[card.owner].length === 1) this.sendNextMagnetChoice(card.owner);
+    } else {
+      equipment.forEach((definitionId, index) =>
+        privatePlayer.discard.push({ instanceId: card.instanceId + "-item-" + index, definitionId }));
+    }
     if (privatePlayer.effects.includes("cura_ao_morrer")) {
       const owner = this.playerBySeat(card.owner); if (owner) owner.life = Math.min(20, owner.life + 1);
     }
@@ -827,8 +1474,41 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     if (card.category === "construcao") {
       for (const trap of privatePlayer.traps) if (trap.definitionId === "destrocos" && trap.lane === card.lane) trap.ready = true;
     }
+    if (card.category === "tropa" && this.hasAbility(card, "mitose")) this.performMitosis(card);
     this.updateCounts(card.owner);
   }
+  private takeDefinitionFromHandOrDeck(seat: number, definitionId: string): PrivateCard | undefined {
+    const data = this.privatePlayers[seat];
+    let index = data.hand.findIndex((item) => item.definitionId === definitionId);
+    if (index >= 0) return data.hand.splice(index, 1)[0];
+    index = data.deck.findIndex((item) => item.definitionId === definitionId);
+    if (index >= 0) return data.deck.splice(index, 1)[0];
+    return undefined;
+  }
+
+  private performMitosis(parent: PublicCardState) {
+    const first = this.takeDefinitionFromHandOrDeck(parent.owner, "slimet");
+    if (!first) return;
+    const spawn = (source: PrivateCard, lane: number, position: number) => {
+      const child = this.createPublicCard(source, CARD_DEFINITIONS.slimet, parent.owner, lane, position);
+      child.moved = true;
+      this.state.cards.set(child.instanceId, child);
+    };
+    spawn(first, parent.lane, parent.position);
+    const candidates = ([
+      [parent.lane, parent.position - 1], [parent.lane, parent.position + 1],
+      [parent.lane - 1, parent.position], [parent.lane + 1, parent.position],
+    ] as Array<[number, number]>).filter(([lane, position]) => lane >= 0 && lane <= 2 && position >= 0 && position <= 4
+      && !this.findPublic((other) => other.category === "tropa" && other.lane === lane && other.position === position)
+      && !this.findPublic((other) => other.category === "tropa" && other.owner === parent.owner && other.lane === lane));
+    if (candidates.length <= 0) return;
+    const second = this.takeDefinitionFromHandOrDeck(parent.owner, "slimet");
+    if (!second) return;
+    this.pendingMitosis[parent.owner] = { source: second, owner: parent.owner, candidates };
+    const client = this.clientBySeat(parent.owner);
+    if (client) client.send("mitosis_choice", { sourceCardId: parent.instanceId, candidates: candidates.map(([lane, position]) => ({ lane, position })) });
+  }
+
   private handCard(seat: number, cardId: unknown) {
     if (typeof cardId !== "string") return undefined;
     const hand = this.privatePlayers[seat].hand;
@@ -893,7 +1573,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       mana: player.mana, sangue: player.sangue, ossos: player.ossos, sucata: player.sucata,
       manaUsed: player.manaUsed, sangueUsed: player.sangueUsed,
       ossosUsed: player.ossosUsed, sucataUsed: player.sucataUsed,
-      blockedResource: player.blockedResource, blockedTurns: player.blockedTurns,
+      blockedResource: player.blockedResource, blockedTurns: player.blockedTurns, hasTakenTurn: player.hasTakenTurn,
       activeEffects: this.privatePlayers[player.seatIndex]?.effects ?? [],
     }));
     const cards: Record<string, unknown>[] = [];
@@ -901,7 +1581,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       ...this.publicCardPayload(card), moved: card.moved,
       attacked: card.attacked, condition: card.condition, conditionTurns: card.conditionTurns,
       conditionPower: card.conditionPower, intelligence: card.intelligence,
-      equipment: this.equipmentIds(card),
+      equipment: this.equipmentIds(card), abilityState: this.abilityState(card),
     }));
     const traps: Record<string, unknown>[] = [];
     for (let owner = 0; owner < this.privatePlayers.length; owner++) {
@@ -941,6 +1621,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     player.spellsUsed = 0;
     player.itemsUsed = 0;
     player.terrainPlayed = false;
+    player.evolutionsUsed = 0;
   }
 
   private makePrivateCard(seat: number, definitionId: string): PrivateCard {
@@ -959,11 +1640,26 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     return Math.floor(Math.random() * sides) + 1;
   }
 
+  private rollForSeat(seat: number, sides: number): number {
+    const rolled = this.roll(sides);
+    const data = this.privatePlayers[seat];
+    if (!data) return rolled;
+    const index = data.effects.findIndex((value) => value.startsWith("dados_manipulados:"));
+    if (index < 0) return rolled;
+    const parts = data.effects[index].split(":");
+    const fixed = Number(parts[1]);
+    const remaining = Number(parts[2]);
+    if (!Number.isInteger(fixed) || fixed <= 0 || fixed > sides || remaining <= 0) return rolled;
+    if (remaining <= 1) data.effects.splice(index, 1);
+    else data.effects[index] = "dados_manipulados:" + fixed + ":" + (remaining - 1);
+    return Math.max(rolled, fixed);
+  }
+
   private publicCardPayload(card: PublicCardState) {
     return {
       instanceId: card.instanceId, definitionId: card.definitionId, name: card.name,
       category: card.category, owner: card.owner, lane: card.lane, position: card.position,
-      life: card.life, maxLife: card.maxLife,
+      life: card.life, maxLife: card.maxLife, defendingCastle: card.defendingCastle, turnsInPlay: card.turnsInPlay,
     };
   }
 

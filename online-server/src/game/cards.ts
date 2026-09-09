@@ -33,6 +33,7 @@ export interface CardDefinition {
   overrideAttackDie?: number;
   intelligenceRequired?: number;
   effectValue?: number;
+  evolvesTo?: string;
 }
 
 const cost = (type: CostPart["type"], amount: number): CostPart[] => [{ type, amount }];
@@ -51,10 +52,10 @@ const troop = (
 });
 
 export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
-  esquilo: troop("esquilo", "Esquilo", 5, 6, 0, 0, 0, 1, 2),
-  lobo: troop("lobo", "Lobo", 12, 8, 1, 1, 0, 2, 2, cost("sangue", 1)),
+  esquilo: { ...troop("esquilo", "Esquilo", 5, 6, 0, 0, 0, 1, 2), evolvesTo: "esquilo_gigante" },
+  lobo: { ...troop("lobo", "Lobo", 12, 8, 1, 1, 0, 2, 2, cost("sangue", 1)), evolvesTo: "lobo_alfa" },
   urso: troop("urso", "Urso", 14, 12, 2, 3, 0, 2, 3, cost("ossos", 2)),
-  slime: troop("slime", "Slime", 14, 4, 2, 0, 0, 0, 3, [], ["mitose"], 2),
+  slime: { ...troop("slime", "Slime", 14, 4, 2, 0, 0, 0, 3, [], ["mitose"], 2), evolvesTo: "slime_digestao" },
   slimet: troop("slimet", "Slimet", 8, 4, 1, 0, 0, 0, 1),
   mimic: troop("mimic", "Mimic", 16, 10, 0, 3, 0, 1, 3,
     mixed(["sucata", 1], ["sangue", 1]), ["imitacao"], 1, 4, 1),

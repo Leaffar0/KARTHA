@@ -24,11 +24,13 @@ if (online_aberto) {
             } else if (point_in_rectangle(mouse_x, mouse_y, _online_cx - 190, _online_cy - 5, _online_cx + 190, _online_cy + 31)) {
                 online_foco = 2; keyboard_string = online_servidor_input;
             } else if (point_in_rectangle(mouse_x, mouse_y, _online_cx - 190, _online_cy + 55, _online_cx - 10, _online_cy + 101)) {
+                online_salvar_endpoint(online_servidor_input);
                 online_conectar(true, "", online_nome_input, online_servidor_input);
             } else if (point_in_rectangle(mouse_x, mouse_y, _online_cx + 10, _online_cy + 55, _online_cx + 190, _online_cy + 101)) {
-                if (string_length(string_trim(online_codigo_input)) > 0)
+                if (string_length(string_trim(online_codigo_input)) > 0) {
+                    online_salvar_endpoint(online_servidor_input);
                     online_conectar(false, online_codigo_input, online_nome_input, online_servidor_input);
-                else global.online_erro = "Digite o código da sala.";
+                } else global.online_erro = "Digite o código da sala.";
             } else if (point_in_rectangle(mouse_x, mouse_y, _online_cx - 100, _online_cy + 130, _online_cx + 100, _online_cy + 170)) {
                 online_aberto = false;
             }

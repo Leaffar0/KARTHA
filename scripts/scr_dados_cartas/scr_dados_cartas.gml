@@ -2079,8 +2079,36 @@ function rolar_ataque_direto_com_acerto(_carta, _tipo_ataque, _callback_final, _
                 return;
             }
             mostrar_feedback(_d20 == 20 ? "ACERTO CRÍTICO!" : "ACERTOU — " + string(_d20), carta.x, carta.y - 48, _d20 == 20 ? c_yellow : c_lime, 45);
+            if (_d20 == 20) {
+                var _usa_item_crit = (tipo == "fisica" && is_struct(carta.item_ataque_atual) && carta.item_ataque_atual.dado > 0);
+                var _dado_crit = _usa_item_crit ? carta.item_ataque_atual.dado : ((tipo == "magica") ? carta.dado_dano_magico : carta.dado_dano);
+                var _qtd_crit = _usa_item_crit ? 1 : ((tipo == "magica") ? carta.qtd_dados_dano_magico : carta.qtd_dados_dano);
+                var _mod_crit = _usa_item_crit ? carta.item_ataque_atual.modificador : ((tipo == "magica") ? carta.mod_dano_magico : carta.mod_dano);
+                var _crit_direto = { atacante: carta, defensor: noone, tipo_ataque: tipo,
+                    dado_usado: _dado_crit, qtd_usada: _qtd_crit, mod_usado: _mod_crit,
+                    direto: true, callback_final: callback_final, indice: indice, total: total };
+                if (carta.dono == "jogador" || partida_local_ativa()) enfileirar_escolha_critico(_crit_direto);
+                else resolver_critico_direto(_crit_direto, "dobrar_resultado");
+                return;
+            }
             rolar_dano_direto_visual(carta, tipo, callback_final, indice, total);
         }), 0, _atraso, 78 + ((_total_ataques > 1) ? irandom_range(-7, 16) : 0), _carta.dono);
+}
+
+function resolver_critico_direto(_contexto, _modo) {
+    if (!is_struct(_contexto) || !instance_exists(_contexto.atacante)) return;
+    var _quantidade = _contexto.qtd_usada * ((_modo == "dobrar_dados") ? 2 : 1);
+    var _multiplicador = ((_modo == "dobrar_resultado") ? 2 : 1)
+        * ((_contexto.atacante.condicao == "berserker") ? 2 : 1);
+    var _dados_crit_direto = { callback_final: _contexto.callback_final,
+        multiplicador: _multiplicador, modificador: _contexto.mod_usado };
+    rolar_varios_dados_visuais(_contexto.atacante.x, _contexto.atacante.y,
+        _contexto.atacante.x, _contexto.atacante.y + direcao_avanco(_contexto.atacante.dono) * 115,
+        _quantidade, _contexto.dado_usado,
+        method(_dados_crit_direto, function(_total_dados) {
+            var _finalizar = callback_final;
+            _finalizar(max(0, _total_dados * multiplicador + modificador));
+        }), _contexto.mod_usado, 0, _contexto.atacante.dono);
 }
 
 function rolar_dano_direto_visual(_carta, _tipo_ataque, _callback_final, _indice_ataque = 0, _total_ataques = 1) {
@@ -2657,7 +2685,9 @@ function resolver_escolha_critico(_modo) {
         mostrar_feedback(_modo == "dobrar_dados" ? "CRÍTICO: +DADOS" : "CRÍTICO: RESULTADO ×2",
             _contexto.atacante.x, _contexto.atacante.y - 45, c_yellow, 55);
     }
-    resolver_dano_de_acerto(_contexto, _modo);
+    if (is_struct(_contexto) && variable_struct_exists(_contexto, "direto") && _contexto.direto)
+        resolver_critico_direto(_contexto, _modo);
+    else resolver_dano_de_acerto(_contexto, _modo);
     abrir_proxima_escolha_critico();
 }
 
@@ -2830,8 +2860,12 @@ function resolver_escolha_maquina_ima(_indice) {
     var _evento = obj_controlador.maquina_ima_escolha_atual;
     if (_indice < 0 || _indice >= array_length(_evento.itens)) return;
     var _item = _evento.itens[_indice];
-    if (_item.funcao != noone) comprar_carta_do_deck_por_funcao(_item.funcao, _evento.x, _evento.y, _evento.dono);
-    descartar_itens_da_tropa(_evento.itens, _evento.dono, _indice);
+    if (variable_struct_exists(_evento, "online") && _evento.online) {
+        online_enviar_acao("choose_magnet", { index: variable_struct_exists(_item, "online_index") ? _item.online_index : _indice });
+    } else {
+        if (_item.funcao != noone) comprar_carta_do_deck_por_funcao(_item.funcao, _evento.x, _evento.y, _evento.dono);
+        descartar_itens_da_tropa(_evento.itens, _evento.dono, _indice);
+    }
     obj_controlador.maquina_ima_escolha_ativa = false;
     obj_controlador.maquina_ima_escolha_atual = noone;
     mostrar_feedback("ITEM RECUPERADO", _evento.x, _evento.y - 45, c_aqua, 55);
@@ -5414,13 +5448,72 @@ function executar_opcao_menu(_carta, _opcao) {
             online_enviar_acao("move_troop", { cardId: _carta.online_instance_id, direction: (_opcao == "Avançar") ? "advance" : "retreat" });
             return;
         }
+        if (_opcao == "Defender Castelo" || _opcao == "Parar de Defender") {
+            online_enviar_acao("set_castle_defense", { cardId: _carta.online_instance_id,
+                defending: _opcao == "Defender Castelo" });
+            return;
+        }
+        if (_opcao == "Evoluir") {
+            online_enviar_acao("evolve_troop", { cardId: _carta.online_instance_id });
+            return;
+        }
+
         if (string_pos("Atacar", _opcao) == 1) {
             if (string_pos("Atacar com ", _opcao) == 1) {
-                mostrar_aviso_regra("Ataques com itens entram na próxima etapa online", _carta.x, _carta.y);
+                var _nome_arma_online = string_delete(_opcao, 1, string_length("Atacar com "));
+                for (var _ao = 0; _ao < array_length(_carta.itens_equipados); _ao++) {
+                    var _arma_online = _carta.itens_equipados[_ao];
+                    if (_arma_online.nome == _nome_arma_online && _arma_online.dado > 0
+                        && variable_struct_exists(_arma_online, "online_definition_id")) {
+                        online_enviar_acao("attack", { cardId: _carta.online_instance_id,
+                            attackType: "fisica", itemDefinitionId: _arma_online.online_definition_id });
+                        return;
+                    }
+                }
+                mostrar_aviso_regra("A arma escolhida nao esta equipada", _carta.x, _carta.y);
                 return;
             }
             var _tipo_online = (_opcao == "Atacar (Mágica)") ? "magica" : "fisica";
             online_enviar_acao("attack", { cardId: _carta.online_instance_id, attackType: _tipo_online });
+            return;
+        }
+
+        if (string_pos("Grimório: ", _opcao) == 1) {
+            var _magia_grimorio_online = "curazinha";
+            if (_opcao == "Grimório: Raio") _magia_grimorio_online = "raio";
+            else if (_opcao == "Grimório: Escudo") _magia_grimorio_online = "escudo";
+            online_enviar_acao("use_item_ability", { cardId: _carta.online_instance_id,
+                spell: _magia_grimorio_online });
+            return;
+        }
+        if (_opcao == "Remover Item") {
+            online_enviar_acao("remove_item", { cardId: _carta.online_instance_id });
+            return;
+        }
+        if (_opcao == "Transferir Item") {
+            obj_controlador.troca_item_selecao_ativa = true;
+            obj_controlador.troca_item_origem = _carta;
+            obj_controlador.tropa_selecionada = _carta;
+            obj_controlador.carta_menu_aberto = noone;
+            return;
+        }
+        if (_opcao == "Habilidade") {
+            var _habilidade_online = tem_habilidade_ativa(_carta);
+            if (_habilidade_online == "digestao" && !_carta.digestao_cadaver_disponivel) {
+                var _alvos_digestao_online = [];
+                with (obj_carta) if (alvo_valido_digestao(_carta, id)) array_push(_alvos_digestao_online, id);
+                if (array_length(_alvos_digestao_online) == 1) {
+                    online_enviar_acao("use_ability", { cardId: _carta.online_instance_id, ability: _habilidade_online,
+                        targetId: _alvos_digestao_online[0].online_instance_id });
+                } else if (array_length(_alvos_digestao_online) > 1) {
+                    obj_controlador.digestao_selecao_ativa = true;
+                    obj_controlador.digestao_origem = _carta;
+                    obj_controlador.carta_menu_aberto = noone;
+                    obj_controlador.tropa_selecionada = _carta;
+                } else mostrar_aviso_regra("Digestao precisa de alvo adjacente com menos de 4 de vida", _carta.x, _carta.y);
+            } else {
+                online_enviar_acao("use_ability", { cardId: _carta.online_instance_id, ability: _habilidade_online });
+            }
             return;
         }
     }
@@ -5869,6 +5962,17 @@ function habilidade_carnica_frenetica(_carta) {
 function resolver_visao_veu_escolha(_indice_opcao) {
     if (!obj_controlador.visao_veu_ativa || !instance_exists(obj_controlador.visao_veu_origem)) return;
     var _carta = obj_controlador.visao_veu_origem;
+    if (obj_controlador.modo_partida == "online") {
+        var _payload_veu = { cardId: _carta.online_instance_id, ability: "visao_do_veu",
+            choice: (_indice_opcao < 0) ? "protect" : "destroy" };
+        if (_indice_opcao >= 0 && _indice_opcao < array_length(obj_controlador.visao_veu_opcoes))
+            _payload_veu.trapId = obj_controlador.visao_veu_opcoes[_indice_opcao].online_instance_id;
+        online_enviar_acao("use_ability", _payload_veu);
+        obj_controlador.visao_veu_ativa = false;
+        obj_controlador.visao_veu_origem = noone;
+        obj_controlador.visao_veu_opcoes = [];
+        return;
+    }
     if (_indice_opcao < 0) {
         _carta.imune_armadilha = true;
         _carta.imune_armadilha_usos = 1;

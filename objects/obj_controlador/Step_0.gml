@@ -584,11 +584,18 @@ if (mitose_selecao_ativa) {
             }
         }
         if (_slot_mitose_escolhido != noone) {
+            if (modo_partida == "online") {
+                online_enviar_acao("choose_mitosis", { lane: _slot_mitose_escolhido.lane, position: _slot_mitose_escolhido.posicao });
+                mitose_selecao_ativa = false;
+                mitose_slots_pendentes = [];
+                exit;
+            }
             criar_tropa_no_slot(mitose_dados_pendentes, _slot_mitose_escolhido, mitose_dono_pendente);
             mitose_selecao_ativa = false;
             mitose_slots_pendentes = [];
         } else mostrar_aviso_regra("Escolha uma casa adjacente destacada", mouse_x, mouse_y);
     } else if (keyboard_check_pressed(vk_escape)) {
+        if (modo_partida == "online") { mostrar_aviso_regra("Escolha onde colocar o segundo Slimet"); exit; }
         comprar_carta_do_deck_por_funcao(mitose_funcao_pendente, room_width / 2, obj_controlador.mao_y, mitose_dono_pendente);
         mitose_selecao_ativa = false;
         mitose_slots_pendentes = [];
@@ -603,7 +610,10 @@ if (digestao_selecao_ativa) {
     } else if (mouse_check_button_pressed(mb_left)) {
         var _alvo_digestao = instance_position(mouse_x, mouse_y, obj_carta);
         if (alvo_valido_digestao(digestao_origem, _alvo_digestao)) {
-            resolver_digestao(digestao_origem, _alvo_digestao);
+            if (modo_partida == "online") {
+                online_enviar_acao("use_ability", { cardId: digestao_origem.online_instance_id,
+                    ability: "digestao", targetId: _alvo_digestao.online_instance_id });
+            } else resolver_digestao(digestao_origem, _alvo_digestao);
             digestao_selecao_ativa = false; digestao_origem = noone; tropa_selecionada = noone; carta_menu_aberto = noone;
         } else mostrar_aviso_regra("Escolha tropa adjacente com menos de 4 de vida", mouse_x, mouse_y);
     }
@@ -617,7 +627,10 @@ if (troca_item_selecao_ativa) {
         var _destino_item = instance_position(mouse_x, mouse_y, obj_carta);
         if (instance_exists(_destino_item) && _destino_item != troca_item_origem && _destino_item.travada
             && _destino_item.dono == troca_item_origem.dono && _destino_item.mochila > 0 && !_destino_item.troca_item_usada_este_turno) {
-            transferir_item_equipado(troca_item_origem, _destino_item, array_length(troca_item_origem.itens_equipados) - 1);
+            if (modo_partida == "online") {
+                online_enviar_acao("transfer_item", { cardId: troca_item_origem.online_instance_id,
+                    targetId: _destino_item.online_instance_id });
+            } else transferir_item_equipado(troca_item_origem, _destino_item, array_length(troca_item_origem.itens_equipados) - 1);
             troca_item_selecao_ativa = false; troca_item_origem = noone; tropa_selecionada = noone; carta_menu_aberto = noone;
         } else mostrar_aviso_regra("Escolha uma tropa aliada com espaço na mochila", mouse_x, mouse_y);
     }

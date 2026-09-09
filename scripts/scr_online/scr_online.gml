@@ -1,5 +1,20 @@
 /// Infraestrutura do lobby online KARTHA (Colyseus).
 
+function online_carregar_endpoint() {
+    ini_open("kartha_online.ini");
+    var _endpoint = ini_read_string("online", "servidor", "ws://127.0.0.1:2567");
+    ini_close();
+    return _endpoint;
+}
+
+function online_salvar_endpoint(_endpoint) {
+    var _valor = string_trim(_endpoint);
+    if (_valor == "") return;
+    ini_open("kartha_online.ini");
+    ini_write_string("online", "servidor", _valor);
+    ini_close();
+}
+
 function online_inicializar() {
     if (variable_global_exists("online_inicializado")) return;
     global.online_inicializado = true;
@@ -89,6 +104,65 @@ function online_configurar_callbacks(_sala) {
                 global.online_vencedor_iniciativa = -1;
                 global.online_fase = "initiative";
                 break;
+            case "veil_options":
+                if (instance_exists(obj_controlador)) {
+                    var _origem_veu_online = online_encontrar_carta_campo(_dados.cardId);
+                    if (instance_exists(_origem_veu_online)) {
+                        obj_controlador.visao_veu_opcoes = [];
+                        for (var _vo = 0; _vo < array_length(_dados.cards); _vo++) {
+                            var _vc = _dados.cards[_vo];
+                            array_push(obj_controlador.visao_veu_opcoes, {
+                                nome: _vc.name,
+                                armadilha: _vc.category == "armadilha",
+                                online_instance_id: _vc.instanceId
+                            });
+                        }
+                        obj_controlador.visao_veu_origem = _origem_veu_online;
+                        obj_controlador.visao_veu_revelacao_timer = 0;
+                        obj_controlador.visao_veu_ativa = true;
+                        obj_controlador.carta_menu_aberto = noone;
+                    }
+                }
+                break;
+            case "magnet_choice":
+                if (instance_exists(obj_controlador)) {
+                    var _itens_ima_online = [];
+                    for (var _im = 0; _im < array_length(_dados.items); _im++) {
+                        var _registro_ima = _dados.items[_im];
+                        var _funcao_ima = online_funcao_carta_por_id(_registro_ima.definitionId);
+                        if (_funcao_ima == noone) continue;
+                        var _dados_ima = _funcao_ima();
+                        var _item_ima = criar_dados_item_equipado(
+                            _dados_ima.nome,
+                            variable_struct_exists(_dados_ima, "sprite_carta") ? _dados_ima.sprite_carta : noone,
+                            _funcao_ima,
+                            variable_struct_exists(_dados_ima, "bonus_mod_dano") ? _dados_ima.bonus_mod_dano : 0,
+                            variable_struct_exists(_dados_ima, "bonus_defesa") ? _dados_ima.bonus_defesa : 0,
+                            variable_struct_exists(_dados_ima, "sobrescreve_dado_dano") ? _dados_ima.sobrescreve_dado_dano : 0,
+                            variable_struct_exists(_dados_ima, "sobrescreve_mod_dano") ? _dados_ima.sobrescreve_mod_dano : 0,
+                            variable_struct_exists(_dados_ima, "efeito_item") ? _dados_ima.efeito_item : ""
+                        );
+                        _item_ima.online_definition_id = _registro_ima.definitionId;
+                        _item_ima.online_index = _registro_ima.index;
+                        array_push(_itens_ima_online, _item_ima);
+                    }
+                    array_push(obj_controlador.maquina_ima_pendencias, { itens: _itens_ima_online,
+                        x: room_width / 2, y: room_height / 2, dono: online_lado_local(), online: true });
+                }
+                break;
+            case "mitosis_choice":
+                if (instance_exists(obj_controlador)) {
+                    obj_controlador.mitose_slots_pendentes = [];
+                    for (var _mc = 0; _mc < array_length(_dados.candidates); _mc++) {
+                        var _slot_mc = buscar_slot(_dados.candidates[_mc].lane, _dados.candidates[_mc].position);
+                        if (_slot_mc != noone) array_push(obj_controlador.mitose_slots_pendentes, _slot_mc);
+                    }
+                    obj_controlador.mitose_dados_pendentes = criar_dados_slimet();
+                    obj_controlador.mitose_dono_pendente = online_lado_local();
+                    obj_controlador.mitose_selecao_ativa = array_length(obj_controlador.mitose_slots_pendentes) > 0;
+                }
+                break;
+
             case "private_state":
                 global.online_mao_privada = _dados.hand;
                 global.online_armadilhas_privadas = variable_struct_exists(_dados, "activeTraps") ? _dados.activeTraps : [];
@@ -138,7 +212,7 @@ function online_configurar_callbacks(_sala) {
     });
 }
 
-function online_conectar(_criar, _codigo, _nome, _endpoint = "wss://doily-pointy-nurture.ngrok-free.dev") {
+function online_conectar(_criar, _codigo, _nome, _endpoint = "ws://127.0.0.1:2567") {
     online_inicializar();
     if (!colyseus_is_ready()) {
         global.online_status = "erro";
@@ -357,6 +431,7 @@ function online_mensagem_erro(_motivo) {
         case "avance_para_assalto": return "Avance até a posição de assalto primeiro";
         case "ataque_indisponivel": return "Essa tropa não possui esse tipo de ataque";
         case "limite_magias_turno": return "Limite de 2 magias por turno";
+        case "primeiro_turno_bloqueado": return "Esta categoria ainda não pode ser usada no primeiro turno";
         case "limite_itens_turno": return "Limite de 3 itens por turno";
         case "limite_terreno_turno": return "Limite de 1 terreno por turno";
         case "mochila_cheia": return "A tropa não possui espaço para outro item";
@@ -367,7 +442,32 @@ function online_mensagem_erro(_motivo) {
         case "armadilha_ocupada": return "Este espaço já possui uma armadilha";
         case "armadilha_nao_pronta": return "A armadilha ainda não foi ativada pelo gatilho";
         case "tropa_incapacitada": return "A condição da tropa impede esta ação";
-        case "refracao_exige_alvo": return "A Refração Temporal precisará ser concluída na próxima etapa";
+        case "refracao_sem_carta": return "Jogue outra carta antes da Refração Temporal";
+        case "habilidade_indisponivel": return "Esta tropa nao possui uma habilidade ativa";
+        case "habilidade_ja_usada": return "A habilidade ja foi usada neste turno";
+        case "habilidade_sem_alvo": return "A habilidade precisa de um inimigo a frente";
+        case "sombra_recarregando": return "Sombra Translucida ainda esta recarregando";
+        case "digestao_sem_usos": return "Digestao nao possui mais usos";
+        case "digestao_alvo_invalido": return "Escolha uma tropa adjacente com menos de 4 de vida";
+        case "carnica_preparada": return "Carnica Frenetica ja esta preparada";
+        case "visao_ja_usada": return "Visao do Veu ja foi usada";
+        case "hemodrenario_sem_sangue": return "Nao ha Sangue inimigo livre para drenar";
+        case "hemodrenario_sem_recurso_gasto": return "Nao ha recurso proprio gasto para recuperar";
+        case "arma_invalida": return "Essa arma nao esta equipada ou nao pode atacar";
+        case "acao_item_ja_usada": return "Esta tropa ja mexeu em um item neste turno";
+        case "tropa_sem_item": return "A tropa nao possui equipamento";
+        case "transferencia_invalida": return "Escolha outra tropa aliada";
+        case "grimorio_nao_equipado": return "O Grimorio nao esta equipado";
+        case "grimorio_ja_usado": return "O Grimorio ja foi usado neste turno";
+        case "habilidade_item_invalida": return "Opcao do equipamento invalida";
+        case "defesa_fora_da_base": return "A tropa precisa estar na base para defender o castelo";
+        case "evolucao_indisponivel": return "Essa tropa não possui evolução";
+        case "evolucao_muito_cedo": return "A tropa precisa sobreviver 1 turno";
+        case "limite_evolucoes_turno": return "Limite de 1 evolução por turno";
+        case "escolha_critico_pendente": return "Escolha como resolver o acerto crítico";
+        case "escolha_pendente": return "Conclua a escolha que está aberta";
+        case "escolha_ima_invalida": return "Escolha um equipamento da Máquina Imã";
+        case "escolha_mitose_invalida": return "Escolha uma casa adjacente destacada";
     }
     return "A ação não foi aceita pelo servidor";
 }
@@ -567,6 +667,7 @@ function online_criar_carta_publica(_registro) {
         _carta.moveu_este_turno = _registro.moved;
         _carta.turnos_no_campo = _registro.moved ? 0 : 1;
         _carta.atacou_este_turno = _registro.attacked;
+        _carta.defendendo_castelo = variable_struct_exists(_registro, "defendingCastle") && _registro.defendingCastle;
         _carta.condicao = (_registro.condition == "") ? noone : _registro.condition;
         _carta.slot_atual = _slot;
         _carta.x = _slot.x; _carta.y = _slot.y;
@@ -620,7 +721,7 @@ function online_sincronizar_equipamentos(_carta, _ids) {
         var _funcao = online_funcao_carta_por_id(_ids[i]);
         if (_funcao == noone) continue;
         var _dados = _funcao();
-        array_push(_carta.itens_equipados, criar_dados_item_equipado(
+        var _item_online = criar_dados_item_equipado(
             _dados.nome,
             variable_struct_exists(_dados, "sprite_carta") ? _dados.sprite_carta : noone,
             _funcao,
@@ -629,12 +730,15 @@ function online_sincronizar_equipamentos(_carta, _ids) {
             variable_struct_exists(_dados, "sobrescreve_dado_dano") ? _dados.sobrescreve_dado_dano : 0,
             variable_struct_exists(_dados, "sobrescreve_mod_dano") ? _dados.sobrescreve_mod_dano : 0,
             variable_struct_exists(_dados, "efeito_item") ? _dados.efeito_item : ""
-        ));
+        );
+        _item_online.online_definition_id = _ids[i];
+        array_push(_carta.itens_equipados, _item_online);
     }
     recalcular_itens_tropa(_carta);
 }
 
 function online_sincronizar_efeitos_ativos(_jogadores, _terreno_id) {
+    with (obj_recurso) bloqueado_turnos = 0;
     obj_controlador.bencaos_jogador = [];
     obj_controlador.bencaos_inimigo = [];
     obj_controlador.maldicoes_jogador = [];
@@ -671,6 +775,22 @@ function online_atualizar_carta_publica(_registro) {
         : online_encontrar_carta_campo(_registro.instanceId);
     if (!instance_exists(_instancia)) return online_criar_carta_publica(_registro);
 
+    if (_registro.category == "tropa" && _instancia.nome_carta != _registro.name) {
+        var _slot_antigo_evo = _instancia.slot_atual;
+        if (_slot_antigo_evo != noone) {
+            _slot_antigo_evo.ocupado = false;
+            _slot_antigo_evo.carta_atual = noone;
+        }
+        instance_destroy(_instancia);
+        var _nova_evo = online_criar_carta_publica(_registro);
+        if (instance_exists(_nova_evo)) {
+            _nova_evo.evoluindo = true;
+            _nova_evo.evolucao_progresso = 0;
+            mostrar_feedback("EVOLUIU!", _nova_evo.x, _nova_evo.y - 45, c_lime, 55);
+        }
+        return _nova_evo;
+    }
+
     _instancia.online_presente = true;
     _instancia.vida = _registro.life;
     _instancia.vida_maxima = _registro.maxLife;
@@ -693,6 +813,30 @@ function online_atualizar_carta_publica(_registro) {
         _instancia.moveu_este_turno = _registro.moved;
         if (!_registro.moved) _instancia.turnos_no_campo = max(1, _instancia.turnos_no_campo);
         _instancia.atacou_este_turno = _registro.attacked;
+        _instancia.defendendo_castelo = variable_struct_exists(_registro, "defendingCastle") && _registro.defendingCastle;
+        if (variable_struct_exists(_registro, "turnsInPlay")) _instancia.turnos_no_campo = _registro.turnsInPlay;
+        if (variable_struct_exists(_registro, "abilityState") && is_struct(_registro.abilityState)) {
+            var _habilidade_estado = _registro.abilityState;
+            _instancia.habilidade_usada_este_turno = variable_struct_exists(_habilidade_estado, "used") && _habilidade_estado.used;
+            _instancia.sombra_ativa = variable_struct_exists(_habilidade_estado, "shadowTurns") && _habilidade_estado.shadowTurns > 0;
+            _instancia.sombra_cooldown = variable_struct_exists(_habilidade_estado, "shadowCooldown") ? _habilidade_estado.shadowCooldown : 0;
+            _instancia.iludido_por_imitacao = variable_struct_exists(_habilidade_estado, "illusion") && _habilidade_estado.illusion;
+            _instancia.testado_olhar_vazio = variable_struct_exists(_habilidade_estado, "gazeTested") && _habilidade_estado.gazeTested;
+            _instancia.visao_do_veu_usada = variable_struct_exists(_habilidade_estado, "veilUsed") && _habilidade_estado.veilUsed;
+            _instancia.imune_armadilha_usos = variable_struct_exists(_habilidade_estado, "trapImmunity") ? _habilidade_estado.trapImmunity : 0;
+            _instancia.imune_armadilha = _instancia.imune_armadilha_usos > 0;
+            _instancia.digestao_usos = variable_struct_exists(_habilidade_estado, "digestionUses") ? _habilidade_estado.digestionUses : 0;
+            _instancia.digestao_cadaver_disponivel = variable_struct_exists(_habilidade_estado, "corpseAvailable") && _habilidade_estado.corpseAvailable;
+            _instancia.carnica_estado_proximo_ataque = variable_struct_exists(_habilidade_estado, "frenzy")
+                ? ((_habilidade_estado.frenzy == "self") ? "autoataque" : _habilidade_estado.frenzy) : "";
+            _instancia.troca_item_usada_este_turno = variable_struct_exists(_habilidade_estado, "itemActionUsed")
+                && _habilidade_estado.itemActionUsed;
+            _instancia.grimorio_usado_este_turno = variable_struct_exists(_habilidade_estado, "grimoireUsed")
+                && _habilidade_estado.grimoireUsed;
+            _instancia.grimorio_escudo_ativo = variable_struct_exists(_habilidade_estado, "grimoireShield")
+                && _habilidade_estado.grimoireShield;
+            _instancia.defesa_magica = _instancia.defesa_magica_base + (_instancia.grimorio_escudo_ativo ? 2 : 0);
+        }
         _instancia.condicao = (_registro.condition == "") ? noone : _registro.condition;
         _instancia.condicao_turnos_restantes = variable_struct_exists(_registro, "conditionTurns") ? _registro.conditionTurns : 0;
         _instancia.condicao_dano_por_turno = variable_struct_exists(_registro, "conditionPower") ? _registro.conditionPower : 0;
@@ -711,6 +855,8 @@ function online_atualizar_carta_publica(_registro) {
             _slot_construcao.ocupado = true;
             _slot_construcao.construcao_atual = _instancia;
         }
+        if (variable_struct_exists(_registro, "abilityState") && is_struct(_registro.abilityState))
+            _instancia.habilidade_usada_este_turno = variable_struct_exists(_registro.abilityState, "used") && _registro.abilityState.used;
     }
     return _instancia;
 }
@@ -738,6 +884,59 @@ function online_remover_cartas_ausentes() {
     }
 }
 
+function online_encontrar_visual_armadilha(_instance_id) {
+    for (var i = 0; i < instance_number(obj_terreno_ativo); i++) {
+        var _visual = instance_find(obj_terreno_ativo, i);
+        if (variable_instance_exists(_visual, "online_trap_id") && _visual.online_trap_id == _instance_id) return _visual;
+    }
+    return noone;
+}
+
+function online_sincronizar_armadilhas_publicas(_armadilhas) {
+    if (!is_array(_armadilhas)) _armadilhas = [];
+    with (obj_terreno_ativo) {
+        if (variable_instance_exists(id, "online_trap_id") && online_trap_id != "") online_presente = false;
+    }
+    for (var i = 0; i < array_length(_armadilhas); i++) {
+        var _registro = _armadilhas[i];
+        var _slot = buscar_slot(_registro.lane, _registro.position);
+        if (_registro.definitionId != "") {
+            var _botao = online_encontrar_carta_mao(_registro.instanceId);
+            if (instance_exists(_botao)) {
+                _botao.armadilha_lane = _registro.lane;
+                _botao.armadilha_posicao = _registro.position;
+                _botao.armadilha_estado = _registro.ready ? "pronta" : "vigiando";
+            }
+        }
+        if (_slot == noone) continue;
+        var _visual = online_encontrar_visual_armadilha(_registro.instanceId);
+        if (!instance_exists(_visual)) {
+            _visual = instance_create_layer(_slot.x, _slot.y, "Instances", obj_terreno_ativo);
+            _visual.online_trap_id = _registro.instanceId;
+            _visual.entrando = false;
+            _visual.image_angle = 0;
+            _visual.depth = 50;
+            _visual.alpha_visual = 0.48;
+        }
+        _visual.online_presente = true;
+        _visual.x = _slot.x;
+        _visual.y = _slot.y;
+        var _sprite = spr_deck;
+        if (_registro.definitionId != "") {
+            var _funcao = online_funcao_carta_por_id(_registro.definitionId);
+            if (_funcao != noone) {
+                var _dados = _funcao();
+                if (variable_struct_exists(_dados, "sprite_carta") && _dados.sprite_carta != noone) _sprite = _dados.sprite_carta;
+            }
+        }
+        _visual.sprite_index = _sprite;
+        _visual.escala_base = (global.CARTA_LARGURA * 0.60) / sprite_get_width(_sprite);
+    }
+    with (obj_terreno_ativo) {
+        if (variable_instance_exists(id, "online_trap_id") && online_trap_id != "" && !online_presente) instance_destroy();
+    }
+}
+
 function online_aplicar_estado_publico(_estado) {
     if (!instance_exists(obj_controlador) || obj_controlador.modo_partida != "online") return;
     if (_estado.revision < obj_controlador.online_estado_aplicado_revisao) return;
@@ -750,8 +949,8 @@ function online_aplicar_estado_publico(_estado) {
     obj_controlador.online_aguardando_turno = false;
     for (var p = 0; p < array_length(_estado.players); p++) {
         var _jogador = _estado.players[p];
-        if (_jogador.seat == 0) obj_controlador.vida_jogador = _jogador.life;
-        else obj_controlador.vida_inimigo = _jogador.life;
+        if (_jogador.seat == 0) { obj_controlador.vida_jogador = _jogador.life; obj_controlador.primeiro_turno_jogador = !_jogador.hasTakenTurn; }
+        else { obj_controlador.vida_inimigo = _jogador.life; obj_controlador.primeiro_turno_inimigo = !_jogador.hasTakenTurn; }
     }
 
     online_reconstruir_recursos(_estado.players);
@@ -764,6 +963,7 @@ function online_aplicar_estado_publico(_estado) {
     }
     for (var c = 0; c < array_length(_estado.cards); c++) online_atualizar_carta_publica(_estado.cards[c]);
     online_remover_cartas_ausentes();
+    online_sincronizar_armadilhas_publicas(variable_struct_exists(_estado, "traps") ? _estado.traps : []);
     organizar_mao();
 }
 
@@ -779,7 +979,118 @@ function online_encontrar_carta_campo(_instance_id) {
 function online_animar_confirmacao(_mensagem) {
     if (!instance_exists(obj_controlador) || !is_struct(_mensagem) || !is_struct(_mensagem.payload)) return;
     var _dados = _mensagem.payload;
+    if (_mensagem.kind == "use_ability") {
+        var _origem_habilidade = online_encontrar_carta_campo(_dados.cardId);
+        if (variable_struct_exists(_dados, "attacks") && is_array(_dados.attacks)) {
+            for (var _ga = 0; _ga < array_length(_dados.attacks); _ga++)
+                if (is_struct(_dados.attacks[_ga]))
+                    online_animar_confirmacao({ kind: "attack", payload: _dados.attacks[_ga] });
+        }
+        if (variable_struct_exists(_dados, "counter") && is_struct(_dados.counter))
+            online_animar_confirmacao({ kind: "attack", payload: _dados.counter });
+        if (instance_exists(_origem_habilidade)) {
+            var _nome_habilidade = variable_struct_exists(_dados, "ability") ? string_upper(_dados.ability) : "HABILIDADE";
+            mostrar_feedback(_nome_habilidade, _origem_habilidade.x, _origem_habilidade.y - 48, c_aqua, 58);
+        }
+        return;
+    }
+    if (_mensagem.kind == "use_construction") {
+        var _construcao_habilidade = online_encontrar_construcao_campo(_dados.cardId);
+        if (instance_exists(_construcao_habilidade))
+            mostrar_feedback("DRENOU SANGUE", _construcao_habilidade.x, _construcao_habilidade.y - 38, c_red, 55);
+        return;
+    }
+    if (_mensagem.kind == "end_turn" && variable_struct_exists(_dados, "artillery") && is_array(_dados.artillery)) {
+        for (var _ar = 0; _ar < array_length(_dados.artillery); _ar++) {
+            var _evento_ar = _dados.artillery[_ar];
+            var _torre_ar = online_encontrar_construcao_campo(_evento_ar.cardId);
+            var _alvo_ar = online_encontrar_carta_campo(_evento_ar.targetId);
+            if (instance_exists(_torre_ar) && instance_exists(_alvo_ar)) {
+                rolar_dado_visual(_torre_ar.x, _torre_ar.y, _alvo_ar.x, _alvo_ar.y - 35, 6, _evento_ar.damage, noone, _ar * 8, 0, 55);
+                mostrar_feedback("ARTILHARIA " + string(_evento_ar.damage), _alvo_ar.x, _alvo_ar.y - 50, c_yellow, 60);
+            }
+        }
+        return;
+    }
+    if (_mensagem.kind == "play_spell" || _mensagem.kind == "play_item"
+        || _mensagem.kind == "play_trap" || _mensagem.kind == "activate_trap"
+        || _mensagem.kind == "play_effect") {
+        var _alvo_especial = noone;
+        if (variable_struct_exists(_dados, "targetId")) {
+            _alvo_especial = online_encontrar_carta_campo(_dados.targetId);
+            if (!instance_exists(_alvo_especial)) _alvo_especial = online_encontrar_construcao_campo(_dados.targetId);
+        }
+        var _fx = instance_exists(_alvo_especial) ? _alvo_especial.x : room_width / 2;
+        var _fy = instance_exists(_alvo_especial) ? _alvo_especial.y - 45 : room_height / 2;
+        var _texto = "CARTA USADA";
+        var _cor = c_aqua;
+        if (_mensagem.kind == "play_item") _texto = variable_struct_exists(_dados, "equipment") ? "EQUIPADO" : "ITEM USADO";
+        else if (_mensagem.kind == "play_trap") { _texto = "ARMADILHA POSICIONADA"; _cor = c_purple; }
+        else if (_mensagem.kind == "activate_trap") { _texto = "ARMADILHA ATIVADA"; _cor = c_red; }
+        else if (_mensagem.kind == "play_effect") _texto = "EFEITO ATIVO";
+        else if (variable_struct_exists(_dados, "copiedDefinitionId")) _texto = "REFRAÇÃO CRIADA";
+        else if (variable_struct_exists(_dados, "condition")) _texto = string_upper(_dados.condition);
+        mostrar_feedback(_texto, _fx, _fy, _cor, 55);
+
+        if (variable_struct_exists(_dados, "damageRolls") && is_array(_dados.damageRolls)) {
+            var _lados = 6;
+            if (variable_struct_exists(_dados, "effect") && _dados.effect == "bola_fogo") _lados = 8;
+            if (variable_struct_exists(_dados, "definitionId") && _dados.definitionId == "destrocos") _lados = 4;
+            for (var d = 0; d < array_length(_dados.damageRolls); d++) {
+                rolar_dado_visual(_fx - 20 + d * 40, _fy + 55, _fx - 20 + d * 40, _fy,
+                    _lados, _dados.damageRolls[d], noone, d * 8, 0, 48);
+            }
+        }
+        if (variable_struct_exists(_dados, "roll") && _dados.effect == "dados_manipulados") {
+            rolar_dado_visual(_fx, _fy + 55, _fx, _fy, 4, _dados.roll, noone, 0, 0, 55);
+        }
+        return;
+    }
+
+    if (_mensagem.kind == "use_item_ability") {
+        var _grimorio_origem = online_encontrar_carta_campo(_dados.cardId);
+        var _grimorio_alvo = variable_struct_exists(_dados, "targetId")
+            ? online_encontrar_carta_campo(_dados.targetId) : noone;
+        var _gx = room_width / 2;
+        var _gy = room_height / 2;
+        if (instance_exists(_grimorio_origem)) { _gx = _grimorio_origem.x; _gy = _grimorio_origem.y; }
+        if (instance_exists(_grimorio_alvo)) { _gx = _grimorio_alvo.x; _gy = _grimorio_alvo.y; }
+        if (_dados.spell == "raio" && _dados.roll > 0) {
+            rolar_dado_visual(_grimorio_origem.x, _grimorio_origem.y, _gx, _gy - 42, 4, _dados.roll, noone, 0, 0, 55);
+            mostrar_feedback("RAIO: " + string(_dados.damage) + " DANO", _gx, _gy - 52, c_aqua, 60);
+        } else if (_dados.spell == "escudo") {
+            mostrar_feedback("+2 DEF MAGICA", _gx, _gy - 45, c_aqua, 60);
+        } else mostrar_feedback("CURAZINHA +1", _gx, _gy - 45, c_lime, 60);
+        return;
+    }
+
+    if (_mensagem.kind == "remove_item" || _mensagem.kind == "transfer_item") {
+        var _origem_item = online_encontrar_carta_campo(_dados.cardId);
+        var _destino_item = variable_struct_exists(_dados, "targetId")
+            ? online_encontrar_carta_campo(_dados.targetId) : noone;
+        var _texto_item = (_mensagem.kind == "transfer_item") ? "ITEM TRANSFERIDO" : "ITEM PARA A MAO";
+        var _x_item = room_width / 2;
+        var _y_item = room_height / 2;
+        if (instance_exists(_origem_item)) { _x_item = _origem_item.x; _y_item = _origem_item.y; }
+        if (instance_exists(_destino_item)) { _x_item = _destino_item.x; _y_item = _destino_item.y; }
+        if (_mensagem.kind == "transfer_item" && instance_exists(_origem_item) && instance_exists(_destino_item)) {
+            var _funcao_item_anim = online_funcao_carta_por_id(_dados.itemDefinitionId);
+            if (_funcao_item_anim != noone) {
+                var _dados_item_anim = _funcao_item_anim();
+                criar_animacao_item(variable_struct_exists(_dados_item_anim, "sprite_carta")
+                    ? _dados_item_anim.sprite_carta : noone,
+                    _origem_item.x, _origem_item.y, _destino_item.x, _destino_item.y, c_aqua);
+            }
+        }
+        mostrar_feedback(_texto_item, _x_item, _y_item - 45, c_aqua, 50);
+        return;
+    }
+
     if (_mensagem.kind == "move_troop") {
+        if (variable_struct_exists(_dados, "movementPrevented") && _dados.movementPrevented) {
+            mostrar_feedback("ARMADILHA PRONTA", room_width / 2, room_height / 2, c_purple, 60);
+            return;
+        }
         var _movida = online_encontrar_carta_campo(_dados.cardId);
         if (instance_exists(_movida)) mostrar_feedback(_dados.direction == "advance" ? "AVANÇOU" : "RECUOU", _movida.x, _movida.y - 35, c_aqua, 38);
         return;
@@ -788,13 +1099,22 @@ function online_animar_confirmacao(_mensagem) {
     var _atacante = online_encontrar_carta_campo(_dados.cardId);
     if (!instance_exists(_atacante)) return;
     var _alvo = variable_struct_exists(_dados, "targetId") ? online_encontrar_carta_campo(_dados.targetId) : noone;
-    if (variable_struct_exists(_dados, "criticalChoice") && _dados.criticalChoice && instance_exists(_alvo)) {
+    if (!instance_exists(_alvo) && variable_struct_exists(_dados, "targetId"))
+        _alvo = online_encontrar_construcao_campo(_dados.targetId);
+    if (variable_struct_exists(_dados, "criticalChoice") && _dados.criticalChoice) {
         obj_controlador.critico_contexto = { atacante: _atacante, defensor: _alvo, qtd_usada: _dados.dice, dado_usado: _dados.die, online: true };
         obj_controlador.critico_escolha_ativa = true;
         obj_controlador.carta_menu_aberto = noone;
     }
     var _destino_x = instance_exists(_alvo) ? _alvo.x : _atacante.x;
     var _destino_y = instance_exists(_alvo) ? _alvo.y : _atacante.y - 70;
+    if (variable_struct_exists(_dados, "stealRoll") && _dados.stealRoll > 0) {
+        rolar_dado_visual(_atacante.x, _atacante.y, _destino_x, _destino_y - 70, 10, _dados.stealRoll, noone, 0, 0, 55);
+        if (variable_struct_exists(_dados, "stolenItem") && _dados.stolenItem != "")
+            mostrar_feedback("ROUBOU O EQUIPAMENTO", _destino_x, _destino_y - 55, c_yellow, 65);
+    }
+    if (variable_struct_exists(_dados, "counter") && is_struct(_dados.counter))
+        online_animar_confirmacao({ kind: "attack", payload: _dados.counter });
     if (variable_struct_exists(_dados, "accuracy")) {
         rolar_dado_visual(_atacante.x, _atacante.y, _destino_x, _destino_y - 48, 20, _dados.accuracy, noone, 0, 0, 58);
         if (variable_struct_exists(_dados, "hit") && !_dados.hit) {
@@ -804,6 +1124,14 @@ function online_animar_confirmacao(_mensagem) {
     }
     if (variable_struct_exists(_dados, "damageRolls") && is_array(_dados.damageRolls)) {
         var _tamanho = (_dados.attackType == "magica") ? _atacante.dado_dano_magico : _atacante.dado_dano;
+        if (variable_struct_exists(_dados, "itemDefinitionId") && _dados.itemDefinitionId != "") {
+            var _funcao_arma_dado = online_funcao_carta_por_id(_dados.itemDefinitionId);
+            if (_funcao_arma_dado != noone) {
+                var _dados_arma_dado = _funcao_arma_dado();
+                if (variable_struct_exists(_dados_arma_dado, "sobrescreve_dado_dano"))
+                    _tamanho = _dados_arma_dado.sobrescreve_dado_dano;
+            }
+        }
         for (var d = 0; d < array_length(_dados.damageRolls); d++) {
             var _deslocamento = (d - (array_length(_dados.damageRolls) - 1) * 0.5) * 34;
             rolar_dado_visual(_atacante.x, _atacante.y, _destino_x + _deslocamento, _destino_y - 28, _tamanho, _dados.damageRolls[d], noone, 0, 14 + d * 8, 62 + irandom_range(-5, 7));

@@ -24,8 +24,10 @@ export const PlayerSchema = schema({
   spellsUsed: t.number(),
   itemsUsed: t.number(),
   terrainPlayed: t.boolean(),
+  hasTakenTurn: t.boolean(),
   blockedResource: t.string(),
   blockedTurns: t.number(),
+  evolutionsUsed: t.number(),
 });
 
 export const PublicCardSchema = schema({
@@ -40,11 +42,14 @@ export const PublicCardSchema = schema({
   maxLife: t.number(),
   moved: t.boolean(),
   attacked: t.boolean(),
+  defendingCastle: t.boolean(),
+  turnsInPlay: t.number(),
   condition: t.string(),
   conditionTurns: t.number(),
   conditionPower: t.number(),
   intelligence: t.number(),
   equipmentJson: t.string(),
+  abilityStateJson: t.string(),
 });
 
 export const KarthaRoomState = schema({
