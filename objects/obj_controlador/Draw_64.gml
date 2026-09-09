@@ -3,8 +3,8 @@ draw_set_font(Fontenil);
 
 var _cor_vida_jogador = make_color_rgb(45, 125, 255);
 var _cor_vida_inimigo = make_color_rgb(225, 55, 55);
-var _rotulo_vida_jogador = partida_local_ativa() ? "Jogador 1" : "Jogador";
-var _rotulo_vida_inimigo = partida_local_ativa() ? "Jogador 2" : "Inimigo";
+var _rotulo_vida_jogador = (modo_partida == "online") ? global.online_nome_jogador : ((modo_partida == "local") ? "Jogador 1" : "Jogador");
+var _rotulo_vida_inimigo = (modo_partida == "online") ? global.online_nome_inimigo : ((modo_partida == "local") ? "Jogador 2" : "Inimigo");
 var _tremor_castelo = (dano_castelo_impacto_timer > 0) ? sin(dano_castelo_impacto_timer * 4.7) * dano_castelo_impacto_timer * 0.55 : 0;
 var _barra_x1 = 20 + _tremor_castelo;
 var _barra_x2 = 250 + _tremor_castelo;

@@ -1714,6 +1714,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     if (!allReady) return;
     this.state.phase = "initiative";
     this.bump("initiative_started");
+    this.sendPublicState();
   }
 
   private finishInitiativeIfReady() {

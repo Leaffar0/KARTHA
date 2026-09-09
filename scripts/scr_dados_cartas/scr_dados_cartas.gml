@@ -102,6 +102,8 @@ function lado_oposto(_dono) {
 }
 
 function nome_jogador_lado(_dono) {
+    if (instance_exists(obj_controlador) && obj_controlador.modo_partida == "online")
+        return (_dono == "jogador") ? global.online_nome_jogador : global.online_nome_inimigo;
     if (partida_local_ativa()) return (_dono == "jogador") ? "JOGADOR 1" : "JOGADOR 2";
     return (_dono == "jogador") ? "JOGADOR" : "INIMIGO";
 }
@@ -1695,6 +1697,13 @@ function comprar_mao_inicial_segundo_jogador() {
 
 #region Mão — leque, arco e scroll horizontal
 function organizar_mao() {
+    // Referências de instâncias destruídas nunca devem chegar ao cálculo do leque.
+    var _mao_limpa = [];
+    for (var _limpar = 0; _limpar < array_length(obj_controlador.mao); _limpar++) {
+        var _candidata = obj_controlador.mao[_limpar];
+        if (instance_exists(_candidata)) array_push(_mao_limpa, _candidata);
+    }
+    obj_controlador.mao = _mao_limpa;
     var _mao = obj_controlador.mao;
     var _total = array_length(_mao);
     var _espaco = obj_controlador.espaco_entre_cartas;

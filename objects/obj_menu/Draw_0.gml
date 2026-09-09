@@ -192,7 +192,7 @@ if (online_aberto) {
         draw_set_color(c_aqua);
         draw_text(_online_cx, _online_cy - 132, "SALA " + global.net_room_id);
         draw_set_color(c_ltgray);
-        draw_text(_online_cx, _online_cy - 102, "Você é o jogador " + string(global.online_assento + 1));
+        draw_text(_online_cx, _online_cy - 102, "Você é " + global.online_nome_jogador);
 
         if (global.online_fase == "waiting") {
             draw_set_color(c_white);
@@ -208,8 +208,8 @@ if (online_aberto) {
             draw_text(_online_cx + 95, _online_cy - 10,
                 global.online_iniciativa[1] < 0 ? "—" : string(global.online_iniciativa[1]));
             draw_set_color(c_ltgray);
-            draw_text(_online_cx - 95, _online_cy + 14, "JOGADOR 1");
-            draw_text(_online_cx + 95, _online_cy + 14, "JOGADOR 2");
+            draw_text(_online_cx - 95, _online_cy + 14, global.online_nomes_assentos[0]);
+            draw_text(_online_cx + 95, _online_cy + 14, global.online_nomes_assentos[1]);
             if (global.online_iniciativa[global.online_assento] < 0) {
                 draw_set_color(c_aqua);
                 draw_roundrect(_online_cx - 130, _online_cy + 45, _online_cx + 130, _online_cy + 95, true);

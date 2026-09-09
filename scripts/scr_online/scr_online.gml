@@ -26,6 +26,9 @@ function online_inicializar() {
     global.online_status = "desconectado";
     global.online_erro = "";
     global.online_nome = "Jogador";
+    global.online_nome_jogador = "Jogador";
+    global.online_nome_inimigo = "Inimigo";
+    global.online_nomes_assentos = ["Jogador 1", "Jogador 2"];
     global.online_assento = -1;
     global.online_fase = "waiting";
     global.online_iniciativa = [-1, -1];
@@ -47,12 +50,53 @@ function online_ativo() {
         && variable_global_exists("net_room") && global.net_room != 0;
 }
 
+function online_perspectiva_invertida() {
+    return variable_global_exists("online_assento") && global.online_assento == 1;
+}
+
 function online_lado_do_assento(_assento) {
-    return (_assento == 0) ? "jogador" : "inimigo";
+    if (!variable_global_exists("online_assento") || global.online_assento < 0)
+        return (_assento == 0) ? "jogador" : "inimigo";
+    return (_assento == global.online_assento) ? "jogador" : "inimigo";
+}
+
+function online_assento_do_lado(_dono) {
+    if (!variable_global_exists("online_assento") || global.online_assento < 0)
+        return (_dono == "jogador") ? 0 : 1;
+    return (_dono == "jogador") ? global.online_assento : 1 - global.online_assento;
+}
+
+function online_lane_local(_lane_servidor) {
+    return online_perspectiva_invertida() ? 2 - _lane_servidor : _lane_servidor;
+}
+
+function online_posicao_local(_posicao_servidor) {
+    return online_perspectiva_invertida() ? 4 - _posicao_servidor : _posicao_servidor;
+}
+
+function online_lane_servidor(_lane_local) {
+    return online_perspectiva_invertida() ? 2 - _lane_local : _lane_local;
+}
+
+function online_posicao_servidor(_posicao_local) {
+    return online_perspectiva_invertida() ? 4 - _posicao_local : _posicao_local;
 }
 
 function online_lado_local() {
-    return online_lado_do_assento(global.online_assento);
+    return "jogador";
+}
+
+function online_atualizar_nomes(_jogadores) {
+    if (!is_array(_jogadores)) return;
+    for (var i = 0; i < array_length(_jogadores); i++) {
+        var _registro_nome = _jogadores[i];
+        if (!variable_struct_exists(_registro_nome, "seat")) continue;
+        var _nome = variable_struct_exists(_registro_nome, "name") ? string_trim(string(_registro_nome.name)) : "";
+        if (_nome == "") _nome = "Jogador " + string(_registro_nome.seat + 1);
+        if (_registro_nome.seat >= 0 && _registro_nome.seat < 2) global.online_nomes_assentos[_registro_nome.seat] = _nome;
+        if (online_lado_do_assento(_registro_nome.seat) == "jogador") global.online_nome_jogador = _nome;
+        else global.online_nome_inimigo = _nome;
+    }
 }
 
 function online_configurar_callbacks(_sala) {
@@ -156,7 +200,7 @@ function online_configurar_callbacks(_sala) {
                 if (instance_exists(obj_controlador)) {
                     obj_controlador.mitose_slots_pendentes = [];
                     for (var _mc = 0; _mc < array_length(_dados.candidates); _mc++) {
-                        var _slot_mc = buscar_slot(_dados.candidates[_mc].lane, _dados.candidates[_mc].position);
+                        var _slot_mc = buscar_slot(online_lane_local(_dados.candidates[_mc].lane), online_posicao_local(_dados.candidates[_mc].position));
                         if (_slot_mc != noone) array_push(obj_controlador.mitose_slots_pendentes, _slot_mc);
                     }
                     obj_controlador.mitose_dados_pendentes = criar_dados_slimet();
@@ -176,6 +220,7 @@ function online_configurar_callbacks(_sala) {
                 if (instance_exists(obj_controlador)) online_reconstruir_mao_privada();
                 break;
             case "public_state":
+                if (variable_struct_exists(_dados, "players")) online_atualizar_nomes(_dados.players);
                 global.online_estado_publico = _dados;
                 global.online_revisao = _dados.revision;
                 if (instance_exists(obj_controlador)) {
@@ -223,6 +268,8 @@ function online_conectar(_criar, _codigo, _nome, _endpoint = "wss://doily-pointy
     }
     if (global.net_room != 0) online_desconectar();
     global.online_nome = (string_length(string_trim(_nome)) > 0) ? string_trim(_nome) : "Jogador";
+    global.online_nome_jogador = global.online_nome;
+    global.online_nome_inimigo = "Inimigo";
     global.online_status = "conectando";
     global.online_estado_publico = noone;
     global.online_mao_privada = [];
@@ -252,6 +299,10 @@ function online_escolher_primeiro(_assento) {
 }
 
 function online_enviar_acao(_tipo, _dados = {}) {
+    if (online_perspectiva_invertida()) {
+        if (variable_struct_exists(_dados, "lane")) _dados.lane = online_lane_servidor(_dados.lane);
+        if (variable_struct_exists(_dados, "position")) _dados.position = online_posicao_servidor(_dados.position);
+    }
     if (!online_ativo()) return false;
     colyseus_send(global.net_room, "action", json_stringify({
         kind: _tipo, payload: _dados, revision: global.online_revisao
@@ -299,6 +350,12 @@ function online_montar_deck_ids() {
 }
 
 function online_funcao_carta_por_id(_definition_id) {
+    switch (_definition_id) {
+        case "esquilo_gigante": return criar_dados_esquilo_evoluido;
+        case "lobo_alfa": return criar_dados_lobo_evoluido;
+        case "slime_digestao": return criar_dados_slime_digestao;
+        case "carnica_ambulante": return criar_dados_carnica_ambulante;
+    }
     var _indice = array_get_index(online_catalogo_ids(), _definition_id);
     var _catalogo = catalogo_cartas();
     return (_indice >= 0 && _indice < array_length(_catalogo)) ? _catalogo[_indice] : noone;
@@ -328,7 +385,7 @@ function online_tentar_jogar_carta_especial(_carta) {
             }
             if (instance_exists(_recurso_alvo)) {
                 _payload.resourceType = _recurso_alvo.tipo;
-                _payload.targetSeat = (_recurso_alvo.dono == "jogador") ? 0 : 1;
+                _payload.targetSeat = online_assento_do_lado(_recurso_alvo.dono);
             } else _valido = false;
         } else if (_carta.efeito_tipo == "dados_manipulados"
             || _carta.efeito_tipo == "refracao_temporal"
@@ -515,6 +572,9 @@ function online_reconstruir_mao_privada() {
         }
     }
 
+    // Troca imediatamente pela lista limpa: criar uma carta chama organizar_mao().
+    obj_controlador.mao = _nova_mao;
+    obj_controlador.mao_oculta = [];
     var _mao_online = is_array(global.online_mao_privada) ? global.online_mao_privada : [];
     var _armadilhas_online = is_array(global.online_armadilhas_privadas) ? global.online_armadilhas_privadas : [];
     var _registros_visiveis = array_concat(_mao_online, _armadilhas_online);
@@ -541,8 +601,8 @@ function online_reconstruir_mao_privada() {
             if (_indice >= 0) array_delete(obj_controlador.mao_oculta, _indice, 1);
         }
         if (variable_struct_exists(_registro, "lane")) {
-            _carta.armadilha_lane = _registro.lane;
-            _carta.armadilha_posicao = _registro.position;
+            _carta.armadilha_lane = online_lane_local(_registro.lane);
+            _carta.armadilha_posicao = online_posicao_local(_registro.position);
             _carta.armadilha_estado = _registro.ready ? "pronta" : "vigiando";
         }
         if (array_get_index(_nova_mao, _carta) < 0) array_push(_nova_mao, _carta);
@@ -648,7 +708,7 @@ function online_criar_carta_publica(_registro) {
     var _dono = online_lado_do_assento(_registro.owner);
 
     if (_registro.category == "tropa") {
-        var _slot = buscar_slot(_registro.lane, _registro.position);
+        var _slot = buscar_slot(online_lane_local(_registro.lane), online_posicao_local(_registro.position));
         if (_slot == noone) return noone;
         var _comprada = obj_controlador.mao_inicial_comprada;
         obj_controlador.mao_inicial_comprada = false;
@@ -664,8 +724,8 @@ function online_criar_carta_publica(_registro) {
         _carta.compra_animando = false;
         _carta.travada = true;
         _carta.dono = _dono;
-        _carta.lane_atual = _registro.lane;
-        _carta.posicao_atual = _registro.position;
+        _carta.lane_atual = online_lane_local(_registro.lane);
+        _carta.posicao_atual = online_posicao_local(_registro.position);
         _carta.vida = _registro.life;
         _carta.vida_maxima = _registro.maxLife;
         _carta.moveu_este_turno = _registro.moved;
@@ -680,7 +740,7 @@ function online_criar_carta_publica(_registro) {
     }
 
     if (_registro.category == "construcao") {
-        var _slot_construcao = online_slot_construcao(_dono, _registro.lane);
+        var _slot_construcao = online_slot_construcao(_dono, online_lane_local(_registro.lane));
         if (_slot_construcao == noone) return noone;
         var _construcao = instance_create_layer(_slot_construcao.x, _slot_construcao.y, "Instances", obj_construcao);
         _construcao.online_instance_id = _registro.instanceId;
@@ -689,7 +749,7 @@ function online_criar_carta_publica(_registro) {
         _construcao.nome_carta = _dados.nome;
         _construcao.custo = _dados.custo;
         _construcao.dono = _dono;
-        _construcao.lane_atual = _registro.lane;
+        _construcao.lane_atual = online_lane_local(_registro.lane);
         _construcao.vida = _registro.life;
         _construcao.vida_maxima = _registro.maxLife;
         _construcao.slot_atual = _slot_construcao;
@@ -780,13 +840,17 @@ function online_atualizar_carta_publica(_registro) {
     if (!instance_exists(_instancia)) return online_criar_carta_publica(_registro);
 
     if (_registro.category == "tropa" && _instancia.nome_carta != _registro.name) {
-        var _slot_antigo_evo = _instancia.slot_atual;
-        if (_slot_antigo_evo != noone) {
-            _slot_antigo_evo.ocupado = false;
-            _slot_antigo_evo.carta_atual = noone;
-        }
-        instance_destroy(_instancia);
+        // Cria a evolução primeiro. Se o cliente ainda não conhecer uma evolução futura,
+        // mantém a forma atual no campo em vez de fazê-la desaparecer.
         var _nova_evo = online_criar_carta_publica(_registro);
+        if (!instance_exists(_nova_evo)) {
+            _instancia.online_presente = true;
+            return _instancia;
+        }
+        _instancia.slot_atual = noone;
+        _instancia.online_instance_id = "";
+        instance_destroy(_instancia);
+        _nova_evo = online_atualizar_carta_publica(_registro);
         if (instance_exists(_nova_evo)) {
             _nova_evo.evoluindo = true;
             _nova_evo.evolucao_progresso = 0;
@@ -799,10 +863,10 @@ function online_atualizar_carta_publica(_registro) {
     _instancia.vida = _registro.life;
     _instancia.vida_maxima = _registro.maxLife;
     _instancia.dono = online_lado_do_assento(_registro.owner);
-    _instancia.lane_atual = _registro.lane;
+    _instancia.lane_atual = online_lane_local(_registro.lane);
 
     if (_registro.category == "tropa") {
-        var _slot = buscar_slot(_registro.lane, _registro.position);
+        var _slot = buscar_slot(online_lane_local(_registro.lane), online_posicao_local(_registro.position));
         if (_slot != noone && _instancia.slot_atual != _slot) {
             if (_instancia.slot_atual != noone) {
                 _instancia.slot_atual.ocupado = false;
@@ -813,7 +877,7 @@ function online_atualizar_carta_publica(_registro) {
             _slot.carta_atual = _instancia;
             iniciar_pulo_tropa(_instancia, _slot.x, _slot.y);
         }
-        _instancia.posicao_atual = _registro.position;
+        _instancia.posicao_atual = online_posicao_local(_registro.position);
         _instancia.moveu_este_turno = _registro.moved;
         if (!_registro.moved) _instancia.turnos_no_campo = max(1, _instancia.turnos_no_campo);
         _instancia.atacou_este_turno = _registro.attacked;
@@ -850,7 +914,7 @@ function online_atualizar_carta_publica(_registro) {
         if (variable_struct_exists(_registro, "intelligence")) _instancia.nivel_inteligencia = _registro.intelligence;
         online_sincronizar_equipamentos(_instancia, variable_struct_exists(_registro, "equipment") ? _registro.equipment : []);
     } else {
-        var _slot_construcao = online_slot_construcao(_instancia.dono, _registro.lane);
+        var _slot_construcao = online_slot_construcao(_instancia.dono, online_lane_local(_registro.lane));
         if (_slot_construcao != noone && _instancia.slot_atual != _slot_construcao) {
             if (_instancia.slot_atual != noone) {
                 _instancia.slot_atual.ocupado = false;
@@ -906,12 +970,12 @@ function online_sincronizar_armadilhas_publicas(_armadilhas) {
     }
     for (var i = 0; i < array_length(_armadilhas); i++) {
         var _registro = _armadilhas[i];
-        var _slot = buscar_slot(_registro.lane, _registro.position);
+        var _slot = buscar_slot(online_lane_local(_registro.lane), online_posicao_local(_registro.position));
         if (_registro.definitionId != "") {
             var _botao = online_encontrar_carta_mao(_registro.instanceId);
             if (instance_exists(_botao)) {
-                _botao.armadilha_lane = _registro.lane;
-                _botao.armadilha_posicao = _registro.position;
+                _botao.armadilha_lane = online_lane_local(_registro.lane);
+                _botao.armadilha_posicao = online_posicao_local(_registro.position);
                 _botao.armadilha_estado = _registro.ready ? "pronta" : "vigiando";
             }
         }
@@ -954,9 +1018,11 @@ function online_aplicar_estado_publico(_estado) {
     obj_controlador.partida_iniciada = (_estado.phase == "playing");
     if (obj_controlador.partida_iniciada) obj_controlador.disputa_inicial_estado = "concluida";
     obj_controlador.online_aguardando_turno = false;
+    online_atualizar_nomes(_estado.players);
     for (var p = 0; p < array_length(_estado.players); p++) {
         var _jogador = _estado.players[p];
-        if (_jogador.seat == 0) { obj_controlador.vida_jogador = _jogador.life; obj_controlador.primeiro_turno_jogador = !_jogador.hasTakenTurn; }
+        var _lado_jogador_online = online_lado_do_assento(_jogador.seat);
+        if (_lado_jogador_online == "jogador") { obj_controlador.vida_jogador = _jogador.life; obj_controlador.primeiro_turno_jogador = !_jogador.hasTakenTurn; }
         else { obj_controlador.vida_inimigo = _jogador.life; obj_controlador.primeiro_turno_inimigo = !_jogador.hasTakenTurn; }
     }
 
