@@ -409,7 +409,12 @@ if (pausa_ativa) {
     var _clicou_sair = mouse_check_button_pressed(mb_left)
         && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _pausa_cx - 125, _pausa_cy + 145, _pausa_cx + 125, _pausa_cy + 185);
     if (_clicou_sair) {
-        game_end();
+        if (modo_partida == "online" && online_ativo()) {
+            colyseus_send(global.net_room, "concede", {});
+            online_desconectar();
+        }
+        pausa_ativa = false;
+        room_goto(rm_menu);
     } else if (_clicou_opcoes) {
         opcoes_pausa_ativa = true;
     } else if (keyboard_check_pressed(vk_escape) || keyboard_check_pressed(ord("P")) || _clicou_continuar) {

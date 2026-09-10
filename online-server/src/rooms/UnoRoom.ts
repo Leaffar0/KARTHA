@@ -303,7 +303,17 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     if (!player) return;
     player.connected = false;
 
-    if (code === 1000 || this.state.phase === "waiting") {
+    if (code === 1000) {
+      if (this.state.phase !== "waiting" && this.state.phase !== "finished") {
+        this.state.winner = 1 - player.seatIndex;
+        this.state.phase = "finished";
+        this.bump("voluntary_leave");
+        this.sendPublicState();
+      }
+      this.state.players.delete(client.sessionId);
+      return;
+    }
+    if (this.state.phase === "waiting") {
       this.state.players.delete(client.sessionId);
       return;
     }
@@ -1411,6 +1421,17 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
         }
       }
     }
+    if (!target) {
+      attacker.attacked = true;
+      const damageMultiplier = attacker.condition === "berserker" ? 2 : 1;
+      const damageRolls = Array.from({ length: dice }, () => this.rollForSeat(seat, die));
+      const damage = Math.max(0, damageRolls.reduce((sum, value) => sum + value, 0) * damageMultiplier + modifier);
+      const defender = this.playerBySeat(1 - seat)!;
+      defender.life = Math.max(0, defender.life - damage);
+      if (defender.life <= 0) { this.state.winner = seat; this.state.phase = "finished"; }
+      return { ok: true, details: { cardId, target: "castle", attackType, direct: true, hit: true, damageRolls, modifier, damage, defenderLife: defender.life, itemDefinitionId, frenzyBonus } };
+    }
+
     const madnessState = target?.category === "tropa" ? this.abilityState(target) : undefined;
     const madnessNoDefense = madnessState?.madnessNoDefense === true;
     if (madnessState && madnessNoDefense) {
@@ -1460,17 +1481,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       }
       return { ok: true, details: { cardId, targetId: target.instanceId, attackType, accuracy, accuracyRoll, accuracyRolls, hit: true, critical: false, damageRolls, modifier, defense, damage, destroyed, frenzyBonus, itemDefinitionId, stealRoll, stolenItem, madnessNoDefense } };
     }
-    if (accuracy <= 10) return { ok: true, details: { cardId, target: "castle", attackType, accuracy, accuracyRoll, accuracyRolls, hit: false, damageRolls: [], itemDefinitionId } };
-    if (accuracyRoll === 20) {
-      this.pendingCritical = { seat, cardId, targetSeat: 1 - seat, targetType: "castle", attackType, die, dice, modifier, defense: 0, itemDefinitionId, damageMultiplier };
-      return { ok: true, details: { cardId, target: "castle", attackType, accuracy, accuracyRoll, accuracyRolls, hit: true, critical: true, criticalChoice: true, die, dice, itemDefinitionId } };
-    }
-    const damageRolls = Array.from({ length: dice }, () => this.rollForSeat(seat, die));
-    const damage = Math.max(0, damageRolls.reduce((sum, value) => sum + value, 0) * damageMultiplier + modifier);
-    const defender = this.playerBySeat(1 - seat)!;
-    defender.life = Math.max(0, defender.life - damage);
-    if (defender.life <= 0) { this.state.winner = seat; this.state.phase = "finished"; }
-    return { ok: true, details: { cardId, target: "castle", attackType, accuracy, accuracyRoll, accuracyRolls, hit: true, critical: false, damageRolls, modifier, damage, defenderLife: defender.life, itemDefinitionId } };
+    return { ok: false, reason: "alvo_invalido" };
   }
 
   private chooseCritical(seat: number, payload: Record<string, unknown>): ActionResult {

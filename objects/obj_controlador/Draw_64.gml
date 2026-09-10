@@ -685,16 +685,16 @@ if (tutorial_ativo) {
     draw_set_halign(fa_center);
     draw_set_valign(fa_middle);
     draw_set_color(c_black);
-    draw_text_transformed(_tutorial_cx, _tutorial_cy - 145, _tutorial.titulo, 0.8, 0.8, 0);
+    draw_text_transformed(_tutorial_cx, _tutorial_cy - 145, _tutorial.titulo, 0.68, 0.68, 0);
     // Fontenil inclui os caracteres portugueses; o espaçamento maior mantém a leitura confortável.
     draw_set_font(Fontenil);
     draw_set_halign(fa_left);
     draw_set_valign(fa_top);
-    draw_text_ext(_tutorial_cx - 245, _tutorial_cy - 95, _tutorial.texto, 20, 490);
+    desenhar_texto_interface_ext(_tutorial_cx - 245, _tutorial_cy - 95, _tutorial.texto, 20, 490);
     draw_set_font(Fontenil);
     draw_set_halign(fa_center);
     draw_set_valign(fa_middle);
-    draw_text(_tutorial_cx, _tutorial_cy + 105, string(tutorial_pagina + 1) + " / " + string(array_length(tutorial_paginas)));
+    desenhar_texto_interface(_tutorial_cx, _tutorial_cy + 105, string(tutorial_pagina + 1) + " / " + string(array_length(tutorial_paginas)));
 
     draw_set_color(c_black);
     draw_roundrect(_tutorial_cx - 230, _tutorial_cy + 150, _tutorial_cx - 70, _tutorial_cy + 195, false);
@@ -702,13 +702,13 @@ if (tutorial_ativo) {
     draw_set_color(c_white);
     draw_roundrect(_tutorial_cx - 230, _tutorial_cy + 150, _tutorial_cx - 70, _tutorial_cy + 195, true);
     draw_roundrect(_tutorial_cx + 70, _tutorial_cy + 150, _tutorial_cx + 230, _tutorial_cy + 195, true);
-    draw_text(_tutorial_cx - 150, _tutorial_cy + 172, "< ANTERIOR");
-    draw_text(_tutorial_cx + 150, _tutorial_cy + 172, "PRÓXIMA >");
+    desenhar_texto_interface(_tutorial_cx - 150, _tutorial_cy + 172, "< ANTERIOR");
+    desenhar_texto_interface(_tutorial_cx + 150, _tutorial_cy + 172, "PRÓXIMA >");
 
     draw_set_color(c_black);
     draw_roundrect(_tutorial_cx + 250, _tutorial_cy - 190, _tutorial_cx + 290, _tutorial_cy - 150, false);
     draw_set_color(c_white);
-    draw_text(_tutorial_cx + 270, _tutorial_cy - 170, "X");
+    desenhar_texto_interface(_tutorial_cx + 270, _tutorial_cy - 170, "X");
     draw_set_font(-1);
     draw_set_halign(fa_left);
     draw_set_valign(fa_top);
@@ -733,38 +733,38 @@ if (pausa_ativa) {
     draw_set_font(fnt_vitoria);
     draw_set_halign(fa_center);
     draw_set_valign(fa_middle);
-    draw_text(_pausa_cx, _pausa_cy - 88, opcoes_pausa_ativa ? "OPÇÕES" : "PAUSA");
+    desenhar_texto_interface(_pausa_cx, _pausa_cy - 88, opcoes_pausa_ativa ? "OPÇÕES" : "PAUSA");
     draw_set_font(Fontenil);
     if (opcoes_pausa_ativa) {
-        draw_text(_pausa_cx - 125, _pausa_cy - 35, "<");
-        draw_text(_pausa_cx + 125, _pausa_cy - 35, ">");
-        draw_text(_pausa_cx, _pausa_cy - 35, "MÚSICA  " + string(round(global.volume_musica * 100)) + "%");
-        draw_text(_pausa_cx - 125, _pausa_cy + 10, "<");
-        draw_text(_pausa_cx + 125, _pausa_cy + 10, ">");
-        draw_text(_pausa_cx, _pausa_cy + 10, "EFEITOS  " + string(round(global.volume_efeitos * 100)) + "%");
+        desenhar_texto_interface(_pausa_cx - 125, _pausa_cy - 35, "<");
+        desenhar_texto_interface(_pausa_cx + 125, _pausa_cy - 35, ">");
+        desenhar_texto_interface(_pausa_cx, _pausa_cy - 35, "MÚSICA  " + string(round(global.volume_musica * 100)) + "%");
+        desenhar_texto_interface(_pausa_cx - 125, _pausa_cy + 10, "<");
+        desenhar_texto_interface(_pausa_cx + 125, _pausa_cy + 10, ">");
+        desenhar_texto_interface(_pausa_cx, _pausa_cy + 10, "EFEITOS  " + string(round(global.volume_efeitos * 100)) + "%");
         draw_set_color(c_gray);
-        draw_text(_pausa_cx, _pausa_cy + 55, "TELA CHEIA: " + (window_get_fullscreen() ? "SIM" : "NÃO"));
+        desenhar_texto_interface(_pausa_cx, _pausa_cy + 55, "TELA CHEIA: " + (window_get_fullscreen() ? "SIM" : "NÃO"));
         draw_set_color(c_white);
-        draw_text(_pausa_cx, _pausa_cy + 110, "VOLTAR");
+        desenhar_texto_interface(_pausa_cx, _pausa_cy + 110, "VOLTAR");
     } else {
-        draw_text(_pausa_cx, _pausa_cy - 38, "A partida está aguardando.");
+        desenhar_texto_interface(_pausa_cx, _pausa_cy - 38, "A partida está aguardando.");
     draw_set_color(c_black);
     draw_roundrect(_pausa_cx - 125, _pausa_cy + 35, _pausa_cx + 125, _pausa_cy + 75, false);
     draw_set_color(c_white);
     draw_roundrect(_pausa_cx - 125, _pausa_cy + 35, _pausa_cx + 125, _pausa_cy + 75, true);
-    draw_text(_pausa_cx, _pausa_cy + 55, "CONTINUAR  [P / ESC]");
+    desenhar_texto_interface(_pausa_cx, _pausa_cy + 55, "CONTINUAR  [P / ESC]");
     draw_set_color(c_black);
     draw_roundrect(_pausa_cx - 125, _pausa_cy + 90, _pausa_cx + 125, _pausa_cy + 130, false);
     draw_set_color(c_white);
     draw_roundrect(_pausa_cx - 125, _pausa_cy + 90, _pausa_cx + 125, _pausa_cy + 130, true);
-    draw_text(_pausa_cx, _pausa_cy + 110, "OPÇÕES");
+    desenhar_texto_interface(_pausa_cx, _pausa_cy + 110, "OPÇÕES");
     draw_set_color(c_black);
     draw_roundrect(_pausa_cx - 125, _pausa_cy + 145, _pausa_cx + 125, _pausa_cy + 185, false);
-    draw_set_color(c_red);
+    draw_set_color(c_aqua);
     draw_roundrect(_pausa_cx - 125, _pausa_cy + 145, _pausa_cx + 125, _pausa_cy + 185, true);
-    draw_text(_pausa_cx, _pausa_cy + 165, "SAIR DO JOGO");
+    desenhar_texto_interface(_pausa_cx, _pausa_cy + 165, "VOLTAR AO MENU");
     draw_set_color(c_gray);
-    draw_text(_pausa_cx, _pausa_cy + 210, "F1 abre o tutorial");
+    desenhar_texto_interface(_pausa_cx, _pausa_cy + 210, "F1 abre o tutorial");
     }
     draw_set_color(c_white);
     draw_set_halign(fa_left);

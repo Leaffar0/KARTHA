@@ -176,9 +176,9 @@ if (_indice_direita < array_length(paginas)) {
     draw_set_halign(fa_center);
     draw_set_valign(fa_middle);
     draw_set_color(_cor_botao_borda);
-    draw_text(_btn_prev_x, _btn_y, "< Anterior");
-    draw_text(_btn_sumario_x, _btn_y, "Sumário");
-    draw_text(_btn_next_x, _btn_y, "Próxima >");
+    desenhar_texto_interface(_btn_prev_x, _btn_y, "< Anterior", 0.72);
+    desenhar_texto_interface(_btn_sumario_x, _btn_y, "Sumário", 0.72);
+    desenhar_texto_interface(_btn_next_x, _btn_y, "Próxima >", 0.72);
     draw_set_halign(fa_left);
     draw_set_valign(fa_top);
     #endregion

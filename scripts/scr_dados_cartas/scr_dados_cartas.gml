@@ -2348,7 +2348,7 @@ function processar_combate(_lado_atacante) {
                     } else {
                         var _tipo_direto = ia_escolher_tipo_ataque_direto(_atacante);
                         var _dados_castelo = { lado_defensor: _lado_defensor };
-                        rolar_ataque_direto_com_acerto(_atacante, _tipo_direto,
+                        rolar_dano_direto_visual(_atacante, _tipo_direto,
                             method(_dados_castelo, function(_dano_direto) {
                                 causar_dano_castelo(lado_defensor, _dano_direto);
                             })
@@ -2421,7 +2421,7 @@ function processar_combate_tropa(_carta, _tipo_ataque, _indice_ataque = 0, _tota
                 rolar_combate(_carta, _defensor_castelo, _tipo_ataque);
             } else {
                 var _dados_castelo = { lado_defensor: _lado_defensor };
-                rolar_ataque_direto_com_acerto(_carta, _tipo_ataque,
+                rolar_dano_direto_visual(_carta, _tipo_ataque,
                     method(_dados_castelo, function(_dano_direto) {
                         causar_dano_castelo(lado_defensor, _dano_direto);
                     }),
@@ -6154,6 +6154,15 @@ function carregar_livro_regras() {
 
 // Reduz a escala do texto aos poucos até a altura final caber no espaço disponível.
 // Precisa que a fonte certa já esteja setada (draw_set_font) antes de chamar.
+// Texto compacto para menus: preserva a fonte com acentos sem alterar as cartas ou o HUD.
+function desenhar_texto_interface(_x, _y, _texto, _escala = 0.78) {
+    draw_text_transformed(_x, _y, _texto, _escala, _escala, 0);
+}
+
+function desenhar_texto_interface_ext(_x, _y, _texto, _separacao, _largura, _escala = 0.78) {
+    draw_text_ext_transformed(_x, _y, _texto, _separacao, _largura / _escala, _escala, _escala, 0);
+}
+
 function calcular_escala_texto_ajustada(_texto, _largura_alvo, _altura_alvo, _escala_inicial, _escala_minima) {
     var _escala = _escala_inicial;
     repeat (30) {
