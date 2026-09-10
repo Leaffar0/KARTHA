@@ -25,6 +25,7 @@ export const PlayerSchema = schema({
   itemsUsed: t.number(),
   terrainPlayed: t.boolean(),
   hasTakenTurn: t.boolean(),
+  initialHandDrawn: t.boolean(),
   blockedResource: t.string(),
   blockedTurns: t.number(),
   evolutionsUsed: t.number(),

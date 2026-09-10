@@ -1,8 +1,8 @@
 // Sincroniza a quantidade visual com o monte real e detecta quando uma carta foi comprada.
 if (instance_exists(obj_controlador)) {
-    var _monte_visivel = (partida_local_ativa() && obj_controlador.turno == "inimigo")
-        ? obj_controlador.monte_inimigo : obj_controlador.monte;
-    var _quantidade_real = array_length(_monte_visivel);
+    var _monte_visivel = (obj_controlador.modo_partida == "online") ? [] : ((partida_local_ativa() && obj_controlador.turno == "inimigo")
+        ? obj_controlador.monte_inimigo : obj_controlador.monte);
+    var _quantidade_real = (obj_controlador.modo_partida == "online") ? global.online_deck_count : array_length(_monte_visivel);
 
     if (_quantidade_real < quantidade_cartas) {
         // Uma ou mais cartas saíram do monte: dispara o "solavanco" de compra.

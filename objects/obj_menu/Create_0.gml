@@ -4,7 +4,7 @@ tempo_menu = 0;
 opcoes_abertas = false;
 modo_jogo_aberto = false;
 online_inicializar();
-online_aberto = false;
+online_aberto = online_ativo() && global.online_fase != "playing";
 online_foco = 0;
 online_nome_input = global.online_nome;
 online_codigo_input = "";

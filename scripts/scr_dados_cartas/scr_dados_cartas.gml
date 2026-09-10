@@ -392,9 +392,9 @@ function criar_dados_mago_da_sombra() {
 		sprite_carta: spr_carta_mago_da_sombra, 
 		vida: 20, 
         sacrificio: 0, 
-        dado_dano: 12, 
+        dado_dano: 0,
         mod_dano: 0,
-        dado_dano_magico: 0,
+        dado_dano_magico: 12,
         mod_dano_magico: 0,
         inteligencia: 2,
 		mochila: 2,
@@ -667,7 +667,7 @@ function criar_dados_item_espada() {
         categoria: "item_equipavel",
         nome: "Espada Enferrujada",
         sprite_carta: noone,
-        custo: { tipo: "sucata", quantidade: 1 },
+        custo: noone,
         bonus_mod_dano: 2,
         bonus_defesa: 0
     };
@@ -678,7 +678,7 @@ function criar_dados_item_escudo() {
         categoria: "item_equipavel",
         nome: "Escudo de Madeira",
         sprite_carta: spr_carta_escudo_madeira,
-        custo: { tipo: "sucata", quantidade: 1 },
+        custo: noone,
         bonus_mod_dano: 0,
         bonus_defesa: 2
     };
@@ -740,7 +740,7 @@ function criar_dados_item_elmo_ferro() {
         categoria: "item_equipavel",
         nome: "Elmo de Ferro",
         sprite_carta: spr_carta_elmo_ferro,   // importe carta_ielmo_de_ferro.png
-        custo: { tipo: "sucata", quantidade: 1 },
+        custo: noone,
         bonus_mod_dano: 0,
         bonus_defesa: 1
     };
@@ -1115,7 +1115,7 @@ function lista_maldicoes(_dono) {
 
 function adicionar_bencao(_dono, _efeito, _nome = "", _sprite = noone) {
     var _lista = lista_bencaos(_dono);
-    if (array_length(_lista) >= obj_controlador.max_bencaos_maldicoes) return false;
+    if (array_length(lista_bencaos(_dono)) + array_length(lista_maldicoes(_dono)) >= obj_controlador.max_bencaos_maldicoes) return false;
     array_push(_lista, {
         categoria: "bencao",
         efeito: _efeito,
@@ -1127,7 +1127,7 @@ function adicionar_bencao(_dono, _efeito, _nome = "", _sprite = noone) {
 
 function adicionar_maldicao(_dono, _efeito, _nome = "", _sprite = noone) {
     var _lista = lista_maldicoes(_dono);
-    if (array_length(_lista) >= obj_controlador.max_bencaos_maldicoes) return false;
+    if (array_length(lista_bencaos(_dono)) + array_length(lista_maldicoes(_dono)) >= obj_controlador.max_bencaos_maldicoes) return false;
     array_push(_lista, {
         categoria: "maldicao",
         efeito: _efeito,
@@ -1286,7 +1286,11 @@ function resolver_escolha_dados_manipulados(_usar_alternativo) {
     var _valor = _usar_alternativo ? _escolha.alternativo : _escolha.original;
     obj_controlador.dados_manipulados_escolha_ativa = false;
     obj_controlador.dados_manipulados_escolha_atual = noone;
-    if (_escolha.callback != noone) _escolha.callback(_valor);
+    if (variable_struct_exists(_escolha, "online") && _escolha.online) {
+        if (online_ativo()) colyseus_send(global.net_room, "choose_manipulated_roll", { useAlternative: _usar_alternativo });
+        return;
+    }
+    if (variable_struct_exists(_escolha, "callback") && _escolha.callback != noone) _escolha.callback(_valor);
 }
 
 function usar_refracao_temporal(_carta) {
@@ -2079,17 +2083,29 @@ function rolar_ataque_direto_com_acerto(_carta, _tipo_ataque, _callback_final, _
     var _resultado = irandom_range(1, 20);
     var _offset = (_indice_ataque - ((_total_ataques - 1) / 2)) * 110;
     var _atraso = (_indice_ataque == 0) ? 0 : _indice_ataque * irandom_range(68, 92);
-    var _contexto = { carta: _carta, tipo: _tipo_ataque, callback_final: _callback_final, indice: _indice_ataque, total: _total_ataques };
+    var _contexto = { carta: _carta, tipo: _tipo_ataque, callback_final: _callback_final,
+        indice: _indice_ataque, total: _total_ataques, bonus: bonus_cemiterio_acerto(_carta) };
     rolar_dado_visual(_carta.x + _offset * 0.22, _carta.y, _carta.x + _offset, _carta.y - 55,
         20, _resultado, method(_contexto, function(_d20) {
             if (!instance_exists(carta)) return;
-            if (_d20 <= 10) {
-                mostrar_feedback("ERROU — " + string(_d20), carta.x, carta.y - 48, c_gray, 55);
+            var _total_acerto = clamp(_d20 + bonus, 1, 20);
+            if (_total_acerto <= 10) {
+                mostrar_feedback("ERROU — " + string(_total_acerto), carta.x, carta.y - 48, c_gray, 55);
                 debug_combate(carta.nome_carta + " errou o ataque direto no D20 (" + string(_d20) + ").");
                 return;
             }
-            mostrar_feedback(_d20 == 20 ? "ACERTO CRÍTICO!" : "ACERTOU — " + string(_d20), carta.x, carta.y - 48, _d20 == 20 ? c_yellow : c_lime, 45);
+            mostrar_feedback(_d20 == 20 ? "ACERTO CRÍTICO!" : "ACERTOU — " + string(_total_acerto),
+                carta.x, carta.y - 48, _d20 == 20 ? c_yellow : c_lime, 45);
             if (_d20 == 20) {
+                if (tem_habilidade(carta, "tiro_burro")) {
+                    var _alvos_tiro_burro = [];
+                    with (obj_carta) if (travada && !morrendo) array_push(_alvos_tiro_burro, id);
+                    if (array_length(_alvos_tiro_burro) > 0) {
+                        processar_resultado_acerto(_total_acerto, carta,
+                            _alvos_tiro_burro[irandom(array_length(_alvos_tiro_burro) - 1)], tipo, _d20);
+                        return;
+                    }
+                }
                 var _usa_item_crit = (tipo == "fisica" && is_struct(carta.item_ataque_atual) && carta.item_ataque_atual.dado > 0);
                 var _dado_crit = _usa_item_crit ? carta.item_ataque_atual.dado : ((tipo == "magica") ? carta.dado_dano_magico : carta.dado_dano);
                 var _qtd_crit = _usa_item_crit ? 1 : ((tipo == "magica") ? carta.qtd_dados_dano_magico : carta.qtd_dados_dano);
@@ -2663,7 +2679,8 @@ function abrir_proxima_escolha_critico() {
     while (array_length(obj_controlador.criticos_pendentes) > 0) {
         var _contexto = obj_controlador.criticos_pendentes[0];
         array_delete(obj_controlador.criticos_pendentes, 0, 1);
-        if (!instance_exists(_contexto.atacante) || !instance_exists(_contexto.defensor)) continue;
+        var _critico_direto = variable_struct_exists(_contexto, "direto") && _contexto.direto;
+        if (!instance_exists(_contexto.atacante) || (!_critico_direto && !instance_exists(_contexto.defensor))) continue;
         obj_controlador.critico_contexto = _contexto;
         obj_controlador.critico_escolha_ativa = true;
         obj_controlador.carta_menu_aberto = noone;
@@ -2789,7 +2806,7 @@ function processar_resultado_acerto(_dado_acerto, _atacante, _defensor, _tipo_at
     if (_dado_natural == 20 && tem_habilidade(_atacante, "tiro_burro")) {
         var _todas_tropas = [];
         with (obj_carta) {
-            if (travada) array_push(_todas_tropas, id);
+            if (travada && !morrendo) array_push(_todas_tropas, id);
         }
         if (array_length(_todas_tropas) > 0) {
             _alvo_real = _todas_tropas[irandom(array_length(_todas_tropas) - 1)];
@@ -3934,7 +3951,7 @@ function ia_jogar_bencaos_maldicoes() {
             || !pode_pagar_custo(_dados.custo, "inimigo", _dados.categoria)) continue;
         var _sucesso = (_dados.categoria == "bencao")
             ? adicionar_bencao("inimigo", _dados.efeito, _dados.nome, _dados.sprite_carta)
-            : adicionar_maldicao("inimigo", _dados.efeito, _dados.nome, _dados.sprite_carta);
+            : adicionar_maldicao("jogador", _dados.efeito, _dados.nome, _dados.sprite_carta);
         if (!_sucesso) continue;
         pagar_custo(_dados.custo, "inimigo", _dados.categoria);
         array_delete(obj_controlador.mao_inimigo, i, 1);
@@ -4197,7 +4214,7 @@ function ia_jogar_cartas() {
 				    continue;
 				}
 				if (_dados.categoria == "maldicao") {
-				    if (adicionar_maldicao("inimigo", _dados.efeito, _dados.nome, _dados.sprite_carta)) {
+				    if (adicionar_maldicao("jogador", _dados.efeito, _dados.nome, _dados.sprite_carta)) {
 				        array_delete(obj_controlador.mao_inimigo, _indice_mao, 1);
 				    }
 				    continue;

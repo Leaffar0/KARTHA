@@ -5,8 +5,8 @@ Servidor Colyseus para salas privadas de dois jogadores.
 ## Rodar no computador
 
 1. Entre nesta pasta: `cd online-server`
-2. Instale as dependências: `pnpm install`
-3. Inicie: `pnpm dev`
+2. Instale as dependências: `npm install`
+3. Inicie: `npm run dev`
 4. Confira `http://localhost:2567/health`
 
 No menu **ONLINE (BETA)** do jogo, use `ws://localhost:2567` quando os dois
@@ -22,22 +22,22 @@ versão: quem cria compartilha o código da sala com a outra pessoa.
 
 ## O que já é autoritativo
 
-- criação e entrada numa sala privada de duas pessoas;
-- atribuição dos jogadores 1 e 2;
-- d20 de iniciativa gerado no servidor;
-- escolha de quem começa feita apenas pelo vencedor;
-- validação de jogador ativo e revisão das ações;
-- troca de turno confirmada para os dois clientes;
-- concessão e janela de 20 segundos para reconexão.
+- salas privadas, nomes, reconexão, iniciativa, escolha de quem começa e revanche;
+- mãos e baralhos privados, compra, descarte, recursos e custos;
+- tropas, construções, terrenos, itens, armadilhas, bênçãos e maldições;
+- movimento, combate, D20, críticos, Golpe Duplo, condições e habilidades cadastradas;
+- resultados de dados e moedas gerados e validados pelo servidor;
+- sincronização da perspectiva de cada jogador e respostas visuais das ações.
 
 ## Protocolo
 
-Mensagens do cliente: `ready`, `roll_initiative`, `choose_first`,
-`action` e `concede`.
+Além da preparação da partida, as jogadas usam `action`, sempre acompanhadas
+da revisão atual. O servidor responde com `action_confirmed` ou
+`action_rejected` e envia estados público e privado separados.
 
-Mensagens do servidor: `seat`, `initiative_result`, `initiative_tie`,
-`match_started`, `action_confirmed` e `action_rejected`.
+## Limites atuais
 
-A infraestrutura e a abertura da partida estão funcionais. A sincronização
-autoritativa de cada carta, alvo, dado e efeito do tabuleiro ainda deve ser
-migrada para o servidor antes de chamar o modo online de versão final.
+O servidor precisa permanecer ligado e acessível por um endereço `wss://`.
+Cartas futuras só entram no online depois que seus atributos e efeitos forem
+cadastrados no servidor. Balanceamento e testes prolongados ainda dependem de
+partidas reais entre dois jogadores.

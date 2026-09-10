@@ -3,7 +3,7 @@ import {
   KarthaRoomState, PlayerSchema, PublicCardSchema,
 } from "./schema/UnoRoomState.ts";
 import {
-  CARD_DEFINITIONS, CardDefinition, ResourceType, defaultDeck, validateDeck,
+  CARD_DEFINITIONS, CardDefinition, CostPart, ResourceType, defaultDeck, validateDeck,
 } from "../game/cards.ts";
 
 type RoomState = InstanceType<typeof KarthaRoomState>;
@@ -55,11 +55,25 @@ interface AbilityState {
   itemActionUsed?: boolean;
   grimoireUsed?: boolean;
   grimoireShield?: boolean;
+  electrocutions?: number;
+  electrocutedThisCycle?: boolean;
+  madnessNoDefense?: boolean;
 }
 
 interface PendingMagnetChoice {
   sourceCardId: string;
   equipment: string[];
+}
+
+interface ManipulatedRollDecision { seat: number; natural: number; fixed: number; sides: number; useAlternative: boolean; }
+interface PendingManipulatedAction {
+  seat: number; kind: string; payload: Record<string, unknown>; revision: number;
+  decisions: ManipulatedRollDecision[]; rolls: Array<{ sides: number; value: number }>; waiting?: Omit<ManipulatedRollDecision, "useAlternative">; snapshot: MatchSnapshot;
+}
+interface MatchSnapshot {
+  state: Record<string, unknown>; players: Array<[string, Record<string, unknown>]>; cards: Array<[string, Record<string, unknown>]>;
+  privatePlayers: PrivatePlayer[]; nextCardId: number; pendingCritical?: Record<string, unknown>;
+  pendingMagnet: PendingMagnetChoice[][]; pendingMitosis: Array<PendingMitosisChoice | undefined>; rematchVotes: number[];
 }
 
 interface PendingMitosisChoice {
@@ -101,10 +115,14 @@ function decodeIncoming<T extends object>(message: T | string): T | undefined {
 export class KarthaRoom extends Room<{ state: RoomState }> {
   private privatePlayers: PrivatePlayer[] = [];
   private nextCardId = 1;
-  private pendingCritical?: { seat: number; cardId: string; targetId?: string; targetSeat?: number; targetType: "card" | "castle"; attackType: "fisica" | "magica"; die: number; dice: number; modifier: number; defense: number; itemDefinitionId?: string; repeatAfter?: number };
+  private pendingCritical?: { seat: number; cardId: string; targetId?: string; targetSeat?: number; targetType: "card" | "castle"; attackType: "fisica" | "magica"; die: number; dice: number; modifier: number; defense: number; itemDefinitionId?: string; repeatAfter?: number; damageMultiplier: number };
   private pendingMagnet: PendingMagnetChoice[][] = [[], []];
   private pendingMitosis: Array<PendingMitosisChoice | undefined> = [undefined, undefined];
   private rematchVotes = new Set<number>();
+  private pendingManipulated?: PendingManipulatedAction;
+  private manipulatedReplay?: { decisions: ManipulatedRollDecision[]; cursor: number; rolls: Array<{ sides: number; value: number }>; rollCursor: number };
+  private replayingManipulated = false;
+  private actionPassiveEvents: Array<Record<string, unknown>> = [];
 
   private sendJson(client: Client, type: string, payload: unknown) {
     client.send(type, JSON.stringify(payload));
@@ -165,11 +183,40 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       this.startMatch(seat);
     });
 
+    this.onMessage("draw_initial", (client: Client) => {
+      const player = this.findPlayer(client.sessionId);
+      if (!player || this.state.phase !== "drawing" || player.initialHandDrawn) return;
+      this.drawCards(player.seatIndex, 7);
+      player.initialHandDrawn = true;
+      this.bump("initial_hand_drawn");
+      this.sendPrivateState(player.seatIndex);
+      this.broadcastJson("initial_drawn", { seat: player.seatIndex, revision: this.state.revision });
+      let everyoneDrew = true;
+      this.state.players.forEach((participant: PlayerState) => { if (!participant.initialHandDrawn) everyoneDrew = false; });
+      if (everyoneDrew) {
+        this.state.phase = "playing";
+        this.bump("match_ready");
+        this.broadcastJson("match_ready", { currentPlayer: this.state.currentPlayer, revision: this.state.revision });
+      }
+      this.sendPublicState();
+    });
+
+    this.onMessage("choose_manipulated_roll", (client: Client, rawMessage: { useAlternative?: boolean } | string) => {
+      const message = decodeIncoming<{ useAlternative?: boolean }>(rawMessage) ?? {};
+      const player = this.findPlayer(client.sessionId);
+      const pending = this.pendingManipulated;
+      if (!player || !pending || !pending.waiting || pending.waiting.seat !== player.seatIndex) return;
+      pending.decisions.push({ ...pending.waiting, useAlternative: message.useAlternative === true });
+      pending.waiting = undefined;
+      this.executeManipulatedAction(pending);
+    });
+
     this.onMessage("action", (client: Client, rawMessage: ActionMessage | string) => {
       const message = decodeIncoming<ActionMessage>(rawMessage) ?? {};
       const player = this.findPlayer(client.sessionId);
       const kind = typeof message?.kind === "string" ? message.kind : "";
       if (!player) return;
+      if (this.pendingManipulated) return this.reject(client, "escolha_dado_manipulado_pendente");
       if (this.state.phase !== "playing") return this.reject(client, "partida_inativa");
       const choiceOutOfTurn = kind === "activate_trap" || kind === "choose_magnet" || kind === "choose_mitosis";
       if (player.seatIndex !== this.state.currentPlayer && !choiceOutOfTurn) return this.reject(client, "fora_do_turno");
@@ -182,19 +229,11 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       if (!ACTIONS.has(kind)) return this.reject(client, "acao_desconhecida");
       if (Number(message?.revision) !== this.state.revision) return this.reject(client, "revisao");
 
-      const result = this.applyAction(player.seatIndex, kind, message?.payload ?? {});
-      if (!result.ok) return this.reject(client, result.reason ?? "acao_invalida");
-
-      this.state.revision += 1;
-      this.state.lastAction = kind;
-      this.broadcastJson("action_confirmed", {
-        revision: this.state.revision,
-        seat: player.seatIndex,
-        kind,
-        payload: result.details ?? {},
-      });
-      for (let seat = 0; seat < 2; seat++) this.sendPrivateState(seat);
-      if (!result.details?.criticalChoice) this.sendPublicState();
+      const pending: PendingManipulatedAction = {
+        seat: player.seatIndex, kind, payload: message?.payload ?? {}, revision: this.state.revision,
+        decisions: [], rolls: [], snapshot: this.captureMatchSnapshot(),
+      };
+      this.executeManipulatedAction(pending);
     });
 
     this.onMessage("concede", (client: Client) => {
@@ -215,6 +254,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
 
       this.rematchVotes.clear();
       this.pendingCritical = undefined;
+      this.pendingManipulated = undefined;
       this.pendingMagnet = [[], []];
       this.pendingMitosis = [undefined, undefined];
       this.state.cards.clear();
@@ -247,6 +287,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     player.deckCount = 50;
     player.initiative = 0;
     player.hasTakenTurn = false;
+    player.initialHandDrawn = false;
     this.resetPlayerTurn(player);
     player.mana = 0; player.sangue = 0; player.ossos = 0; player.sucata = 0;
       player.blockedResource = ""; player.blockedTurns = 0;
@@ -276,6 +317,8 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       this.sendJson(reconnected, "seat", { seat: player.seatIndex, roomId: this.roomId, seed: this.state.seed });
       this.sendPrivateState(player.seatIndex);
       this.sendPublicState(reconnected);
+      if (this.pendingManipulated?.waiting?.seat === player.seatIndex)
+        this.sendJson(reconnected, "manipulated_roll_choice", this.pendingManipulated.waiting);
     } catch {
       this.state.winner = 1 - player.seatIndex;
       this.state.phase = "finished";
@@ -284,6 +327,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
   }
 
   private startMatch(firstSeat: number) {
+    this.pendingManipulated = undefined;
     this.rematchVotes.clear();
     this.state.cards.clear();
     this.nextCardId = 1;
@@ -301,16 +345,16 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       if (!player) continue;
       player.life = 20;
       player.hasTakenTurn = false;
+      player.initialHandDrawn = false;
       player.mana = 0; player.sangue = 0; player.ossos = 0; player.sucata = 0;
       player.blockedResource = ""; player.blockedTurns = 0;
     player.evolutionsUsed = 0;
       player.manaUsed = 0; player.sangueUsed = 0; player.ossosUsed = 0; player.sucataUsed = 0;
       this.resetPlayerTurn(player);
-      this.drawCards(seat, 7);
     }
 
     this.state.currentPlayer = firstSeat;
-    this.state.phase = "playing";
+    this.state.phase = "drawing";
     this.state.turnNumber = 1;
     this.state.winner = -1;
     this.bump("match_started");
@@ -321,6 +365,92 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       revision: this.state.revision,
     });
     this.sendPublicState();
+  }
+
+  private cloneData<T>(value: T): T { return JSON.parse(JSON.stringify(value)) as T; }
+
+  private captureMatchSnapshot(): MatchSnapshot {
+    const players: Array<[string, Record<string, unknown>]> = [];
+    this.state.players.forEach((player: PlayerState, key: string) => players.push([key, this.cloneData(player) as unknown as Record<string, unknown>]));
+    const cards: Array<[string, Record<string, unknown>]> = [];
+    this.state.cards.forEach((card: PublicCardState, key: string) => cards.push([key, this.cloneData(card) as unknown as Record<string, unknown>]));
+    return {
+      state: { phase: this.state.phase, currentPlayer: this.state.currentPlayer, initiativeWinner: this.state.initiativeWinner,
+        winner: this.state.winner, revision: this.state.revision, seed: this.state.seed, turnNumber: this.state.turnNumber,
+        terrainDefinitionId: this.state.terrainDefinitionId, discardCount0: this.state.discardCount0,
+        discardCount1: this.state.discardCount1, lastAction: this.state.lastAction },
+      players, cards, privatePlayers: this.cloneData(this.privatePlayers), nextCardId: this.nextCardId,
+      pendingCritical: this.pendingCritical ? this.cloneData(this.pendingCritical) : undefined,
+      pendingMagnet: this.cloneData(this.pendingMagnet), pendingMitosis: this.cloneData(this.pendingMitosis),
+      rematchVotes: [...this.rematchVotes],
+    };
+  }
+
+  private restoreMatchSnapshot(snapshot: MatchSnapshot) {
+    Object.assign(this.state, snapshot.state);
+    this.state.players.clear();
+    for (const [key, data] of snapshot.players) { const player = new PlayerSchema(); Object.assign(player, data); this.state.players.set(key, player); }
+    this.state.cards.clear();
+    for (const [key, data] of snapshot.cards) { const card = new PublicCardSchema(); Object.assign(card, data); this.state.cards.set(key, card); }
+    this.privatePlayers = this.cloneData(snapshot.privatePlayers);
+    this.nextCardId = snapshot.nextCardId;
+    this.pendingCritical = snapshot.pendingCritical ? this.cloneData(snapshot.pendingCritical) as typeof this.pendingCritical : undefined;
+    this.pendingMagnet = this.cloneData(snapshot.pendingMagnet);
+    this.pendingMitosis = this.cloneData(snapshot.pendingMitosis);
+    this.rematchVotes = new Set(snapshot.rematchVotes);
+  }
+
+  private confirmAction(seat: number, kind: string, result: ActionResult) {
+    this.state.revision += 1;
+    this.state.lastAction = kind;
+    this.broadcastJson("action_confirmed", { revision: this.state.revision, seat, kind, payload: result.details ?? {} });
+    for (let targetSeat = 0; targetSeat < 2; targetSeat++) this.sendPrivateState(targetSeat);
+    if (!result.details?.criticalChoice) this.sendPublicState();
+  }
+
+  private executeManipulatedAction(pending: PendingManipulatedAction) {
+    const initiator = this.clientBySeat(pending.seat);
+    this.restoreMatchSnapshot(pending.snapshot);
+    this.pendingManipulated = pending;
+    this.manipulatedReplay = { decisions: pending.decisions, cursor: 0, rolls: pending.rolls, rollCursor: 0 };
+    this.replayingManipulated = true;
+    this.actionPassiveEvents = [];
+    let result: ActionResult;
+    try {
+      result = this.applyAction(pending.seat, pending.kind, pending.payload);
+    } catch (error) {
+      const roll = error as { manipulatedRoll?: boolean; seat?: number; natural?: number; fixed?: number; sides?: number };
+      this.restoreMatchSnapshot(pending.snapshot);
+      if (!roll?.manipulatedRoll) { this.pendingManipulated = undefined; throw error; }
+      pending.waiting = { seat: Number(roll.seat), natural: Number(roll.natural), fixed: Number(roll.fixed), sides: Number(roll.sides) };
+      this.pendingManipulated = pending;
+      const chooser = this.clientBySeat(pending.waiting.seat);
+      if (chooser) this.sendJson(chooser, "manipulated_roll_choice", pending.waiting);
+      else { this.pendingManipulated = undefined; if (initiator) this.reject(initiator, "jogador_indisponivel"); }
+      return;
+    } finally {
+      this.manipulatedReplay = undefined;
+      this.replayingManipulated = false;
+    }
+    if (!result.ok) {
+      this.restoreMatchSnapshot(pending.snapshot);
+      this.pendingManipulated = undefined;
+      if (initiator) this.reject(initiator, result.reason ?? "acao_invalida");
+      return;
+    }
+    if (this.actionPassiveEvents.length > 0) {
+      result.details = { ...(result.details ?? {}), passiveEvents: this.cloneData(this.actionPassiveEvents) };
+    }
+    this.pendingManipulated = undefined;
+    for (let seat = 0; seat < 2; seat++) {
+      this.sendNextMagnetChoice(seat);
+      const mitosis = this.pendingMitosis[seat];
+      const client = this.clientBySeat(seat);
+      if (mitosis && client) this.sendJson(client, "mitosis_choice", {
+        candidates: mitosis.candidates.map(([lane, position]) => ({ lane, position })),
+      });
+    }
+    this.confirmAction(pending.seat, pending.kind, result);
   }
 
   private applyAction(seat: number, kind: string, payload: Record<string, unknown>): ActionResult {
@@ -453,12 +583,21 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
   private effectiveAttackDie(card: PublicCardState, base: number): number {
     return this.equipmentIds(card).reduce((die, id) => CARD_DEFINITIONS[id]?.overrideAttackDie ?? die, base);
   }
-
-  private applyCondition(card: PublicCardState, condition: string, turns: number, power: number): boolean {
+  private applyCondition(card: PublicCardState, condition: string, turns: number, power: number, sourceSeat?: number, sourceCardId = ""): boolean {
+    if (condition === "sangrando" && card.condition === "sangrando") {
+      card.conditionTurns += Math.max(1, turns);
+      card.conditionPower = Math.max(card.conditionPower, power);
+      return true;
+    }
     if (card.condition && card.condition !== condition) return false;
     card.condition = condition;
     card.conditionTurns = turns;
     card.conditionPower = power;
+    if (condition === "loucura" && sourceSeat !== undefined && sourceSeat !== card.owner) {
+      const mutualTrap = this.privatePlayers[card.owner]?.traps.find((trap) =>
+        trap.definitionId === "loucura_mutua" && !trap.ready);
+      if (mutualTrap) { mutualTrap.ready = true; mutualTrap.targetId = sourceCardId; }
+    }
     return true;
   }
 
@@ -570,9 +709,19 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       if (effect === "choque") {
         target.life -= 2;
         const coin = this.rollForSeat(seat, 2);
-        if (target.life > 0) this.applyCondition(target, coin === 1 ? "paralisado" : "eletrocutado", 1, 0);
-        else this.destroyPublicCard(target);
-        details = { ...details, targetId, damage: 2, coin, destroyed: target.life <= 0 };
+        const targetState = this.abilityState(target);
+        targetState.electrocutions = (targetState.electrocutions ?? 0) + 1;
+        targetState.electrocutedThisCycle = true;
+        let madness = false;
+        if (target.life > 0 && targetState.electrocutions >= 6) {
+          target.condition = ""; target.conditionTurns = 0; target.conditionPower = 0;
+          madness = this.applyCondition(target, "loucura", -1, 0, seat, found.card.instanceId);
+          targetState.electrocutions = 0;
+        } else if (target.life > 0) {
+          this.applyCondition(target, coin === 1 ? "paralisado" : "eletrocutado", 1, 0);
+        } else this.destroyPublicCard(target);
+        this.setAbilityState(target, targetState);
+        details = { ...details, targetId, damage: 2, coin, madness, condition: target.condition, destroyed: target.life <= 0 };
       } else {
         details = { ...details, targetId, condition: target.condition };
       }
@@ -693,13 +842,18 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       details = { ...details, condition: "loucura" };
     } else if (trap.definitionId === "destrocos") {
       const rolls: number[] = [];
+      const damageEvents: Record<string, unknown>[] = [];
       this.state.cards.forEach((card: PublicCardState) => {
         if (card.category === "tropa" && card.owner !== seat && card.lane === trap.lane) {
-          const roll = this.roll(4); rolls.push(roll); card.life -= roll;
-          if (card.life <= 0) this.destroyPublicCard(card);
+          const roll = this.roll(4);
+          rolls.push(roll);
+          card.life -= roll;
+          const destroyed = card.life <= 0;
+          damageEvents.push({ cardId: card.instanceId, damage: roll, destroyed });
+          if (destroyed) this.destroyPublicCard(card);
         }
       });
-      details = { ...details, damageRolls: rolls };
+      details = { ...details, damageRolls: rolls, damageEvents };
     }
 
     data.traps.splice(index, 1);
@@ -715,17 +869,25 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       return { ok: false, reason: "carta_efeito_invalida" };
     if (found.definition.category === "terreno" && !player.hasTakenTurn) return { ok: false, reason: "primeiro_turno_bloqueado" };
     if (found.definition.category === "terreno" && player.terrainPlayed) return { ok: false, reason: "limite_terreno_turno" };
+
+    const effectOwnerSeat = found.definition.category === "maldicao" ? 1 - seat : seat;
+    if (found.definition.category !== "terreno") {
+      const activeEffects = this.privatePlayers[effectOwnerSeat].effects;
+      const boardEffects = activeEffects.filter((effect) => !effect.startsWith("dados_manipulados:"));
+      if (boardEffects.length >= 2) return { ok: false, reason: "limite_efeitos_ativos" };
+    }
     if (!this.payCost(player, found.definition)) return { ok: false, reason: "recursos_insuficientes" };
 
     if (found.definition.category === "terreno") {
       this.state.terrainDefinitionId = found.card.definitionId;
       player.terrainPlayed = true;
     } else {
-      this.privatePlayers[seat].effects.push(found.definition.effect ?? found.card.definitionId);
+      this.privatePlayers[effectOwnerSeat].effects.push(found.definition.effect ?? found.card.definitionId);
     }
     this.discardPlayedCard(seat, found);
     this.privatePlayers[seat].lastNonTroopDefinitionId = found.card.definitionId;
-    return { ok: true, details: { cardId: found.card.instanceId, definitionId: found.card.definitionId, category: found.definition.category }, privateSeats: [seat] };
+    return { ok: true, details: { cardId: found.card.instanceId, definitionId: found.card.definitionId,
+      category: found.definition.category, targetSeat: effectOwnerSeat }, privateSeats: [seat, effectOwnerSeat] };
   }
 
 
@@ -810,7 +972,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       roll = this.rollForSeat(seat, 4);
       const targetDefinition = CARD_DEFINITIONS[target.definitionId];
       const targetState = this.abilityState(target);
-      const defense = (targetDefinition.magicDefense ?? 0) + (targetState.grimoireShield ? 2 : 0);
+      const defense = (targetDefinition.magicDefense ?? 0) + (targetState.grimoireShield ? 2 : 0) + this.terrainDefenseModifier(target);
       damage = Math.max(0, roll - defense);
       target.life -= damage;
       if (target.life <= 0) this.destroyPublicCard(target);
@@ -923,7 +1085,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       state.used = true;
       card.maxLife += 1;
       const regeneration = this.rollForSeat(seat, 4);
-      this.applyCondition(card, "regeneracao", regeneration, 1);
+      this.applyCondition(card, "regeneracao", regeneration, regeneration);
       this.setAbilityState(card, state);
       return { ok: true, details: { ability, cardId, targetId: consumed?.instanceId ?? "", maxLife: card.maxLife, regeneration } };
     }
@@ -1019,16 +1181,34 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     if (!card || card.category !== "tropa" || card.owner !== seat)
       return { ok: false, reason: "tropa_invalida" };
     if (card.moved) return { ok: false, reason: "tropa_ja_moveu" };
+    if (card.turnsInPlay < 1) return { ok: false, reason: "tropa_recem_colocada" };
     if (["paralisado", "congelado", "adormecido", "loucura"].includes(card.condition)) return { ok: false, reason: "tropa_incapacitada" };
-    const rootTrap = this.privatePlayers[1 - seat].traps.find((trap) => trap.definitionId === "raizes_espinhosas" && !trap.ready && trap.lane === card.lane && trap.position === card.position);
-    if (rootTrap && card.life < 10) { rootTrap.ready = true; rootTrap.targetId = card.instanceId; return { ok: true, details: { cardId, trapReady: true, movementPrevented: true } }; }
+    const rootTrap = this.privatePlayers[1 - seat].traps.find((trap) => trap.definitionId === "raizes_espinhosas"
+      && !trap.ready && trap.lane === card.lane && trap.position === card.position);
+    if (rootTrap && card.life < 10 && !this.hasAbility(card, "voar")) {
+      rootTrap.ready = true; rootTrap.targetId = card.instanceId; card.moved = true;
+      return { ok: true, details: { cardId, trapReady: true, movementPrevented: true } };
+    }
 
     const advanceDelta = seat === 0 ? -1 : 1;
-    const destination = card.position + (direction === "advance" ? advanceDelta : -advanceDelta);
+    const movementDelta = direction === "advance" ? advanceDelta : -advanceDelta;
+    let destination = card.position + movementDelta;
     if (destination < 0 || destination > 4) return { ok: false, reason: "movimento_fora_tabuleiro" };
-    if (this.findPublic((other) =>
-      other.category === "tropa" && other.lane === card.lane && other.position === destination))
-      return { ok: false, reason: "casa_ocupada" };
+    const occupant = this.findPublic((other) => other.category === "tropa"
+      && other.lane === card.lane && other.position === destination);
+    if (occupant) {
+      if (occupant.owner === seat) return { ok: false, reason: "casa_ocupada" };
+      if (!this.hasAbility(card, "voar") || this.hasAbility(occupant, "voar"))
+        return { ok: false, reason: "casa_ocupada" };
+      const landing = destination + movementDelta;
+      const assault = seat === 0 ? 1 : 3;
+      const passedAssault = seat === 0 ? landing < assault : landing > assault;
+      const landingOccupied = this.findPublic((other) => other.category === "tropa"
+        && other.lane === card.lane && other.position === landing);
+      if (landing < 0 || landing > 4 || passedAssault || landingOccupied)
+        return { ok: false, reason: "casa_ocupada" };
+      destination = landing;
+    }
 
     card.position = destination;
     if (destination !== (seat === 0 ? 4 : 0)) card.defendingCastle = false;
@@ -1049,7 +1229,6 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     card.moved = true;
     return { ok: true, details: { cardId, lane: card.lane, position: destination, direction, gazeRoll, condition: card.condition } };
   }
-
 
   private pendingChoiceSeat(): number {
     for (let seat = 0; seat < 2; seat++) {
@@ -1091,6 +1270,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
   }
 
   private sendNextMagnetChoice(seat: number) {
+    if (this.replayingManipulated) return;
     const pending = this.pendingMagnet[seat]?.[0];
     const client = this.clientBySeat(seat);
     if (pending && client) this.sendJson(client, "magnet_choice", {
@@ -1133,12 +1313,14 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
 
   private counterAttack(defender: PublicCardState, attacker: PublicCardState): Record<string, unknown> {
     const definition = CARD_DEFINITIONS[defender.definitionId];
+    if (!definition.attackDie || definition.attackDie <= 0) return { cardId: defender.instanceId, targetId: attacker.instanceId, counterAttack: true, unavailable: true, damage: 0 };
+    const damageMultiplier = defender.condition === "berserker" ? 2 : 1;
     const die = this.effectiveAttackDie(defender, Math.max(1, definition.attackDie ?? 1));
     const dice = Math.max(1, definition.attackDice ?? 1);
     const damageRolls = Array.from({ length: dice }, () => this.rollForSeat(defender.owner, die));
-    const modifier = (definition.attackModifier ?? 0) + this.equipmentAttackBonus(defender);
-    const defense = (CARD_DEFINITIONS[attacker.definitionId]?.physicalDefense ?? 0) + this.equipmentDefenseBonus(attacker);
-    const damage = Math.max(0, damageRolls.reduce((sum, value) => sum + value, 0) + modifier - defense);
+    const modifier = (definition.attackModifier ?? 0) + this.equipmentAttackBonus(defender) + this.cemeteryBonus(defender);
+    const defense = (CARD_DEFINITIONS[attacker.definitionId]?.physicalDefense ?? 0) + this.equipmentDefenseBonus(attacker) + this.terrainDefenseModifier(attacker) + (attacker.condition === "berserker" ? 4 : 0);
+    const damage = Math.max(0, damageRolls.reduce((sum, value) => sum + value, 0) * damageMultiplier + modifier - defense);
     attacker.life -= damage;
     const destroyed = attacker.life <= 0;
     if (destroyed) this.destroyPublicCard(attacker);
@@ -1175,6 +1357,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     let modifier = usingWeapon ? weaponDefinition!.attackModifier ?? 0
       : (attackType === "magica" ? definition.magicModifier ?? 0 : definition.attackModifier ?? 0)
         + (attackType === "fisica" ? this.equipmentAttackBonus(attacker) : 0);
+    modifier += this.cemeteryBonus(attacker);
     let ignoreDefense = false;
     let frenzyBonus = 0;
     if (attackerState.frenzy === "self") {
@@ -1190,7 +1373,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
           + (definition.attackModifier ?? 0) - (definition.physicalDefense ?? 0) - this.equipmentDefenseBonus(attacker));
         attacker.attacked = true;
         attacker.life -= selfDamage;
-        if (attacker.life <= 0) this.destroyPublicCard(attacker);
+        if (attacker.life <= 0) this.destroyPublicCard(attacker, false);
         return { ok: true, details: { cardId, attackType, frenzySelf: true, damageRolls: selfRolls, damage: selfDamage, destroyed: attacker.life <= 0 } };
       }
     } else if (attackerState.frenzy === "bonus") {
@@ -1228,9 +1411,21 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
         }
       }
     }
-    const accuracy = this.rollForSeat(seat, 20);
+    const madnessState = target?.category === "tropa" ? this.abilityState(target) : undefined;
+    const madnessNoDefense = madnessState?.madnessNoDefense === true;
+    if (madnessState && madnessNoDefense) {
+      madnessState.madnessNoDefense = false;
+      this.setAbilityState(target!, madnessState);
+    }
+    const accuracyRolls = madnessNoDefense ? [] : (attacker.condition === "berserker" || attacker.condition === "confusao")
+      ? [this.rollForSeat(seat, 20), this.rollForSeat(seat, 20)] : [this.rollForSeat(seat, 20)];
+    const accuracyRoll = madnessNoDefense ? 11 : attacker.condition === "berserker"
+      ? Math.max(...accuracyRolls) : attacker.condition === "confusao"
+        ? Math.min(...accuracyRolls) : accuracyRolls[0];
+    const damageMultiplier = attacker.condition === "berserker" ? 2 : 1;
+    const accuracy = accuracyRoll + this.cemeteryBonus(attacker);
     attacker.attacked = true;
-    if (accuracy === 20 && this.hasAbility(attacker, "tiro_burro")) {
+    if (accuracyRoll === 20 && this.hasAbility(attacker, "tiro_burro")) {
       const candidates: PublicCardState[] = [];
       this.state.cards.forEach((other: PublicCardState) => {
         if (other.category === "tropa") candidates.push(other);
@@ -1239,21 +1434,21 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     }
     if (target) {
       if (accuracy <= 10) {
-        const counter = (accuracy === 1 || attacker.condition === "confusao") && target.category === "tropa"
+        const counter = (accuracyRoll === 1 || attacker.condition === "confusao") && target.category === "tropa"
           ? this.counterAttack(target, attacker) : undefined;
-        return { ok: true, details: { cardId, targetId: target.instanceId, attackType, accuracy, hit: false, damageRolls: [], itemDefinitionId, stealRoll, stolenItem, counter } };
+        return { ok: true, details: { cardId, targetId: target.instanceId, attackType, accuracy, accuracyRoll, accuracyRolls, hit: false, damageRolls: [], itemDefinitionId, stealRoll, stolenItem, counter } };
       }
       const targetDefinition = CARD_DEFINITIONS[target.definitionId];
       const targetState = this.abilityState(target);
-      const defense = ignoreDefense ? 0 : (attackType === "magica"
-        ? (targetDefinition.magicDefense ?? 0) + (targetState.grimoireShield ? 2 : 0)
-        : (targetDefinition.physicalDefense ?? 0) + this.equipmentDefenseBonus(target));
-      if (accuracy === 20) {
-        this.pendingCritical = { seat, cardId, targetId: target.instanceId, targetType: "card", attackType, die, dice, modifier, defense, itemDefinitionId };
-        return { ok: true, details: { cardId, targetId: target.instanceId, attackType, accuracy, hit: true, critical: true, criticalChoice: true, die, dice, itemDefinitionId, stealRoll, stolenItem } };
+      const defense = (ignoreDefense || madnessNoDefense) ? 0 : (attackType === "magica"
+        ? (targetDefinition.magicDefense ?? 0) + (targetState.grimoireShield ? 2 : 0) + this.terrainDefenseModifier(target)
+        : (targetDefinition.physicalDefense ?? 0) + this.equipmentDefenseBonus(target) + this.terrainDefenseModifier(target) + (target.condition === "berserker" ? 4 : 0));
+      if (accuracyRoll === 20) {
+        this.pendingCritical = { seat, cardId, targetId: target.instanceId, targetType: "card", attackType, die, dice, modifier, defense, itemDefinitionId, damageMultiplier };
+        return { ok: true, details: { cardId, targetId: target.instanceId, attackType, accuracy, accuracyRoll, accuracyRolls, hit: true, critical: true, criticalChoice: true, die, dice, itemDefinitionId, stealRoll, stolenItem } };
       }
       const damageRolls = Array.from({ length: dice }, () => this.rollForSeat(seat, die));
-      const damage = Math.max(0, damageRolls.reduce((sum, value) => sum + value, 0) + modifier - defense);
+      const damage = Math.max(0, damageRolls.reduce((sum, value) => sum + value, 0) * damageMultiplier + modifier - defense);
       target.life -= damage;
       const destroyed = target.life <= 0;
       if (destroyed) {
@@ -1263,19 +1458,19 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
         }
         this.destroyPublicCard(target);
       }
-      return { ok: true, details: { cardId, targetId: target.instanceId, attackType, accuracy, hit: true, critical: false, damageRolls, modifier, defense, damage, destroyed, frenzyBonus, itemDefinitionId, stealRoll, stolenItem } };
+      return { ok: true, details: { cardId, targetId: target.instanceId, attackType, accuracy, accuracyRoll, accuracyRolls, hit: true, critical: false, damageRolls, modifier, defense, damage, destroyed, frenzyBonus, itemDefinitionId, stealRoll, stolenItem, madnessNoDefense } };
     }
-    if (accuracy <= 10) return { ok: true, details: { cardId, target: "castle", attackType, accuracy, hit: false, damageRolls: [], itemDefinitionId } };
-    if (accuracy === 20) {
-      this.pendingCritical = { seat, cardId, targetSeat: 1 - seat, targetType: "castle", attackType, die, dice, modifier, defense: 0, itemDefinitionId };
-      return { ok: true, details: { cardId, target: "castle", attackType, accuracy, hit: true, critical: true, criticalChoice: true, die, dice, itemDefinitionId } };
+    if (accuracy <= 10) return { ok: true, details: { cardId, target: "castle", attackType, accuracy, accuracyRoll, accuracyRolls, hit: false, damageRolls: [], itemDefinitionId } };
+    if (accuracyRoll === 20) {
+      this.pendingCritical = { seat, cardId, targetSeat: 1 - seat, targetType: "castle", attackType, die, dice, modifier, defense: 0, itemDefinitionId, damageMultiplier };
+      return { ok: true, details: { cardId, target: "castle", attackType, accuracy, accuracyRoll, accuracyRolls, hit: true, critical: true, criticalChoice: true, die, dice, itemDefinitionId } };
     }
     const damageRolls = Array.from({ length: dice }, () => this.rollForSeat(seat, die));
-    const damage = Math.max(0, damageRolls.reduce((sum, value) => sum + value, 0) + modifier);
+    const damage = Math.max(0, damageRolls.reduce((sum, value) => sum + value, 0) * damageMultiplier + modifier);
     const defender = this.playerBySeat(1 - seat)!;
     defender.life = Math.max(0, defender.life - damage);
     if (defender.life <= 0) { this.state.winner = seat; this.state.phase = "finished"; }
-    return { ok: true, details: { cardId, target: "castle", attackType, accuracy, hit: true, critical: false, damageRolls, modifier, damage, defenderLife: defender.life, itemDefinitionId } };
+    return { ok: true, details: { cardId, target: "castle", attackType, accuracy, accuracyRoll, accuracyRolls, hit: true, critical: false, damageRolls, modifier, damage, defenderLife: defender.life, itemDefinitionId } };
   }
 
   private chooseCritical(seat: number, payload: Record<string, unknown>): ActionResult {
@@ -1288,7 +1483,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     const rollCount = choice === "dobrar_dados" ? pending.dice * 2 : pending.dice;
     const damageRolls = Array.from({ length: rollCount }, () => this.rollForSeat(seat, pending.die));
     const rolled = damageRolls.reduce((sum, value) => sum + value, 0);
-    const original = choice === "dobrar_resultado" ? rolled * 2 : rolled;
+    const original = (choice === "dobrar_resultado" ? rolled * 2 : rolled) * pending.damageMultiplier;
     const damage = Math.max(0, original + pending.modifier - pending.defense);
     const attacker = this.state.cards.get(pending.cardId);
     let destroyed = false;
@@ -1317,12 +1512,99 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       attacker.attacked = false;
       const repeated = this.attack(seat, { cardId: attacker.instanceId, attackType: pending.attackType });
       followUp = repeated.details;
-      const chainedCritical = this.pendingCritical as unknown as { repeatAfter?: number } | undefined;
+      const chainedCritical = this.pendingCritical as unknown as { repeatAfter?: number; damageMultiplier: number } | undefined;
       if (chainedCritical) chainedCritical.repeatAfter = repeatAfter - 1;
       attacker.attacked = true;
     }
     return { ok: true, details: { cardId: pending.cardId, targetId: pending.targetId ?? "", target: pending.targetType === "castle" ? "castle" : "card", attackType: pending.attackType, criticalResolved: true, critical: true, choice, damageRolls, modifier: pending.modifier, defense: pending.defense, damage, destroyed, defenderLife, itemDefinitionId: pending.itemDefinitionId ?? "", followUp, criticalChoice: Boolean(this.pendingCritical) } };
   }
+  private processMadness(seat: number): Record<string, unknown>[] {
+    const events: Record<string, unknown>[] = [];
+    const cards: PublicCardState[] = [];
+    this.state.cards.forEach((card: PublicCardState) => {
+      if (card.owner === seat && card.category === "tropa" && card.condition === "loucura") cards.push(card);
+    });
+    for (const card of cards) {
+      if (!this.state.cards.has(card.instanceId)) continue;
+      const definition = CARD_DEFINITIONS[card.definitionId];
+      const state = this.abilityState(card);
+      state.madnessNoDefense = false;
+      state.used = true;
+      card.attacked = true;
+      card.moved = true;
+      const result = this.rollForSeat(seat, 4);
+      const useMagic = !(definition.attackDie && definition.attackDie > 0) && Boolean(definition.magicDie && definition.magicDie > 0);
+      const die = Math.max(1, useMagic ? definition.magicDie ?? 1 : definition.attackDie ?? 1);
+      const dice = Math.max(1, useMagic ? definition.magicDice ?? 1 : definition.attackDice ?? 1);
+      const modifier = useMagic ? definition.magicModifier ?? 0 : definition.attackModifier ?? 0;
+      const event: Record<string, unknown> = { cardId: card.instanceId, seat, result, die, attackType: useMagic ? "magica" : "fisica" };
+      if (result === 1) {
+        const damageRolls = Array.from({ length: dice }, () => this.rollForSeat(seat, die));
+        const damage = Math.max(0, damageRolls.reduce((sum, value) => sum + value, 0) + modifier);
+        card.life -= damage;
+        Object.assign(event, { kind: "self", targetId: card.instanceId, damageRolls, damage, destroyed: card.life <= 0 });
+        if (card.life <= 0) this.destroyPublicCard(card, false);
+      } else if (result === 2) {
+        const allies: PublicCardState[] = [];
+        this.state.cards.forEach((other: PublicCardState) => {
+          if (other.instanceId !== card.instanceId && other.category === "tropa" && other.owner === seat
+            && other.lane === card.lane && Math.abs(other.position - card.position) === 1) allies.push(other);
+        });
+        if (allies.length > 0) {
+          const target = allies[this.roll(allies.length) - 1];
+          const targetDefinition = CARD_DEFINITIONS[target.definitionId];
+          const targetState = this.abilityState(target);
+          const defense = useMagic
+            ? (targetDefinition.magicDefense ?? 0) + (targetState.grimoireShield ? 2 : 0) + this.terrainDefenseModifier(target)
+            : (targetDefinition.physicalDefense ?? 0) + this.equipmentDefenseBonus(target) + this.terrainDefenseModifier(target) + (target.condition === "berserker" ? 4 : 0);
+          const damageRolls = Array.from({ length: dice }, () => this.rollForSeat(seat, die));
+          const damage = Math.max(0, damageRolls.reduce((sum, value) => sum + value, 0) + modifier - defense);
+          target.life -= damage;
+          Object.assign(event, { kind: "ally", targetId: target.instanceId, damageRolls, defense, damage, destroyed: target.life <= 0 });
+          if (target.life <= 0) this.destroyPublicCard(target, false);
+        } else Object.assign(event, { kind: "ally", noTarget: true });
+      } else if (result === 3) {
+        const entry = seat === 0 ? 4 : 0;
+        if (card.position === entry) {
+          const damageRolls = Array.from({ length: dice }, () => this.rollForSeat(seat, die));
+          const damage = Math.max(0, damageRolls.reduce((sum, value) => sum + value, 0) + modifier);
+          const owner = this.playerBySeat(seat)!;
+          owner.life = Math.max(0, owner.life - damage);
+          if (owner.life <= 0) { this.state.winner = 1 - seat; this.state.phase = "finished"; }
+          Object.assign(event, { kind: "castle", damageRolls, damage });
+        } else {
+          const destination = card.position + (seat === 0 ? 1 : -1);
+          const occupied = this.findPublic((other) => other.category === "tropa" && other.lane === card.lane && other.position === destination);
+          const moved = destination >= 0 && destination <= 4 && !occupied;
+          if (moved) card.position = destination;
+          Object.assign(event, { kind: "retreat", moved, position: card.position });
+        }
+      } else {
+        state.madnessNoDefense = true;
+        Object.assign(event, { kind: "no_defense" });
+      }
+      if (this.state.cards.has(card.instanceId)) this.setAbilityState(card, state);
+      events.push(event);
+    }
+    return events;
+  }
+
+  private processSleep(seat: number): Record<string, unknown>[] {
+    const events: Record<string, unknown>[] = [];
+    this.state.cards.forEach((card: PublicCardState) => {
+      if (card.owner !== seat || card.category !== "tropa" || card.condition !== "adormecido") return;
+      const coin = this.rollForSeat(seat, 2);
+      const woke = coin === 1;
+      if (woke) {
+        card.condition = "";
+        card.conditionTurns = 0;
+        card.conditionPower = 0;
+      }
+      events.push({ cardId: card.instanceId, coin, woke });
+    });
+    return events;
+  }
+
   private endTurn(seat: number): ActionResult {
     if (seat !== this.state.currentPlayer) return { ok: false, reason: "fora_do_turno" };
     const nextSeat = 1 - seat;
@@ -1340,29 +1622,43 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       if ((ability.shadowCooldown ?? 0) > 0) {
         ability.shadowCooldown = Math.max(0, (ability.shadowCooldown ?? 0) - 1);
         if (ability.shadowCooldown === 1) ability.shadowTurns = 0;
-        this.setAbilityState(card, ability);
       }
+      if (!ability.electrocutedThisCycle) ability.electrocutions = 0;
+      ability.electrocutedThisCycle = false;
+      this.setAbilityState(card, ability);
       if (card.conditionTurns <= 0) return;
       card.conditionTurns -= 1;
       if (card.conditionTurns <= 0) {
-        card.condition = "";
-        card.conditionPower = 0;
+        if (card.condition === "queimado") {
+          card.condition = "imune_queimado";
+          card.conditionTurns = 1;
+          card.conditionPower = 0;
+        } else {
+          card.condition = "";
+          card.conditionPower = 0;
+        }
       }
     });
 
     // Processa dano e cura persistentes no início do turno do próximo jogador.
     const defeated: PublicCardState[] = [];
+    const conditionEvents: Record<string, unknown>[] = [];
     this.state.cards.forEach((card: PublicCardState) => {
       if (card.owner !== nextSeat || card.category !== "tropa") return;
       if (["queimado", "envenenado", "corrosao", "sangrando", "apodrecer"].includes(card.condition)) {
-        card.life -= Math.max(0, card.conditionPower);
+        const amount = Math.max(0, card.conditionPower);
+        card.life -= amount;
+        if (amount > 0) conditionEvents.push({ cardId: card.instanceId, condition: card.condition, kind: "damage", amount });
         if (card.condition === "corrosao" && card.conditionPower > 1) card.conditionPower -= 1;
       } else if (card.condition === "regeneracao") {
+        const lifeBefore = card.life;
         card.life = Math.min(card.maxLife, card.life + Math.max(0, card.conditionPower));
+        const amount = Math.max(0, card.life - lifeBefore);
+        if (amount > 0) conditionEvents.push({ cardId: card.instanceId, condition: card.condition, kind: "heal", amount });
       }
       if (card.life <= 0) defeated.push(card);
     });
-    for (const card of defeated) this.destroyPublicCard(card);
+    for (const card of defeated) this.destroyPublicCard(card, false);
     this.state.currentPlayer = nextSeat;
     this.state.turnNumber += 1;
     this.resetPlayerTurn(nextPlayer);
@@ -1381,11 +1677,13 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
         card.attacked = false;
       }
     });
+    const sleepEvents = this.processSleep(nextSeat);
+    const madnessEvents = this.processMadness(nextSeat);
     const artillery = this.processArtillery(nextSeat);
     this.drawCards(nextSeat, 1);
     return {
       ok: true,
-      details: { currentPlayer: nextSeat, turnNumber: this.state.turnNumber, artillery },
+      details: { currentPlayer: nextSeat, turnNumber: this.state.turnNumber, conditionEvents, sleepEvents, madnessEvents, artillery },
       privateSeats: [nextSeat],
     };
   }
@@ -1417,19 +1715,43 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     return events;
   }
 
+  private isUndead(card: PublicCardState): boolean {
+    const name = (CARD_DEFINITIONS[card.definitionId]?.name ?? card.name).toLocaleLowerCase("pt-BR");
+    return ["zumbi", "esqueleto", "fantasma", "espirito", "espírito"].some((term) => name.includes(term));
+  }
+
+  private cemeteryBonus(card: PublicCardState): number {
+    return this.state.terrainDefinitionId === "cemiterio" && this.isUndead(card) ? 1 : 0;
+  }
+
+  private terrainDefenseModifier(card: PublicCardState): number {
+    return this.cemeteryBonus(card) + (this.state.terrainDefinitionId === "pantano_sombrio" ? -1 : 0);
+  }
+
+  private adjustedCost(definition: CardDefinition): CostPart[] {
+    let manaDiscount = definition.category === "tropa" && this.state.terrainDefinitionId === "planicies_profanas" ? 1 : 0;
+    return definition.cost.flatMap((part) => {
+      if (part.type !== "mana" || manaDiscount <= 0) return [{ ...part }];
+      const amount = Math.max(0, part.amount - manaDiscount);
+      manaDiscount = Math.max(0, manaDiscount - part.amount);
+      return amount > 0 ? [{ ...part, amount }] : [];
+    });
+  }
+
   private payCost(player: PlayerState, definition: CardDefinition): boolean {
     const planned: Partial<Record<ResourceType, number>> = {};
     const available = (type: ResourceType) =>
       player.blockedResource === type && player.blockedTurns > 0 ? 0 :
       player[RESOURCE_FIELDS[type]] - player[USED_FIELDS[type]] - (planned[type] ?? 0);
 
-    for (const part of definition.cost.filter((part) => part.type !== "qualquer")) {
+    const effectiveCost = this.adjustedCost(definition);
+    for (const part of effectiveCost.filter((part) => part.type !== "qualquer")) {
       const type = part.type as ResourceType;
       if (available(type) < part.amount) return false;
       planned[type] = (planned[type] ?? 0) + part.amount;
     }
 
-    const wildcard = definition.cost
+    const wildcard = effectiveCost
       .filter((part) => part.type === "qualquer")
       .reduce((sum, part) => sum + part.amount, 0);
     let remaining = wildcard;
@@ -1493,28 +1815,37 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     return undefined;
   }
 
-  private destroyPublicCard(card: PublicCardState) {
+  private destroyPublicCard(card: PublicCardState, causedByOpponent = true) {
     if (!this.state.cards.has(card.instanceId)) return;
     this.state.cards.delete(card.instanceId);
     const privatePlayer = this.privatePlayers[card.owner];
     privatePlayer.discard.push({ instanceId: card.instanceId, definitionId: card.definitionId });
     const equipment = this.equipmentIds(card);
-    const hasMagnet = Boolean(this.findPublic((other) => other.category === "construcao"
+    const magnet = this.findPublic((other) => other.category === "construcao"
       && other.owner === card.owner && other.lane === card.lane
-      && CARD_DEFINITIONS[other.definitionId]?.effect === "maquina_ima"));
-    if (card.category === "tropa" && hasMagnet && equipment.length > 0) {
-      this.pendingMagnet[card.owner].push({ sourceCardId: card.instanceId, equipment: [...equipment] });
+      && CARD_DEFINITIONS[other.definitionId]?.effect === "maquina_ima");
+    if (card.category === "tropa" && magnet && equipment.length > 0) {
+      this.pendingMagnet[card.owner].push({ sourceCardId: magnet.instanceId, equipment: [...equipment] });
       if (this.pendingMagnet[card.owner].length === 1) this.sendNextMagnetChoice(card.owner);
     } else {
       equipment.forEach((definitionId, index) =>
         privatePlayer.discard.push({ instanceId: card.instanceId + "-item-" + index, definitionId }));
     }
-    if (privatePlayer.effects.includes("cura_ao_morrer")) {
-      const owner = this.playerBySeat(card.owner); if (owner) owner.life = Math.min(20, owner.life + 1);
-    }
-    const enemyEffects = this.privatePlayers[1 - card.owner]?.effects ?? [];
-    if (enemyEffects.includes("perde_vida_ao_morrer")) {
-      const owner = this.playerBySeat(card.owner); if (owner) owner.life = Math.max(0, owner.life - 1);
+    if (card.category === "tropa") {
+      const owner = this.playerBySeat(card.owner);
+      if (privatePlayer.effects.includes("cura_ao_morrer") && owner) {
+        const lifeBefore = owner.life;
+        owner.life = Math.min(20, owner.life + 1);
+        const amount = owner.life - lifeBefore;
+        if (amount > 0) this.actionPassiveEvents.push({ kind: "blessing_heal", seat: card.owner, cardId: card.instanceId, amount });
+      }
+      if (causedByOpponent && privatePlayer.effects.includes("perde_vida_ao_morrer") && owner) {
+        const lifeBefore = owner.life;
+        owner.life = Math.max(0, owner.life - 1);
+        const amount = lifeBefore - owner.life;
+        if (amount > 0) this.actionPassiveEvents.push({ kind: "curse_damage", seat: card.owner, cardId: card.instanceId, amount });
+        if (owner.life <= 0) { this.state.winner = 1 - card.owner; this.state.phase = "finished"; }
+      }
     }
     if (card.category === "construcao") {
       for (const trap of privatePlayer.traps) if (trap.definitionId === "destrocos" && trap.lane === card.lane) trap.ready = true;
@@ -1551,7 +1882,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     if (!second) return;
     this.pendingMitosis[parent.owner] = { source: second, owner: parent.owner, candidates };
     const client = this.clientBySeat(parent.owner);
-    if (client) this.sendJson(client, "mitosis_choice", { sourceCardId: parent.instanceId, candidates: candidates.map(([lane, position]) => ({ lane, position })) });
+    if (client && !this.replayingManipulated) this.sendJson(client, "mitosis_choice", { sourceCardId: parent.instanceId, candidates: candidates.map(([lane, position]) => ({ lane, position })) });
   }
 
   private handCard(seat: number, cardId: unknown) {
@@ -1618,7 +1949,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       mana: player.mana, sangue: player.sangue, ossos: player.ossos, sucata: player.sucata,
       manaUsed: player.manaUsed, sangueUsed: player.sangueUsed,
       ossosUsed: player.ossosUsed, sucataUsed: player.sucataUsed,
-      blockedResource: player.blockedResource, blockedTurns: player.blockedTurns, hasTakenTurn: player.hasTakenTurn,
+      blockedResource: player.blockedResource, blockedTurns: player.blockedTurns, hasTakenTurn: player.hasTakenTurn, initialHandDrawn: player.initialHandDrawn,
       activeEffects: this.privatePlayers[player.seatIndex]?.effects ?? [],
     }));
     const cards: Record<string, unknown>[] = [];
@@ -1637,12 +1968,16 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
         ready: owner === viewerSeat ? trap.ready : false,
       });
     }
+    const cemetery = this.privatePlayers.map((data) => (data?.discard ?? [])
+      .filter((card) => CARD_DEFINITIONS[card.definitionId]?.category === "tropa")
+      .map((card) => CARD_DEFINITIONS[card.definitionId]?.name ?? "Tropa"));
     const payload = {
       phase: this.state.phase, currentPlayer: this.state.currentPlayer,
       winner: this.state.winner, revision: this.state.revision,
       turnNumber: this.state.turnNumber,
       terrainDefinitionId: this.state.terrainDefinitionId,
       discardCounts: [this.state.discardCount0, this.state.discardCount1],
+      cemetery,
       players, cards, traps,
     };
     this.sendJson(client, "public_state", payload);
@@ -1686,7 +2021,20 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
   }
 
   private rollForSeat(seat: number, sides: number): number {
-    const rolled = this.roll(sides);
+    const replay = this.manipulatedReplay;
+    let rolled: number;
+    if (replay) {
+      const saved = replay.rolls[replay.rollCursor];
+      if (saved) {
+        if (saved.sides !== sides) throw new Error("sequencia_de_dados_inconsistente");
+        rolled = saved.value;
+      } else {
+        rolled = this.roll(sides);
+        replay.rolls.push({ sides, value: rolled });
+      }
+      replay.rollCursor += 1;
+    } else rolled = this.roll(sides);
+
     const data = this.privatePlayers[seat];
     if (!data) return rolled;
     const index = data.effects.findIndex((value) => value.startsWith("dados_manipulados:"));
@@ -1695,9 +2043,19 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     const fixed = Number(parts[1]);
     const remaining = Number(parts[2]);
     if (!Number.isInteger(fixed) || fixed <= 0 || fixed > sides || remaining <= 0) return rolled;
+
+    let useAlternative = fixed > rolled;
+    if (replay) {
+      const decision = replay.decisions[replay.cursor];
+      if (!decision) throw { manipulatedRoll: true, seat, natural: rolled, fixed, sides };
+      if (decision.seat !== seat || decision.natural !== rolled || decision.fixed !== fixed || decision.sides !== sides)
+        throw new Error("escolha_de_dado_inconsistente");
+      replay.cursor += 1;
+      useAlternative = decision.useAlternative;
+    }
     if (remaining <= 1) data.effects.splice(index, 1);
     else data.effects[index] = "dados_manipulados:" + fixed + ":" + (remaining - 1);
-    return Math.max(rolled, fixed);
+    return useAlternative ? fixed : rolled;
   }
 
   private publicCardPayload(card: PublicCardState) {
@@ -1744,6 +2102,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     if (!allReady) return;
     this.state.phase = "initiative";
     this.bump("initiative_started");
+    this.broadcastJson("initiative_started", { revision: this.state.revision });
     this.sendPublicState();
   }
 
@@ -1761,6 +2120,8 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     this.state.initiativeWinner = winner.seatIndex;
     this.state.phase = "choose_first";
     this.bump("initiative_finished");
+    this.broadcastJson("initiative_finished", { winner: winner.seatIndex, revision: this.state.revision });
+    this.sendPublicState();
   }
 
   private reject(client: Client, reason: string) {

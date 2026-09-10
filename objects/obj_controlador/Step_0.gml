@@ -2,6 +2,7 @@
 // obj_controlador — Step Event
 // =============================================================================
 if (modo_partida == "online" && colyseus_is_ready()) colyseus_process();
+if (modo_partida == "online") online_atualizar_atraso_visual();
 
 #region Watchdog de segurança
 // Se rolagens_pendentes ficar travado (algum dado/moeda não decrementou por bug),
@@ -150,10 +151,17 @@ if (disputa_inicial_estado != "concluida") {
                 _deck_inicial.y - _deck_inicial.sprite_height * 0.65,
                 _deck_inicial.x + _deck_inicial.sprite_width * 0.65,
                 _deck_inicial.y + _deck_inicial.sprite_height * 0.65)) {
-            comprar_mao_inicial();
-            if (partida_local_ativa()) comprar_mao_inicial_segundo_jogador(); else comprar_mao_inicial_ia();
-            disputa_inicial_estado = "distribuindo";
-            disputa_inicial_timer = quantidade_inicial * 7 + 45;
+            if (modo_partida == "online") {
+                if (online_comprar_mao_inicial()) {
+                    disputa_inicial_estado = "online_aguardando_mao";
+                    _deck_inicial.pulso_timer = _deck_inicial.pulso_duracao;
+                }
+            } else {
+                comprar_mao_inicial();
+                if (partida_local_ativa()) comprar_mao_inicial_segundo_jogador(); else comprar_mao_inicial_ia();
+                disputa_inicial_estado = "distribuindo";
+                disputa_inicial_timer = quantidade_inicial * 7 + 45;
+            }
         }
     } else if (disputa_inicial_estado == "distribuindo") {
         disputa_inicial_timer--;

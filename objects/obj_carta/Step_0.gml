@@ -684,7 +684,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
     if (_distancia_arrastada > 80 && pode_pagar_custo(custo, _lado_acao, categoria)) {
         var _sucesso = (categoria == "bencao")
             ? adicionar_bencao(_lado_acao, efeito_passivo, nome_carta, sprite_index)
-            : adicionar_maldicao(_lado_acao, efeito_passivo, nome_carta, sprite_index);
+            : adicionar_maldicao(lado_oposto(_lado_acao), efeito_passivo, nome_carta, sprite_index);
         
         if (_sucesso) {
             pagar_custo(custo, _lado_acao, categoria);
