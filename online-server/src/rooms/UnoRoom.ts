@@ -18,12 +18,19 @@ interface PrivateCard {
 
 interface ActiveTrap { instanceId: string; definitionId: string; lane: number; position: number; ready: boolean; targetId: string; }
 interface ActiveResource { instanceId: string; definitionId: string; type: ResourceType; amount: number; used: boolean; }
+interface ActiveEffectCard {
+  definitionId: string;
+  effect: string;
+  category: "bencao" | "maldicao";
+  name: string;
+}
 
 interface PrivatePlayer {
   traps: ActiveTrap[];
   resources: ActiveResource[];
   abyss: PrivateCard[];
   effects: string[];
+  effectCards: ActiveEffectCard[];
   lastNonTroopDefinitionId: string;
   deck: PrivateCard[];
   hand: PrivateCard[];
@@ -303,7 +310,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     player.evolutionsUsed = 0;
     this.state.players.set(client.sessionId, player);
     this.privatePlayers[seat] = { deck: [], hand: [], discard: [], abyss: [], resources: [],
-      configuredDeck: defaultDeck(), traps: [], effects: [], lastNonTroopDefinitionId: "" };
+      configuredDeck: defaultDeck(), traps: [], effects: [], effectCards: [], lastNonTroopDefinitionId: "" };
     this.setMetadata({ players: this.clients.length, phase: this.state.phase });
     this.sendJson(client, "seat", { seat, roomId: this.roomId, seed: this.state.seed });
   }
@@ -360,6 +367,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       data.resources = [];
       data.traps = [];
       data.effects = [];
+      data.effectCards = [];
       data.lastNonTroopDefinitionId = "";
       this.pendingMagnet[seat] = [];
       this.pendingMitosis[seat] = undefined;
@@ -1064,7 +1072,14 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       this.state.terrainDefinitionId = terrainCard.definitionId;
       player.terrainPlayed = true;
     } else {
-      this.privatePlayers[effectOwnerSeat].effects.push(found.definition.effect ?? found.card.definitionId);
+      const effectKey = found.definition.effect ?? found.card.definitionId;
+      this.privatePlayers[effectOwnerSeat].effects.push(effectKey);
+      this.privatePlayers[effectOwnerSeat].effectCards.push({
+        definitionId: found.card.definitionId,
+        effect: effectKey,
+        category: found.definition.category as "bencao" | "maldicao",
+        name: found.definition.name,
+      });
       this.discardPlayedCard(seat, found);
     }
     this.privatePlayers[seat].lastNonTroopDefinitionId = found.card.definitionId;
@@ -2054,15 +2069,17 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     }
     if (card.category === "tropa") {
       const owner = this.playerBySeat(card.owner);
-      if (privatePlayer.effects.includes("cura_ao_morrer") && owner) {
+      const healingEffects = privatePlayer.effects.filter((effect) => effect === "cura_ao_morrer").length;
+      if (healingEffects > 0 && owner) {
         const lifeBefore = owner.life;
-        owner.life = Math.min(20, owner.life + 1);
+        owner.life = Math.min(20, owner.life + healingEffects);
         const amount = owner.life - lifeBefore;
         if (amount > 0) this.actionPassiveEvents.push({ kind: "blessing_heal", seat: card.owner, cardId: card.instanceId, amount });
       }
-      if (causedByOpponent && privatePlayer.effects.includes("perde_vida_ao_morrer") && owner) {
+      const damagingEffects = privatePlayer.effects.filter((effect) => effect === "perde_vida_ao_morrer").length;
+      if (causedByOpponent && damagingEffects > 0 && owner) {
         const lifeBefore = owner.life;
-        owner.life = Math.max(0, owner.life - 1);
+        owner.life = Math.max(0, owner.life - damagingEffects);
         const amount = lifeBefore - owner.life;
         if (amount > 0) this.actionPassiveEvents.push({ kind: "curse_damage", seat: card.owner, cardId: card.instanceId, amount });
         if (owner.life <= 0) { this.state.winner = 1 - card.owner; this.state.phase = "finished"; }
@@ -2157,7 +2174,10 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       deckCount: data.deck.length,
       discard: data.discard.map((card) => card.definitionId),
       activeTraps: data.traps.map((trap) => ({ ...trap, name: CARD_DEFINITIONS[trap.definitionId]?.name ?? "Armadilha" })),
-      activeEffects: data.effects,
+      activeEffects: [
+        ...data.effectCards,
+        ...data.effects.filter((effect) => effect.startsWith("dados_manipulados:")),
+      ],
       abyss: data.abyss.map((card) => card.definitionId),
       revision: this.state.revision,
     });
@@ -2174,7 +2194,12 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       manaUsed: player.manaUsed, sangueUsed: player.sangueUsed,
       ossosUsed: player.ossosUsed, sucataUsed: player.sucataUsed,
       blockedResource: player.blockedResource, blockedTurns: player.blockedTurns, hasTakenTurn: player.hasTakenTurn, initialHandDrawn: player.initialHandDrawn,
-      activeEffects: this.privatePlayers[player.seatIndex]?.effects ?? [],
+      activeEffects: this.privatePlayers[player.seatIndex]
+        ? [
+          ...this.privatePlayers[player.seatIndex].effectCards,
+          ...this.privatePlayers[player.seatIndex].effects.filter((effect) => effect.startsWith("dados_manipulados:")),
+        ]
+        : [],
     }));
     const cards: Record<string, unknown>[] = [];
     this.state.cards.forEach((card: PublicCardState) => cards.push({

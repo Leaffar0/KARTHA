@@ -2937,7 +2937,7 @@ function destruir_tropa(_carta, _por_inimigo = true) {
     _carta.item_ataque_atual = noone;
 
     if (_carta.selo_abissal) {
-        mandar_para_abismo(_carta.nome_carta);
+        mandar_para_abismo(_carta.nome_carta, _carta.dono);
     } else {
         var _controle = instance_find(obj_controlador, 0);
         if (_carta.dono == "jogador") {
@@ -2968,7 +2968,7 @@ function destruir_tropa(_carta, _por_inimigo = true) {
 // Registra cartas da mão abstrata da IA, que não possuem uma instância visual.
 function registrar_descarte_dados(_dados, _dono) {
     if (variable_struct_exists(_dados, "selo_abissal") && _dados.selo_abissal) {
-        mandar_para_abismo(_dados.nome);
+        mandar_para_abismo(_dados.nome, _dono);
         return;
     }
     var _destino = (_dono == "jogador") ? obj_controlador.descarte_jogador : obj_controlador.descarte_inimigo;
@@ -2985,7 +2985,7 @@ function registrar_descarte(_carta) {
     if (!instance_exists(_carta)) return;
     registrar_ultima_carta_jogada(_carta.funcao_dados_origem, _carta.dono);
     if (_carta.selo_abissal) {
-        mandar_para_abismo(_carta.nome_carta);
+        mandar_para_abismo(_carta.nome_carta, _carta.dono);
         return;
     }
     var _destino = (_carta.dono == "jogador") ? obj_controlador.descarte_jogador : obj_controlador.descarte_inimigo;
@@ -5349,8 +5349,10 @@ function registrar_evolucao(_dono) {
 #endregion
 
 #region Abismo - Cartas especiais
-function mandar_para_abismo(_nome_carta) {
+function mandar_para_abismo(_nome_carta, _dono = "") {
     array_push(obj_controlador.abismo, _nome_carta);
+    if (_dono == "jogador") array_push(obj_controlador.abismo_jogador, _nome_carta);
+    else if (_dono == "inimigo") array_push(obj_controlador.abismo_inimigo, _nome_carta);
     debug_combate(_nome_carta + " foi engolida pelo ABISMO. Nunca mais volta.");
 }
 

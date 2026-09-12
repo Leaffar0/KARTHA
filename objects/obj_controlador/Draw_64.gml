@@ -421,6 +421,39 @@ draw_set_halign(fa_center);
 draw_set_valign(fa_middle);
 draw_text((_cem_x1 + _cem_x2) / 2, 88, "CEMITÉRIO  " + string(array_length(cemiterio_jogador)) + "/" + string(array_length(cemiterio_inimigo)));
 
+// O Abismo é uma pilha permanente e separada para cada lado.
+var _abismo_x1 = _cem_x1;
+var _abismo_x2 = _cem_x2;
+var _abismo_y1 = 112;
+var _abismo_y2 = 144;
+var _abismo_cor = make_color_rgb(135, 55, 210);
+draw_set_alpha(0.92);
+draw_set_color(c_black);
+draw_roundrect(_abismo_x1, _abismo_y1, _abismo_x2, _abismo_y2, false);
+draw_set_alpha(1);
+draw_set_color(_abismo_cor);
+draw_roundrect(_abismo_x1, _abismo_y1, _abismo_x2, _abismo_y2, true);
+
+// Três contornos deslocados dão a leitura visual de uma pilha de cartas.
+draw_set_alpha(0.45);
+draw_rectangle(_abismo_x1 + 8, _abismo_y1 + 7, _abismo_x1 + 24, _abismo_y2 - 5, true);
+draw_rectangle(_abismo_x1 + 11, _abismo_y1 + 5, _abismo_x1 + 27, _abismo_y2 - 7, true);
+draw_set_alpha(1);
+draw_rectangle(_abismo_x1 + 14, _abismo_y1 + 3, _abismo_x1 + 30, _abismo_y2 - 9, true);
+
+draw_set_halign(fa_left);
+draw_set_valign(fa_middle);
+draw_set_color(_abismo_cor);
+draw_text_transformed(_abismo_x1 + 38, (_abismo_y1 + _abismo_y2) / 2, "ABISMO", 0.72, 0.72, 0);
+draw_set_halign(fa_center);
+draw_set_color(c_aqua);
+draw_text_transformed(_abismo_x2 - 48, (_abismo_y1 + _abismo_y2) / 2,
+    "J " + string(array_length(abismo_jogador)), 0.62, 0.62, 0);
+draw_set_color(c_red);
+draw_text_transformed(_abismo_x2 - 18, (_abismo_y1 + _abismo_y2) / 2,
+    "I " + string(array_length(abismo_inimigo)), 0.62, 0.62, 0);
+draw_set_color(c_white);
+
 if (cemiterio_aberto) {
     var _lista_y1 = 110;
     var _lista_y2 = 300;

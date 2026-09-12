@@ -1005,8 +1005,10 @@ function online_sincronizar_efeitos_ativos(_jogadores, _terreno_id) {
         var _dono = online_lado_do_assento(_dados.seat);
         var _efeitos = variable_struct_exists(_dados, "activeEffects") ? _dados.activeEffects : [];
         for (var e = 0; e < array_length(_efeitos); e++) {
-            var _efeito = _efeitos[e];
-            if (string_pos("dados_manipulados:", _efeito) == 1) {
+            var _registro_efeito = _efeitos[e];
+            var _efeito = is_struct(_registro_efeito) && variable_struct_exists(_registro_efeito, "effect")
+                ? _registro_efeito.effect : _registro_efeito;
+            if (is_string(_efeito) && string_pos("dados_manipulados:", _efeito) == 1) {
                 var _partes_dado = string_split(_efeito, ":");
                 if (array_length(_partes_dado) >= 3) {
                     if (_dono == "jogador") {
@@ -1017,9 +1019,30 @@ function online_sincronizar_efeitos_ativos(_jogadores, _terreno_id) {
                         obj_controlador.dados_manipulados_usos_inimigo = real(_partes_dado[2]);
                     }
                 }
+                continue;
             }
-            if (_efeito == "cura_ao_morrer") adicionar_bencao(_dono, _efeito, "Bênção ativa", noone);
-            else if (_efeito == "perde_vida_ao_morrer") adicionar_maldicao(_dono, _efeito, "Maldição ativa", noone);
+
+            var _categoria_efeito = is_struct(_registro_efeito)
+                && variable_struct_exists(_registro_efeito, "category")
+                ? _registro_efeito.category
+                : ((_efeito == "perde_vida_ao_morrer") ? "maldicao" : "bencao");
+            var _nome_efeito = is_struct(_registro_efeito)
+                && variable_struct_exists(_registro_efeito, "name")
+                ? _registro_efeito.name
+                : ((_categoria_efeito == "maldicao") ? "Maldição ativa" : "Bênção ativa");
+            var _sprite_efeito = noone;
+            if (is_struct(_registro_efeito) && variable_struct_exists(_registro_efeito, "definitionId")) {
+                var _funcao_efeito = online_funcao_carta_por_id(_registro_efeito.definitionId);
+                if (_funcao_efeito != noone) {
+                    var _dados_efeito = _funcao_efeito();
+                    if (variable_struct_exists(_dados_efeito, "sprite_carta"))
+                        _sprite_efeito = _dados_efeito.sprite_carta;
+                }
+            }
+            if (_categoria_efeito == "maldicao")
+                adicionar_maldicao(_dono, _efeito, _nome_efeito, _sprite_efeito);
+            else
+                adicionar_bencao(_dono, _efeito, _nome_efeito, _sprite_efeito);
         }
         if (variable_struct_exists(_dados, "blockedResource") && _dados.blockedResource != "") {
             with (obj_recurso) {
@@ -1241,6 +1264,16 @@ function online_aplicar_estado_publico(_estado) {
         && array_length(_estado.cemetery) >= 2) {
         obj_controlador.cemiterio_jogador = _estado.cemetery[global.online_assento];
         obj_controlador.cemiterio_inimigo = _estado.cemetery[1 - global.online_assento];
+    }
+    if (variable_struct_exists(_estado, "abyss") && is_array(_estado.abyss)
+        && array_length(_estado.abyss) >= 2) {
+        obj_controlador.abismo_jogador = _estado.abyss[global.online_assento];
+        obj_controlador.abismo_inimigo = _estado.abyss[1 - global.online_assento];
+        obj_controlador.abismo = [];
+        for (var _aj = 0; _aj < array_length(obj_controlador.abismo_jogador); _aj++)
+            array_push(obj_controlador.abismo, obj_controlador.abismo_jogador[_aj]);
+        for (var _ai = 0; _ai < array_length(obj_controlador.abismo_inimigo); _ai++)
+            array_push(obj_controlador.abismo, obj_controlador.abismo_inimigo[_ai]);
     }
     for (var p = 0; p < array_length(_estado.players); p++) {
         var _jogador = _estado.players[p];
@@ -1564,6 +1597,89 @@ function online_animar_confirmacao(_mensagem) {
         }
         if (variable_struct_exists(_dados, "roll") && _dados.effect == "dados_manipulados")
             rolar_dado_visual(_fx, _fy + 55, _fx, _fy, 4, _dados.roll, noone, 0, 0, 55);
+
+        // Efeitos declarativos chegam como uma sequência de eventos do servidor.
+        // Cada evento recebe sua própria resposta visual antes do estado definitivo.
+        var _eventos_declarativos = variable_struct_exists(_dados, "declarativeEvents")
+            && is_array(_dados.declarativeEvents) ? _dados.declarativeEvents : [];
+        for (var _edi = 0; _edi < array_length(_eventos_declarativos); _edi++) {
+            var _evento_decl = _eventos_declarativos[_edi];
+            if (!is_struct(_evento_decl) || !variable_struct_exists(_evento_decl, "tipo")) continue;
+            var _alvo_decl = variable_struct_exists(_evento_decl, "targetId")
+                ? online_encontrar_carta_campo(_evento_decl.targetId) : noone;
+            var _dx_decl = instance_exists(_alvo_decl) ? _alvo_decl.x : room_width / 2;
+            var _dy_decl = instance_exists(_alvo_decl) ? _alvo_decl.y - 48 : room_height / 2;
+            _dy_decl -= _edi * 15;
+
+            switch (_evento_decl.tipo) {
+                case "dano":
+                    var _dano_decl = variable_struct_exists(_evento_decl, "valor") ? _evento_decl.valor : 0;
+                    if (instance_exists(_alvo_decl) && _dano_decl > 0) {
+                        _alvo_decl.vida = max(0, _alvo_decl.vida - _dano_decl);
+                        aplicar_flash_dano(_alvo_decl, 28, noone);
+                        mostrar_dano_tropa(_alvo_decl, _dano_decl);
+                    }
+                    mostrar_feedback("DANO " + string(_dano_decl), _dx_decl, _dy_decl, c_red, 72);
+                break;
+
+                case "cura":
+                    var _cura_decl = variable_struct_exists(_evento_decl, "valor") ? _evento_decl.valor : 0;
+                    if (instance_exists(_alvo_decl) && _cura_decl > 0)
+                        _alvo_decl.vida = min(_alvo_decl.vida_maxima, _alvo_decl.vida + _cura_decl);
+                    mostrar_feedback("+" + string(_cura_decl) + " VIDA", _dx_decl, _dy_decl, c_lime, 72);
+                break;
+
+                case "vida_maxima":
+                    var _max_decl = variable_struct_exists(_evento_decl, "valor") ? _evento_decl.valor : 0;
+                    if (instance_exists(_alvo_decl)) _alvo_decl.vida_maxima = max(1, _alvo_decl.vida_maxima + _max_decl);
+                    mostrar_feedback("VIDA MÁX " + ((_max_decl >= 0) ? "+" : "") + string(_max_decl),
+                        _dx_decl, _dy_decl, c_aqua, 76);
+                break;
+
+                case "condicao":
+                    var _aplicou_decl = !variable_struct_exists(_evento_decl, "applied") || _evento_decl.applied;
+                    var _nome_cond_decl = variable_struct_exists(_evento_decl, "chave")
+                        ? string_upper(string_replace_all(_evento_decl.chave, "_", " ")) : "CONDIÇÃO";
+                    if (variable_struct_exists(_evento_decl, "dano") && _evento_decl.dano > 0
+                        && instance_exists(_alvo_decl)) {
+                        _alvo_decl.vida = max(0, _alvo_decl.vida - _evento_decl.dano);
+                        aplicar_flash_dano(_alvo_decl, 26, noone);
+                        mostrar_dano_tropa(_alvo_decl, _evento_decl.dano);
+                    }
+                    if (variable_struct_exists(_evento_decl, "coin"))
+                        rolar_dado_visual(_dx_decl, _dy_decl + 60, _dx_decl, _dy_decl + 18,
+                            2, _evento_decl.coin, noone, 0, _edi * 48, 72);
+                    mostrar_feedback(_aplicou_decl ? _nome_cond_decl : "EFEITO BLOQUEADO",
+                        _dx_decl, _dy_decl, _aplicou_decl ? c_purple : c_gray, 76);
+                break;
+
+                case "destruir":
+                    if (instance_exists(_alvo_decl)) {
+                        _alvo_decl.vida = 0;
+                        aplicar_flash_dano(_alvo_decl, 34, noone);
+                    }
+                    mostrar_feedback("TROPA DESTRUÍDA", _dx_decl, _dy_decl, c_red, 88);
+                break;
+
+                case "comprar":
+                    var _compra_decl = variable_struct_exists(_evento_decl, "quantidade") ? _evento_decl.quantidade : 1;
+                    mostrar_feedback("COMPROU " + string(_compra_decl) + " CARTA(S)",
+                        room_width / 2, (_mensagem.seat == global.online_assento) ? room_height - 92 : 92,
+                        c_aqua, 72);
+                break;
+
+                case "recurso":
+                    var _qtd_recurso_decl = variable_struct_exists(_evento_decl, "quantidade") ? _evento_decl.quantidade : 1;
+                    var _nome_recurso_decl = variable_struct_exists(_evento_decl, "chave")
+                        ? string_upper(_evento_decl.chave) : "RECURSO";
+                    mostrar_feedback("+" + string(_qtd_recurso_decl) + " " + _nome_recurso_decl,
+                        room_width / 2, (_mensagem.seat == global.online_assento) ? room_height - 92 : 92,
+                        c_lime, 72);
+                break;
+            }
+        }
+        if (array_length(_eventos_declarativos) > 0)
+            online_adicionar_atraso_visual(75 + array_length(_eventos_declarativos) * 35);
         return;
     }
 

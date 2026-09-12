@@ -199,7 +199,9 @@ max_bencaos_maldicoes = 2;
 #endregion
 
 #region Abismo
-abismo = []; // guarda os nomes das cartas que foram parar lá, pra sempre
+abismo = []; // lista combinada, mantida para consultas de regras
+abismo_jogador = [];
+abismo_inimigo = [];
 cemiterio_jogador = []; // descarte lógico; a visualização pode ser adicionada depois
 cemiterio_inimigo = [];
 descarte_jogador = []; // magias e itens consumidos; a pilha visual será ligada a este array
