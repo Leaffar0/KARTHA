@@ -17,9 +17,12 @@ interface PrivateCard {
 }
 
 interface ActiveTrap { instanceId: string; definitionId: string; lane: number; position: number; ready: boolean; targetId: string; }
+interface ActiveResource { instanceId: string; definitionId: string; type: ResourceType; amount: number; used: boolean; }
 
 interface PrivatePlayer {
   traps: ActiveTrap[];
+  resources: ActiveResource[];
+  abyss: PrivateCard[];
   effects: string[];
   lastNonTroopDefinitionId: string;
   deck: PrivateCard[];
@@ -58,6 +61,9 @@ interface AbilityState {
   electrocutions?: number;
   electrocutedThisCycle?: boolean;
   madnessNoDefense?: boolean;
+  burnImmunity?: number;
+  bleedingWindow?: boolean;
+  bleedingHitThisCycle?: boolean;
 }
 
 interface PendingMagnetChoice {
@@ -74,6 +80,7 @@ interface MatchSnapshot {
   state: Record<string, unknown>; players: Array<[string, Record<string, unknown>]>; cards: Array<[string, Record<string, unknown>]>;
   privatePlayers: PrivatePlayer[]; nextCardId: number; pendingCritical?: Record<string, unknown>;
   pendingMagnet: PendingMagnetChoice[][]; pendingMitosis: Array<PendingMitosisChoice | undefined>; rematchVotes: number[];
+  activeTerrain?: { owner: number; card: PrivateCard };
 }
 
 interface PendingMitosisChoice {
@@ -85,7 +92,7 @@ interface PendingMitosisChoice {
 const ACTIONS = new Set([
   "place_resource", "play_troop", "play_construction",
   "move_troop", "attack", "choose_critical", "end_turn", "set_castle_defense", "evolve_troop",
-  "play_spell", "play_item", "play_trap", "activate_trap", "play_effect",
+  "play_spell", "play_item", "play_trap", "activate_trap", "play_effect", "remove_resource",
   "use_ability", "use_construction", "remove_item", "transfer_item", "use_item_ability", "choose_magnet", "choose_mitosis",
 ]);
 
@@ -123,6 +130,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
   private manipulatedReplay?: { decisions: ManipulatedRollDecision[]; cursor: number; rolls: Array<{ sides: number; value: number }>; rollCursor: number };
   private replayingManipulated = false;
   private actionPassiveEvents: Array<Record<string, unknown>> = [];
+  private activeTerrain?: { owner: number; card: PrivateCard };
 
   private sendJson(client: Client, type: string, payload: unknown) {
     client.send(type, JSON.stringify(payload));
@@ -257,6 +265,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       this.pendingManipulated = undefined;
       this.pendingMagnet = [[], []];
       this.pendingMitosis = [undefined, undefined];
+      this.activeTerrain = undefined;
       this.state.cards.clear();
       this.state.terrainDefinitionId = "";
       this.state.currentPlayer = -1;
@@ -293,7 +302,8 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       player.blockedResource = ""; player.blockedTurns = 0;
     player.evolutionsUsed = 0;
     this.state.players.set(client.sessionId, player);
-    this.privatePlayers[seat] = { deck: [], hand: [], discard: [], configuredDeck: defaultDeck(), traps: [], effects: [], lastNonTroopDefinitionId: "" };
+    this.privatePlayers[seat] = { deck: [], hand: [], discard: [], abyss: [], resources: [],
+      configuredDeck: defaultDeck(), traps: [], effects: [], lastNonTroopDefinitionId: "" };
     this.setMetadata({ players: this.clients.length, phase: this.state.phase });
     this.sendJson(client, "seat", { seat, roomId: this.roomId, seed: this.state.seed });
   }
@@ -339,12 +349,15 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
   private startMatch(firstSeat: number) {
     this.pendingManipulated = undefined;
     this.rematchVotes.clear();
+    this.activeTerrain = undefined;
     this.state.cards.clear();
     this.nextCardId = 1;
     for (let seat = 0; seat < 2; seat++) {
       const data = this.privatePlayers[seat];
       data.hand = [];
       data.discard = [];
+      data.abyss = [];
+      data.resources = [];
       data.traps = [];
       data.effects = [];
       data.lastNonTroopDefinitionId = "";
@@ -393,6 +406,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       pendingCritical: this.pendingCritical ? this.cloneData(this.pendingCritical) : undefined,
       pendingMagnet: this.cloneData(this.pendingMagnet), pendingMitosis: this.cloneData(this.pendingMitosis),
       rematchVotes: [...this.rematchVotes],
+      activeTerrain: this.activeTerrain ? this.cloneData(this.activeTerrain) : undefined,
     };
   }
 
@@ -408,6 +422,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     this.pendingMagnet = this.cloneData(snapshot.pendingMagnet);
     this.pendingMitosis = this.cloneData(snapshot.pendingMitosis);
     this.rematchVotes = new Set(snapshot.rematchVotes);
+    this.activeTerrain = snapshot.activeTerrain ? this.cloneData(snapshot.activeTerrain) : undefined;
   }
 
   private confirmAction(seat: number, kind: string, result: ActionResult) {
@@ -473,6 +488,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       case "play_trap": return this.playTrap(seat, payload);
       case "activate_trap": return this.activateTrap(seat, payload);
       case "play_effect": return this.playEffect(seat, payload);
+      case "remove_resource": return this.removeResource(seat, payload);
       case "use_ability": return this.useAbility(seat, payload);
       case "use_construction": return this.useConstruction(seat, payload);
       case "remove_item": return this.removeItem(seat, payload);
@@ -492,23 +508,42 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
 
   private placeResource(seat: number, payload: Record<string, unknown>): ActionResult {
     const player = this.playerBySeat(seat)!;
+    const data = this.privatePlayers[seat];
     if (player.resourcePlaced) return { ok: false, reason: "recurso_ja_colocado" };
-    if (player.mana + player.sangue + player.ossos + player.sucata >= 6)
-      return { ok: false, reason: "limite_recursos" };
+    if (data.resources.length >= 6) return { ok: false, reason: "limite_recursos" };
 
     const found = this.handCard(seat, payload.cardId);
     if (!found || found.definition.category !== "recurso" || !found.definition.resourceType)
       return { ok: false, reason: "carta_recurso_invalida" };
 
+    const card = this.removeHandCard(seat, found.index);
     const type = found.definition.resourceType;
-    player[RESOURCE_FIELDS[type]] += 1;
+    const amount = Math.max(1, Math.floor(found.definition.resourceAmount ?? 1));
+    data.resources.push({ instanceId: card.instanceId, definitionId: card.definitionId, type, amount, used: false });
     player.resourcePlaced = true;
-    this.discardHandCard(seat, found.index);
+    this.syncResourceTotals(seat);
     return {
       ok: true,
-      details: { cardId: found.card.instanceId, definitionId: found.card.definitionId, resourceType: type },
+      details: { cardId: card.instanceId, definitionId: card.definitionId, resourceType: type, resourceAmount: amount },
       privateSeats: [seat],
     };
+  }
+
+  private removeResource(seat: number, payload: Record<string, unknown>): ActionResult {
+    const player = this.playerBySeat(seat)!;
+    if (player.resourceRemoved) return { ok: false, reason: "recurso_ja_retirado" };
+    const data = this.privatePlayers[seat];
+    const resourceId = typeof payload.resourceId === "string" ? payload.resourceId : "";
+    const type = typeof payload.resourceType === "string" ? payload.resourceType : "";
+    const index = data.resources.findIndex((resource) =>
+      resource.instanceId === resourceId || (!resourceId && resource.type === type));
+    if (index < 0) return { ok: false, reason: "recurso_invalido" };
+    const [resource] = data.resources.splice(index, 1);
+    data.hand.push({ instanceId: resource.instanceId, definitionId: resource.definitionId });
+    player.resourceRemoved = true;
+    this.syncResourceTotals(seat);
+    this.updateCounts(seat);
+    return { ok: true, details: { resourceId: resource.instanceId, resourceType: resource.type }, privateSeats: [seat] };
   }
 
   private playTroop(seat: number, payload: Record<string, unknown>): ActionResult {
@@ -582,21 +617,52 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     card.equipmentJson = JSON.stringify(ids);
   }
 
+  private cardHasTag(card: PublicCardState, tag: string): boolean {
+    const definition = CARD_DEFINITIONS[card.definitionId];
+    const wanted = tag.toLocaleLowerCase("pt-BR");
+    return Boolean(definition?.tags?.some((value) => value.toLocaleLowerCase("pt-BR") === wanted)
+      || (definition?.name ?? card.name).toLocaleLowerCase("pt-BR").includes(wanted));
+  }
+
+  private synergyBonus(definition: CardDefinition | undefined, card: PublicCardState, field: "bonus_dano" | "bonus_defesa"): number {
+    return definition?.synergies?.reduce((sum, synergy) =>
+      sum + (this.cardHasTag(card, synergy.tag) ? (synergy[field] ?? 0) : 0), 0) ?? 0;
+  }
+
   private equipmentAttackBonus(card: PublicCardState): number {
-    return this.equipmentIds(card).reduce((sum, id) => sum + (CARD_DEFINITIONS[id]?.bonusAttack ?? 0), 0);
+    return this.equipmentIds(card).reduce((sum, id) => {
+      const definition = CARD_DEFINITIONS[id];
+      return sum + (definition?.bonusAttack ?? 0) + this.synergyBonus(definition, card, "bonus_dano");
+    }, 0);
   }
 
   private equipmentDefenseBonus(card: PublicCardState): number {
-    return this.equipmentIds(card).reduce((sum, id) => sum + (CARD_DEFINITIONS[id]?.bonusDefense ?? 0), 0);
+    return this.equipmentIds(card).reduce((sum, id) => {
+      const definition = CARD_DEFINITIONS[id];
+      return sum + (definition?.bonusDefense ?? 0) + this.synergyBonus(definition, card, "bonus_defesa");
+    }, 0);
   }
 
   private effectiveAttackDie(card: PublicCardState, base: number): number {
     return this.equipmentIds(card).reduce((die, id) => CARD_DEFINITIONS[id]?.overrideAttackDie ?? die, base);
   }
   private applyCondition(card: PublicCardState, condition: string, turns: number, power: number, sourceSeat?: number, sourceCardId = ""): boolean {
-    if (condition === "sangrando" && card.condition === "sangrando") {
-      card.conditionTurns += Math.max(1, turns);
-      card.conditionPower = Math.max(card.conditionPower, power);
+    const state = this.abilityState(card);
+    if (condition === "queimado" && (state.burnImmunity ?? 0) > 0) return false;
+    if (condition === "sangrando") {
+      if (card.condition && card.condition !== condition) return false;
+      if (card.condition === condition) {
+        if (state.bleedingWindow || state.bleedingHitThisCycle) card.conditionTurns += Math.max(1, turns);
+        else card.conditionTurns = Math.max(1, card.conditionTurns);
+        card.conditionPower = Math.max(card.conditionPower, power);
+      } else {
+        card.condition = condition;
+        card.conditionTurns = state.bleedingWindow ? 2 : Math.max(1, turns);
+        card.conditionPower = power;
+      }
+      state.bleedingWindow = true;
+      state.bleedingHitThisCycle = true;
+      this.setAbilityState(card, state);
       return true;
     }
     if (card.condition && card.condition !== condition) return false;
@@ -609,6 +675,13 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       if (mutualTrap) { mutualTrap.ready = true; mutualTrap.targetId = sourceCardId; }
     }
     return true;
+  }
+
+  private moveToDiscardOrAbyss(seat: number, card: PrivateCard) {
+    const data = this.privatePlayers[seat];
+    if (CARD_DEFINITIONS[card.definitionId]?.abyssSeal) data.abyss.push(card);
+    else data.discard.push(card);
+    this.updateCounts(seat);
   }
 
   private discardPlayedCard(seat: number, found: { card: PrivateCard; index: number }) {
@@ -626,6 +699,71 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     return card;
   }
 
+  private applyDeclarativeEffects(seat: number, definition: CardDefinition, target?: PublicCardState): Record<string, unknown>[] {
+    const events: Record<string, unknown>[] = [];
+    for (const effect of definition.effects ?? []) {
+      if (effect.tipo === "condicao" && target && this.state.cards.has(target.instanceId)) {
+        const key = effect.chave ?? "";
+        if (key === "choque" || key === "eletrocutado") {
+          target.life -= 2;
+          const coin = this.rollForSeat(seat, 2);
+          if (target.life > 0) this.applyCondition(target, coin === 1 ? "paralisado" : "eletrocutado", 1, 0);
+          else this.destroyPublicCard(target);
+          events.push({ tipo: effect.tipo, chave: key, targetId: target.instanceId, dano: 2, coin });
+          continue;
+        }
+        let condition = key;
+        let turns = 1;
+        let power = 0;
+        if (key === "veneno") { condition = "envenenado"; turns = -1; power = 1; }
+        else if (key === "queimado") { turns = 3; power = 2; }
+        else if (key === "corrosao") { turns = 3; power = 3; }
+        else if (key === "gelo") condition = "congelado";
+        else if (key === "loucura") turns = -1;
+        else if (key === "adormecer") { condition = "adormecido"; turns = -1; }
+        else if (key === "sangrando") power = 3;
+        else if (key === "apodrecer" || key === "regeneracao") {
+          const roll = this.rollForSeat(seat, 4); turns = roll; power = roll;
+        }
+        const applied = this.applyCondition(target, condition, turns, power, seat);
+        events.push({ tipo: effect.tipo, chave: condition, targetId: target.instanceId, applied, turns, power });
+      } else if (effect.tipo === "dano" && target && this.state.cards.has(target.instanceId)) {
+        const value = Math.max(0, Math.floor(effect.valor ?? 0));
+        target.life -= value;
+        const destroyed = target.life <= 0;
+        if (destroyed) this.destroyPublicCard(target);
+        events.push({ tipo: effect.tipo, targetId: target.instanceId, valor: value, destroyed });
+      } else if (effect.tipo === "cura" && target && this.state.cards.has(target.instanceId)) {
+        const before = target.life;
+        target.life = Math.min(target.maxLife, target.life + Math.max(0, Math.floor(effect.valor ?? 0)));
+        events.push({ tipo: effect.tipo, targetId: target.instanceId, valor: target.life - before });
+      } else if (effect.tipo === "vida_maxima" && target && this.state.cards.has(target.instanceId)) {
+        target.maxLife = Math.max(1, target.maxLife + Math.floor(effect.valor ?? 0));
+        events.push({ tipo: effect.tipo, targetId: target.instanceId, valor: effect.valor ?? 0 });
+      } else if (effect.tipo === "destruir" && target && this.state.cards.has(target.instanceId)
+        && target.life <= (effect.limite_vida ?? Number.MAX_SAFE_INTEGER)) {
+        this.destroyPublicCard(target);
+        events.push({ tipo: effect.tipo, targetId: target.instanceId, destroyed: true });
+      } else if (effect.tipo === "comprar") {
+        const amount = Math.max(1, Math.floor(effect.quantidade ?? 1));
+        this.drawCards(seat, amount);
+        events.push({ tipo: effect.tipo, quantidade: amount });
+      } else if (effect.tipo === "recurso" && RESOURCE_ORDER.includes(effect.chave as ResourceType)) {
+        const data = this.privatePlayers[seat];
+        const player = this.playerBySeat(seat)!;
+        if (data.resources.length >= 6 || player.resourcePlaced) continue;
+        const type = effect.chave as ResourceType;
+        const amount = Math.max(1, Math.floor(effect.quantidade ?? 1));
+        const card = this.makePrivateCard(seat, type);
+        data.resources.push({ instanceId: card.instanceId, definitionId: card.definitionId, type, amount, used: false });
+        player.resourcePlaced = true;
+        this.syncResourceTotals(seat);
+        events.push({ tipo: effect.tipo, chave: type, quantidade: amount });
+      }
+    }
+    return events;
+  }
+
   private playSpell(seat: number, payload: Record<string, unknown>): ActionResult {
     if (!this.playerBySeat(seat)!.hasTakenTurn) return { ok: false, reason: "primeiro_turno_bloqueado" };
     const player = this.playerBySeat(seat)!;
@@ -637,6 +775,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     const targetType = payload.targetType === "castle" ? "castle" : payload.targetType === "construcao" ? "construcao" : "tropa";
     const target = targetId ? this.state.cards.get(targetId) : undefined;
     let details: Record<string, unknown> = { cardId: found.card.instanceId, definitionId: found.card.definitionId, effect };
+    const declarativeTarget = found.definition.target ?? "inimigo";
     let searched: ResourceType | undefined;
 
     if (effect === "buscar_sangue") {
@@ -655,6 +794,13 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       details = { ...details, roll: this.roll(4), remaining: 3 };
     } else if (effect === "refracao_temporal") {
       if (!this.privatePlayers[seat].lastNonTroopDefinitionId) return { ok: false, reason: "refracao_sem_carta" };
+    } else if (found.definition.effects?.length) {
+      if (declarativeTarget !== "nenhum" && (!target || target.category !== "tropa"))
+        return { ok: false, reason: "alvo_invalido" };
+      if (target && declarativeTarget === "aliado" && target.owner !== seat)
+        return { ok: false, reason: "alvo_invalido" };
+      if (target && declarativeTarget === "inimigo" && target.owner === seat)
+        return { ok: false, reason: "alvo_invalido" };
     } else if (!target && targetType !== "castle") {
       return { ok: false, reason: "alvo_invalido" };
     } else if (["veneno", "gelo", "choque"].includes(effect) && target?.category != "tropa") {
@@ -713,6 +859,8 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
         if (destroyed) this.destroyPublicCard(target);
         details = { ...details, targetId, targetType, damageRolls: [roll], damage: roll, coin, destroyed };
       }
+    } else if (found.definition.effects?.length) {
+      details = { ...details, declarativeEvents: this.applyDeclarativeEffects(seat, found.definition, target) };
     } else if (target) {
       if (effect === "veneno") this.applyCondition(target, "envenenado", -1, 1);
       if (effect === "gelo") this.applyCondition(target, "congelado", 1, 0);
@@ -759,29 +907,50 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     if (definition.category === "item_equipavel") {
       if (!target || target.category !== "tropa" || target.owner !== seat) return { ok: false, reason: "alvo_item_invalido" };
       const equipment = this.equipmentIds(target);
+      const targetState = this.abilityState(target);
+      if (["adormecido", "loucura"].includes(target.condition)) return { ok: false, reason: "tropa_incapacitada" };
+      if (targetState.itemActionUsed) return { ok: false, reason: "acao_item_ja_usada" };
       const targetDefinition = CARD_DEFINITIONS[target.definitionId];
       if (equipment.length >= (targetDefinition.itemSlots ?? 0)) return { ok: false, reason: "mochila_cheia" };
       if (target.intelligence < (definition.intelligenceRequired ?? 0)) return { ok: false, reason: "inteligencia_insuficiente" };
       if (!this.payCost(player, definition)) return { ok: false, reason: "recursos_insuficientes" };
       equipment.push(found.card.definitionId);
       this.setEquipment(target, equipment);
+      targetState.itemActionUsed = true;
+      this.setAbilityState(target, targetState);
       this.removeHandCard(seat, found.index);
       details = { ...details, targetId, equipment };
     } else {
-      if (target && target.category != "tropa") return { ok: false, reason: "alvo_item_invalido" };
-      if ((effect === "cura" || effect === "aumentar_inteligencia" || effect === "aplicar_corrosao") && !target)
-        return { ok: false, reason: "alvo_item_invalido" };
-      if ((effect === "cura" || effect === "aumentar_inteligencia") && target?.owner !== seat)
-        return { ok: false, reason: "alvo_item_invalido" };
-      if (effect === "buscar_mana" && !this.privatePlayers[seat].deck.some((card) => CARD_DEFINITIONS[card.definitionId]?.resourceType === "mana"))
-        return { ok: false, reason: "recurso_nao_encontrado" };
-      if (effect === "revirar_sangue" && player.sangueUsed <= 0) return { ok: false, reason: "recurso_nao_gasto" };
+      if (definition.effects?.length) {
+        const targetMode = definition.target ?? "inimigo";
+        if (targetMode !== "nenhum" && (!target || target.category !== "tropa"))
+          return { ok: false, reason: "alvo_item_invalido" };
+        if (target && targetMode === "aliado" && target.owner !== seat)
+          return { ok: false, reason: "alvo_item_invalido" };
+        if (target && targetMode === "inimigo" && target.owner === seat)
+          return { ok: false, reason: "alvo_item_invalido" };
+      } else {
+        if (target && target.category != "tropa") return { ok: false, reason: "alvo_item_invalido" };
+        if ((effect === "cura" || effect === "aumentar_inteligencia" || effect === "aplicar_corrosao") && !target)
+          return { ok: false, reason: "alvo_item_invalido" };
+        if ((effect === "cura" || effect === "aumentar_inteligencia") && target?.owner !== seat)
+          return { ok: false, reason: "alvo_item_invalido" };
+        if (effect === "buscar_mana" && !this.privatePlayers[seat].deck.some((card) => CARD_DEFINITIONS[card.definitionId]?.resourceType === "mana"))
+          return { ok: false, reason: "recurso_nao_encontrado" };
+        if (effect === "revirar_sangue" && player.sangueUsed <= 0)
+          return { ok: false, reason: "recurso_nao_gasto" };
+      }
       if (!this.payCost(player, definition)) return { ok: false, reason: "recursos_insuficientes" };
 
-      if (effect === "cura" && target) target.life = Math.min(target.maxLife, target.life + (definition.effectValue ?? 5));
+      if (definition.effects?.length)
+        details = { ...details, declarativeEvents: this.applyDeclarativeEffects(seat, definition, target) };
+      else if (effect === "cura" && target) target.life = Math.min(target.maxLife, target.life + (definition.effectValue ?? 5));
       else if (effect === "comprar_cartas") this.drawCards(seat, 3);
       else if (effect === "buscar_mana") this.pullResourceFromDeck(seat, "mana");
-      else if (effect === "revirar_sangue") player.sangueUsed -= 1;
+      else if (effect === "revirar_sangue") {
+        const spent = this.privatePlayers[seat].resources.find((resource) => resource.type === "sangue" && resource.used);
+        if (spent) { spent.used = false; this.syncResourceTotals(seat); }
+      }
       else if (effect === "aumentar_inteligencia" && target) target.intelligence += 1;
       else if (effect === "aplicar_corrosao" && target) this.applyCondition(target, "corrosao", 3, 3);
       this.discardPlayedCard(seat, found);
@@ -826,7 +995,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
         targetState.trapImmunity = Math.max(0, (targetState.trapImmunity ?? 0) - 1);
         this.setAbilityState(target, targetState);
         data.traps.splice(index, 1);
-        data.discard.push({ instanceId: trap.instanceId, definitionId: trap.definitionId });
+        this.moveToDiscardOrAbyss(seat, { instanceId: trap.instanceId, definitionId: trap.definitionId });
         this.updateCounts(seat);
         return { ok: true, details: { ...details, blockedByVeil: true }, privateSeats: [seat] };
       }
@@ -867,7 +1036,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     }
 
     data.traps.splice(index, 1);
-    data.discard.push({ instanceId: trap.instanceId, definitionId: trap.definitionId });
+    this.moveToDiscardOrAbyss(seat, { instanceId: trap.instanceId, definitionId: trap.definitionId });
     this.updateCounts(seat);
     return { ok: true, details, privateSeats: [seat] };
   }
@@ -889,12 +1058,15 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     if (!this.payCost(player, found.definition)) return { ok: false, reason: "recursos_insuficientes" };
 
     if (found.definition.category === "terreno") {
-      this.state.terrainDefinitionId = found.card.definitionId;
+      const terrainCard = this.removeHandCard(seat, found.index);
+      if (this.activeTerrain) this.moveToDiscardOrAbyss(this.activeTerrain.owner, this.activeTerrain.card);
+      this.activeTerrain = { owner: seat, card: terrainCard };
+      this.state.terrainDefinitionId = terrainCard.definitionId;
       player.terrainPlayed = true;
     } else {
       this.privatePlayers[effectOwnerSeat].effects.push(found.definition.effect ?? found.card.definitionId);
+      this.discardPlayedCard(seat, found);
     }
-    this.discardPlayedCard(seat, found);
     this.privatePlayers[seat].lastNonTroopDefinitionId = found.card.definitionId;
     return { ok: true, details: { cardId: found.card.instanceId, definitionId: found.card.definitionId,
       category: found.definition.category, targetSeat: effectOwnerSeat }, privateSeats: [seat, effectOwnerSeat] };
@@ -908,6 +1080,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     if (!card || card.owner !== seat || card.category !== "tropa")
       return { ok: false, reason: "tropa_invalida" };
     const state = this.abilityState(card);
+    if (["adormecido", "loucura"].includes(card.condition)) return { ok: false, reason: "tropa_incapacitada" };
     if (state.itemActionUsed) return { ok: false, reason: "acao_item_ja_usada" };
     const equipment = this.equipmentIds(card);
     if (equipment.length <= 0) return { ok: false, reason: "tropa_sem_item" };
@@ -930,6 +1103,8 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       return { ok: false, reason: "transferencia_invalida" };
     const fromState = this.abilityState(from);
     const toState = this.abilityState(to);
+    if (["adormecido", "loucura"].includes(from.condition) || ["adormecido", "loucura"].includes(to.condition))
+      return { ok: false, reason: "tropa_incapacitada" };
     if (fromState.itemActionUsed || toState.itemActionUsed)
       return { ok: false, reason: "acao_item_ja_usada" };
     const sourceEquipment = this.equipmentIds(from);
@@ -959,6 +1134,8 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       return { ok: false, reason: "tropa_invalida" };
     if (!this.equipmentIds(card).includes("grimorio_iniciante"))
       return { ok: false, reason: "grimorio_nao_equipado" };
+    if (["paralisado", "adormecido", "loucura"].includes(card.condition))
+      return { ok: false, reason: "tropa_incapacitada" };
     const state = this.abilityState(card);
     if (state.grimoireUsed) return { ok: false, reason: "grimorio_ja_usado" };
     const spell = payload.spell === "raio" ? "raio"
@@ -974,7 +1151,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
         && other.owner !== seat && other.lane === card.lane);
       if (!target) return { ok: false, reason: "habilidade_sem_alvo" };
     }
-    player.manaUsed += 1;
+    if (!this.spendResourceUnits(seat, "mana", 1)) return { ok: false, reason: "recursos_insuficientes" };
     state.grimoireUsed = true;
     let damage = 0;
     let roll = 0;
@@ -1004,6 +1181,8 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     const card = this.state.cards.get(cardId);
     if (!card || card.owner !== seat || card.category !== "tropa")
       return { ok: false, reason: "tropa_invalida" };
+    if (["paralisado", "adormecido", "loucura"].includes(card.condition))
+      return { ok: false, reason: "tropa_incapacitada" };
     const definition = CARD_DEFINITIONS[card.definitionId];
     const ability = typeof payload.ability === "string" && definition.abilities?.includes(payload.ability)
       ? payload.ability : definition.abilities?.find((value) =>
@@ -1033,7 +1212,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       const player = this.playerBySeat(seat)!;
       if (player.blockedResource === "mana" || player.mana - player.manaUsed < 2)
         return { ok: false, reason: "recursos_insuficientes" };
-      player.manaUsed += 2;
+      if (!this.spendResourceUnits(seat, "mana", 2)) return { ok: false, reason: "recursos_insuficientes" };
       state.shadowTurns = 1;
       state.shadowCooldown = 2;
       state.used = true;
@@ -1105,7 +1284,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       const player = this.playerBySeat(seat)!;
       if (player.blockedResource === "sangue" || player.sangue - player.sangueUsed < 2)
         return { ok: false, reason: "recursos_insuficientes" };
-      player.sangueUsed += 2;
+      if (!this.spendResourceUnits(seat, "sangue", 2)) return { ok: false, reason: "recursos_insuficientes" };
       const coin = this.rollForSeat(seat, 2);
       state.frenzy = coin === 1 ? "bonus" : "self";
       state.used = true;
@@ -1137,7 +1316,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       state.used = true;
       if (choice === "destroy") {
         const discarded = enemy.hand.splice(trapIndex, 1)[0];
-        enemy.discard.push(discarded);
+        this.moveToDiscardOrAbyss(1 - seat, discarded);
         this.updateCounts(1 - seat);
       } else state.trapImmunity = 1;
       this.setAbilityState(card, state);
@@ -1158,16 +1337,19 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       return { ok: false, reason: "habilidade_indisponivel" };
     const enemy = this.playerBySeat(1 - seat)!;
     const owner = this.playerBySeat(seat)!;
-    if (enemy.blockedResource === "sangue" || enemy.sangue - enemy.sangueUsed <= 0)
-      return { ok: false, reason: "hemodrenario_sem_sangue" };
-    const spent = RESOURCE_ORDER.find((type) => owner[USED_FIELDS[type]] > 0
-      && !(owner.blockedResource === type && owner.blockedTurns > 0));
+    const enemyBlood = this.privatePlayers[1 - seat].resources.find((resource) =>
+      resource.type === "sangue" && !resource.used && !(enemy.blockedResource === "sangue" && enemy.blockedTurns > 0));
+    if (!enemyBlood) return { ok: false, reason: "hemodrenario_sem_sangue" };
+    const spent = this.privatePlayers[seat].resources.find((resource) =>
+      resource.used && !(owner.blockedResource === resource.type && owner.blockedTurns > 0));
     if (!spent) return { ok: false, reason: "hemodrenario_sem_recurso_gasto" };
-    enemy.sangueUsed += 1;
-    owner[USED_FIELDS[spent]] -= 1;
+    enemyBlood.used = true;
+    spent.used = false;
+    this.syncResourceTotals(1 - seat);
+    this.syncResourceTotals(seat);
     state.used = true;
     this.setAbilityState(card, state);
-    return { ok: true, details: { cardId, ability: "hemodrenario", restoredResource: spent } };
+    return { ok: true, details: { cardId, ability: "hemodrenario", restoredResource: spent.type } };
   }
 
   private updateTrapReadiness() {
@@ -1252,6 +1434,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     const defending = payload.defending === true;
     const card = this.state.cards.get(cardId);
     if (!card || card.owner !== seat || card.category !== "tropa") return { ok: false, reason: "tropa_invalida" };
+    if (["adormecido", "loucura"].includes(card.condition)) return { ok: false, reason: "tropa_incapacitada" };
     const entry = seat === 0 ? 4 : 0;
     if (defending && card.position !== entry) return { ok: false, reason: "defesa_fora_da_base" };
     card.defendingCastle = defending;
@@ -1265,6 +1448,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     const current = CARD_DEFINITIONS[card.definitionId];
     const evolved = current.evolvesTo ? CARD_DEFINITIONS[current.evolvesTo] : undefined;
     if (!evolved) return { ok: false, reason: "evolucao_indisponivel" };
+    if (["adormecido", "loucura"].includes(card.condition)) return { ok: false, reason: "tropa_incapacitada" };
     if (card.turnsInPlay < 1) return { ok: false, reason: "evolucao_muito_cedo" };
     const player = this.playerBySeat(seat)!;
     if (player.evolutionsUsed >= 1) return { ok: false, reason: "limite_evolucoes_turno" };
@@ -1297,7 +1481,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     const selected = pending.equipment[index];
     data.hand.push(this.makePrivateCard(seat, selected));
     pending.equipment.forEach((definitionId, itemIndex) => {
-      if (itemIndex !== index) data.discard.push(this.makePrivateCard(seat, definitionId));
+      if (itemIndex !== index) this.moveToDiscardOrAbyss(seat, this.makePrivateCard(seat, definitionId));
     });
     this.pendingMagnet[seat].shift();
     this.updateCounts(seat);
@@ -1314,7 +1498,9 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       return { ok: false, reason: "escolha_mitose_invalida" };
     if (this.findPublic((card) => card.category === "tropa" && (card.lane === lane && card.position === position
       || card.owner === seat && card.lane === lane))) return { ok: false, reason: "coluna_ocupada" };
-    const child = this.createPublicCard(pending.source, CARD_DEFINITIONS.slimet, seat, lane, position);
+    const childDefinition = CARD_DEFINITIONS[pending.source.definitionId];
+    if (!childDefinition) return { ok: false, reason: "escolha_mitose_invalida" };
+    const child = this.createPublicCard(pending.source, childDefinition, seat, lane, position);
     child.moved = true;
     this.state.cards.set(child.instanceId, child);
     this.pendingMitosis[seat] = undefined;
@@ -1364,7 +1550,8 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       : attackType === "magica" ? definition.magicDie ?? 0 : definition.attackDie ?? 0;
     const die = baseDie;
     const dice = usingWeapon ? 1 : attackType === "magica" ? definition.magicDice ?? 1 : definition.attackDice ?? 1;
-    let modifier = usingWeapon ? weaponDefinition!.attackModifier ?? 0
+    let modifier = usingWeapon
+      ? (weaponDefinition!.attackModifier ?? 0) + this.synergyBonus(weaponDefinition, attacker, "bonus_dano")
       : (attackType === "magica" ? definition.magicModifier ?? 0 : definition.attackModifier ?? 0)
         + (attackType === "fisica" ? this.equipmentAttackBonus(attacker) : 0);
     modifier += this.cemeteryBonus(attacker);
@@ -1636,19 +1823,18 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       }
       if (!ability.electrocutedThisCycle) ability.electrocutions = 0;
       ability.electrocutedThisCycle = false;
-      this.setAbilityState(card, ability);
-      if (card.conditionTurns <= 0) return;
-      card.conditionTurns -= 1;
-      if (card.conditionTurns <= 0) {
-        if (card.condition === "queimado") {
-          card.condition = "imune_queimado";
-          card.conditionTurns = 1;
-          card.conditionPower = 0;
-        } else {
+      if ((ability.burnImmunity ?? 0) > 0) ability.burnImmunity = Math.max(0, (ability.burnImmunity ?? 0) - 1);
+      ability.bleedingWindow = Boolean(ability.bleedingHitThisCycle);
+      ability.bleedingHitThisCycle = false;
+      if (card.conditionTurns > 0) {
+        card.conditionTurns -= 1;
+        if (card.conditionTurns <= 0) {
+          if (card.condition === "queimado") ability.burnImmunity = 1;
           card.condition = "";
           card.conditionPower = 0;
         }
       }
+      this.setAbilityState(card, ability);
     });
 
     // Processa dano e cura persistentes no início do turno do próximo jogador.
@@ -1727,8 +1913,8 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
   }
 
   private isUndead(card: PublicCardState): boolean {
-    const name = (CARD_DEFINITIONS[card.definitionId]?.name ?? card.name).toLocaleLowerCase("pt-BR");
-    return ["zumbi", "esqueleto", "fantasma", "espirito", "espírito"].some((term) => name.includes(term));
+    return ["morto-vivo", "zumbi", "esqueleto", "fantasma", "espirito", "espírito"]
+      .some((tag) => this.cardHasTag(card, tag));
   }
 
   private cemeteryBonus(card: PublicCardState): number {
@@ -1749,32 +1935,56 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     });
   }
 
-  private payCost(player: PlayerState, definition: CardDefinition): boolean {
-    const planned: Partial<Record<ResourceType, number>> = {};
-    const available = (type: ResourceType) =>
-      player.blockedResource === type && player.blockedTurns > 0 ? 0 :
-      player[RESOURCE_FIELDS[type]] - player[USED_FIELDS[type]] - (planned[type] ?? 0);
-
-    const effectiveCost = this.adjustedCost(definition);
-    for (const part of effectiveCost.filter((part) => part.type !== "qualquer")) {
-      const type = part.type as ResourceType;
-      if (available(type) < part.amount) return false;
-      planned[type] = (planned[type] ?? 0) + part.amount;
-    }
-
-    const wildcard = effectiveCost
-      .filter((part) => part.type === "qualquer")
-      .reduce((sum, part) => sum + part.amount, 0);
-    let remaining = wildcard;
+  private syncResourceTotals(seat: number) {
+    const player = this.playerBySeat(seat);
+    const data = this.privatePlayers[seat];
+    if (!player || !data) return;
     for (const type of RESOURCE_ORDER) {
-      const amount = Math.min(available(type), remaining);
-      planned[type] = (planned[type] ?? 0) + amount;
-      remaining -= amount;
-      if (remaining === 0) break;
+      player[RESOURCE_FIELDS[type]] = data.resources
+        .filter((resource) => resource.type === type).reduce((sum, resource) => sum + resource.amount, 0);
+      player[USED_FIELDS[type]] = data.resources
+        .filter((resource) => resource.type === type && resource.used).reduce((sum, resource) => sum + resource.amount, 0);
     }
-    if (remaining > 0) return false;
+  }
 
-    for (const type of RESOURCE_ORDER) player[USED_FIELDS[type]] += planned[type] ?? 0;
+  private spendResourceUnits(seat: number, type: ResourceType, amount: number): boolean {
+    const player = this.playerBySeat(seat)!;
+    if (player.blockedResource === type && player.blockedTurns > 0) return false;
+    const candidates = this.privatePlayers[seat].resources.filter((resource) => resource.type === type && !resource.used);
+    if (candidates.reduce((sum, resource) => sum + resource.amount, 0) < amount) return false;
+    let remaining = amount;
+    for (const resource of candidates) {
+      resource.used = true;
+      remaining -= resource.amount;
+      if (remaining <= 0) break;
+    }
+    this.syncResourceTotals(seat);
+    return true;
+  }
+
+  private payCost(player: PlayerState, definition: CardDefinition): boolean {
+    const seat = player.seatIndex;
+    const resources = this.privatePlayers[seat].resources;
+    const selected = new Set<string>();
+    const take = (type: ResourceType | "qualquer", amount: number) => {
+      let remaining = amount;
+      for (const resource of resources) {
+        if (resource.used || selected.has(resource.instanceId)) continue;
+        if (type !== "qualquer" && resource.type !== type) continue;
+        if (player.blockedResource === resource.type && player.blockedTurns > 0) continue;
+        selected.add(resource.instanceId);
+        remaining -= resource.amount;
+        if (remaining <= 0) return true;
+      }
+      return remaining <= 0;
+    };
+    const cost = this.adjustedCost(definition);
+    for (const part of cost.filter((item) => item.type !== "qualquer"))
+      if (!take(part.type, part.amount)) return false;
+    const wildcard = cost.filter((item) => item.type === "qualquer").reduce((sum, item) => sum + item.amount, 0);
+    if (wildcard > 0 && !take("qualquer", wildcard)) return false;
+    for (const resource of resources) if (selected.has(resource.instanceId)) resource.used = true;
+    this.syncResourceTotals(seat);
     return true;
   }
 
@@ -1830,7 +2040,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     if (!this.state.cards.has(card.instanceId)) return;
     this.state.cards.delete(card.instanceId);
     const privatePlayer = this.privatePlayers[card.owner];
-    privatePlayer.discard.push({ instanceId: card.instanceId, definitionId: card.definitionId });
+    this.moveToDiscardOrAbyss(card.owner, { instanceId: card.instanceId, definitionId: card.definitionId });
     const equipment = this.equipmentIds(card);
     const magnet = this.findPublic((other) => other.category === "construcao"
       && other.owner === card.owner && other.lane === card.lane
@@ -1840,7 +2050,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       if (this.pendingMagnet[card.owner].length === 1) this.sendNextMagnetChoice(card.owner);
     } else {
       equipment.forEach((definitionId, index) =>
-        privatePlayer.discard.push({ instanceId: card.instanceId + "-item-" + index, definitionId }));
+        this.moveToDiscardOrAbyss(card.owner, { instanceId: card.instanceId + "-item-" + index, definitionId }));
     }
     if (card.category === "tropa") {
       const owner = this.playerBySeat(card.owner);
@@ -1874,10 +2084,13 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
   }
 
   private performMitosis(parent: PublicCardState) {
-    const first = this.takeDefinitionFromHandOrDeck(parent.owner, "slimet");
+    const childDefinitionId = CARD_DEFINITIONS[parent.definitionId]?.mitosisChild;
+    const childDefinition = childDefinitionId ? CARD_DEFINITIONS[childDefinitionId] : undefined;
+    if (!childDefinitionId || !childDefinition) return;
+    const first = this.takeDefinitionFromHandOrDeck(parent.owner, childDefinitionId);
     if (!first) return;
     const spawn = (source: PrivateCard, lane: number, position: number) => {
-      const child = this.createPublicCard(source, CARD_DEFINITIONS.slimet, parent.owner, lane, position);
+      const child = this.createPublicCard(source, childDefinition, parent.owner, lane, position);
       child.moved = true;
       this.state.cards.set(child.instanceId, child);
     };
@@ -1889,7 +2102,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       && !this.findPublic((other) => other.category === "tropa" && other.lane === lane && other.position === position)
       && !this.findPublic((other) => other.category === "tropa" && other.owner === parent.owner && other.lane === lane));
     if (candidates.length <= 0) return;
-    const second = this.takeDefinitionFromHandOrDeck(parent.owner, "slimet");
+    const second = this.takeDefinitionFromHandOrDeck(parent.owner, childDefinitionId);
     if (!second) return;
     this.pendingMitosis[parent.owner] = { source: second, owner: parent.owner, candidates };
     const client = this.clientBySeat(parent.owner);
@@ -1914,8 +2127,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
 
   private discardHandCard(seat: number, index: number) {
     const card = this.removeHandCard(seat, index);
-    this.privatePlayers[seat].discard.push(card);
-    this.updateCounts(seat);
+    this.moveToDiscardOrAbyss(seat, card);
   }
 
   private drawCards(seat: number, amount: number) {
@@ -1946,6 +2158,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       discard: data.discard.map((card) => card.definitionId),
       activeTraps: data.traps.map((trap) => ({ ...trap, name: CARD_DEFINITIONS[trap.definitionId]?.name ?? "Armadilha" })),
       activeEffects: data.effects,
+      abyss: data.abyss.map((card) => card.definitionId),
       revision: this.state.revision,
     });
   }
@@ -1982,13 +2195,18 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     const cemetery = this.privatePlayers.map((data) => (data?.discard ?? [])
       .filter((card) => CARD_DEFINITIONS[card.definitionId]?.category === "tropa")
       .map((card) => CARD_DEFINITIONS[card.definitionId]?.name ?? "Tropa"));
+    const abyss = this.privatePlayers.map((data) => (data?.abyss ?? [])
+      .map((card) => CARD_DEFINITIONS[card.definitionId]?.name ?? "Carta"));
+    const resources = this.privatePlayers.flatMap((data, owner) => (data?.resources ?? []).map((resource) => ({
+      ...resource, owner,
+    })));
     const payload = {
       phase: this.state.phase, currentPlayer: this.state.currentPlayer,
       winner: this.state.winner, revision: this.state.revision,
       turnNumber: this.state.turnNumber,
       terrainDefinitionId: this.state.terrainDefinitionId,
       discardCounts: [this.state.discardCount0, this.state.discardCount1],
-      cemetery,
+      cemetery, abyss, resources,
       players, cards, traps,
     };
     this.sendJson(client, "public_state", payload);
@@ -2005,8 +2223,15 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
   }
 
   private resetPlayerTurn(player: PlayerState) {
-    player.manaUsed = 0; player.sangueUsed = 0; player.ossosUsed = 0; player.sucataUsed = 0;
+    const data = this.privatePlayers[player.seatIndex];
+    if (data?.resources) {
+      for (const resource of data.resources) resource.used = false;
+      this.syncResourceTotals(player.seatIndex);
+    } else {
+      player.manaUsed = 0; player.sangueUsed = 0; player.ossosUsed = 0; player.sucataUsed = 0;
+    }
     player.resourcePlaced = false;
+    player.resourceRemoved = false;
     player.troopsPlayed = 0;
     player.constructionsPlayed = 0;
     player.spellsUsed = 0;

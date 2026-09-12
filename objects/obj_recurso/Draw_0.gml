@@ -12,6 +12,13 @@ if (pulso_virada_timer > 0) {
 }
 draw_sprite_ext(sprite_index, image_index, x, y, escala_recurso * escala_animacao, escala_recurso * escala_animacao, rotacao_atual, c_white, alpha_animacao);
 
+if (quantidade > 1) {
+    draw_set_halign(fa_right);
+    draw_set_valign(fa_bottom);
+    draw_set_color(c_white);
+    draw_text_transformed(x + sprite_width * 0.28, y + sprite_height * 0.28, "×" + string(quantidade), 0.55, 0.55, 0);
+}
+
 var _texto = string_upper(tipo);
 var _largura_maxima = sprite_width * 0.6;
 var _largura_texto = string_width(_texto);

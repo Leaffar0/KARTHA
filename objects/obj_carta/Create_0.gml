@@ -36,10 +36,14 @@ sobrescreve_mod_dano_item = 0;
 custo = noone;
 categoria = "tropa";
 tipo_recurso = "";
+valor_recurso = 1; // uma carta pode gerar mais de uma unidade, mas ocupa só um espaço
 condicao = noone;              // "queimado", "envenenado", "paralisado", etc, ou noone
 condicao_turnos_restantes = 0; // -1 = dura pra sempre (até morrer ou ser curada)
 condicao_dano_por_turno = 0;
 condicao_valor_sorteado = 0; // resultado fixo usado por Apodrecer/Regeneração
+imunidade_queimado_turnos = 0;
+sangramento_janela_consecutiva = false;
+sangramento_atingido_neste_ciclo = false;
 
 dado_efeito = 0;
 qtd_dados_efeito = 1;
@@ -81,7 +85,9 @@ efeito_terreno = "";
 efeito_construcao = "";
 efeito_item = "";
 efeitos_declarativos = [];
+alvo_declarativo = "inimigo";
 tags = [];
+sinergias = [];
 tem_arte_propria = false;
 escala_base = 1; // recalculado sempre que o sprite for atribuído
 escala_no_campo = 0.65; // ajuste esse valor até a carta caber certinho no slot

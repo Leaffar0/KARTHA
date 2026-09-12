@@ -275,7 +275,8 @@ function online_configurar_callbacks(_sala) {
                             variable_struct_exists(_dados_ima, "bonus_defesa") ? _dados_ima.bonus_defesa : 0,
                             variable_struct_exists(_dados_ima, "sobrescreve_dado_dano") ? _dados_ima.sobrescreve_dado_dano : 0,
                             variable_struct_exists(_dados_ima, "sobrescreve_mod_dano") ? _dados_ima.sobrescreve_mod_dano : 0,
-                            variable_struct_exists(_dados_ima, "efeito_item") ? _dados_ima.efeito_item : ""
+                            variable_struct_exists(_dados_ima, "efeito_item") ? _dados_ima.efeito_item : "",
+                            variable_struct_exists(_dados_ima, "sinergias") ? _dados_ima.sinergias : []
                         );
                         _item_ima.online_definition_id = _registro_ima.definitionId;
                         _item_ima.online_index = _registro_ima.index;
@@ -536,7 +537,8 @@ function online_tentar_jogar_carta_especial(_carta) {
             } else _valido = false;
         } else if (_carta.efeito_tipo == "dados_manipulados"
             || _carta.efeito_tipo == "refracao_temporal"
-            || _carta.efeito_tipo == "buscar_sangue") {
+            || _carta.efeito_tipo == "buscar_sangue"
+            || (array_length(_carta.efeitos_declarativos) > 0 && _carta.alvo_declarativo == "nenhum")) {
             _valido = _distancia_arrastada > 80;
         } else {
             var _alvo = noone;
@@ -545,8 +547,15 @@ function online_tentar_jogar_carta_especial(_carta) {
             for (var i = 0; i < instance_number(obj_carta); i++) {
                 var _teste = instance_find(obj_carta, i);
                 if (!_teste.travada || _teste.online_instance_id == "") continue;
-                var _aceita = (_carta.efeito_tipo == "eutanasia")
-                    ? (_teste.vida <= 5) : (_teste.dono != _carta.dono);
+                var _aceita;
+                if (array_length(_carta.efeitos_declarativos) > 0) {
+                    _aceita = (_carta.alvo_declarativo == "qualquer")
+                        || (_carta.alvo_declarativo == "aliado" && _teste.dono == _carta.dono)
+                        || (_carta.alvo_declarativo == "inimigo" && _teste.dono != _carta.dono);
+                } else {
+                    _aceita = (_carta.efeito_tipo == "eutanasia")
+                        ? (_teste.vida <= 5) : (_teste.dono != _carta.dono);
+                }
                 var _dist = point_distance(_carta.x, _carta.y, _teste.x, _teste.y);
                 if (_aceita && _dist < _menor) { _menor = _dist; _alvo = _teste; _tipo_alvo = "tropa"; }
             }
@@ -573,6 +582,7 @@ function online_tentar_jogar_carta_especial(_carta) {
     } else if (_categoria == "item_equipavel" || _categoria == "item_consumivel") {
         _tipo_acao = "play_item";
         var _precisa_alvo = (_categoria == "item_equipavel"
+            || (array_length(_carta.efeitos_declarativos) > 0 && _carta.alvo_declarativo != "nenhum")
             || _carta.efeito_tipo == "aplicar_corrosao"
             || _carta.efeito_tipo == "aumentar_intelig"
             || _carta.cura_item > 0);
@@ -582,7 +592,12 @@ function online_tentar_jogar_carta_especial(_carta) {
             for (var i = 0; i < instance_number(obj_carta); i++) {
                 var _teste = instance_find(obj_carta, i);
                 if (!_teste.travada || _teste.online_instance_id == "") continue;
-                if (_carta.efeito_tipo != "aplicar_corrosao" && _teste.dono != _carta.dono) continue;
+                if (array_length(_carta.efeitos_declarativos) > 0) {
+                    var _aceita_item_online = (_carta.alvo_declarativo == "qualquer")
+                        || (_carta.alvo_declarativo == "aliado" && _teste.dono == _carta.dono)
+                        || (_carta.alvo_declarativo == "inimigo" && _teste.dono != _carta.dono);
+                    if (!_aceita_item_online) continue;
+                } else if (_carta.efeito_tipo != "aplicar_corrosao" && _teste.dono != _carta.dono) continue;
                 var _dist = point_distance(_carta.x, _carta.y, _teste.x, _teste.y);
                 if (_dist < _menor) { _menor = _dist; _alvo = _teste; }
             }
@@ -630,6 +645,7 @@ function online_mensagem_erro(_motivo) {
         case "limite_tropas_turno": return "Limite de tropas deste turno";
         case "limite_construcoes_turno": return "Limite de construções deste turno";
         case "recurso_ja_colocado": return "Você já colocou 1 recurso neste turno";
+        case "recurso_ja_retirado": return "Você já retirou 1 recurso neste turno";
         case "limite_recursos": return "Área de recursos cheia";
         case "movimento_fora_tabuleiro": return "Movimento inválido";
         case "alvo_invalido": return "Não há alvo válido";
@@ -776,7 +792,7 @@ function online_sprite_recurso(_tipo) {
     return spr_recurso_mana;
 }
 
-function online_criar_recurso_confirmado(_tipo, _dono, _virado) {
+function online_criar_recurso_confirmado(_tipo, _dono, _virado, _quantidade = 1, _instance_id = "") {
     var _slot = noone;
     for (var i = 0; i < instance_number(obj_slot_recurso); i++) {
         var _teste = instance_find(obj_slot_recurso, i);
@@ -787,6 +803,8 @@ function online_criar_recurso_confirmado(_tipo, _dono, _virado) {
     _recurso.tipo = _tipo;
     _recurso.dono = _dono;
     _recurso.virado = _virado;
+    _recurso.quantidade = max(1, _quantidade);
+    _recurso.online_instance_id = _instance_id;
     _recurso.sprite_index = online_sprite_recurso(_tipo);
     _recurso.escala_recurso = global.RECURSO_LARGURA / sprite_get_width(_recurso.sprite_index);
     _recurso.slot_atual = _slot;
@@ -798,7 +816,8 @@ function online_criar_recurso_confirmado(_tipo, _dono, _virado) {
     else array_push(obj_controlador.recursos_inimigo, _recurso);
 }
 
-function online_assinatura_recursos(_jogadores) {
+function online_assinatura_recursos(_jogadores, _recursos = noone) {
+    if (is_array(_recursos)) return json_stringify(_recursos);
     var _assinatura = "";
     var _tipos = ["mana", "sangue", "ossos", "sucata"];
     for (var p = 0; p < array_length(_jogadores); p++) {
@@ -813,8 +832,8 @@ function online_assinatura_recursos(_jogadores) {
     return _assinatura;
 }
 
-function online_reconstruir_recursos(_jogadores) {
-    var _assinatura = online_assinatura_recursos(_jogadores);
+function online_reconstruir_recursos(_jogadores, _recursos = noone) {
+    var _assinatura = online_assinatura_recursos(_jogadores, _recursos);
     if (obj_controlador.online_recursos_assinatura == _assinatura) return;
     obj_controlador.online_recursos_assinatura = _assinatura;
 
@@ -822,6 +841,16 @@ function online_reconstruir_recursos(_jogadores) {
     with (obj_slot_recurso) { ocupado = false; recurso_atual = noone; }
     obj_controlador.recursos_jogador = [];
     obj_controlador.recursos_inimigo = [];
+
+    if (is_array(_recursos)) {
+        for (var r = 0; r < array_length(_recursos); r++) {
+            var _rr = _recursos[r];
+            online_criar_recurso_confirmado(_rr.type, online_lado_do_assento(_rr.owner),
+                _rr.used, _rr.amount, _rr.instanceId);
+        }
+        return;
+    }
+
     var _tipos = ["mana", "sangue", "ossos", "sucata"];
     for (var p = 0; p < array_length(_jogadores); p++) {
         var _dados = _jogadores[p];
@@ -952,7 +981,8 @@ function online_sincronizar_equipamentos(_carta, _ids) {
             variable_struct_exists(_dados, "bonus_defesa") ? _dados.bonus_defesa : 0,
             variable_struct_exists(_dados, "sobrescreve_dado_dano") ? _dados.sobrescreve_dado_dano : 0,
             variable_struct_exists(_dados, "sobrescreve_mod_dano") ? _dados.sobrescreve_mod_dano : 0,
-            variable_struct_exists(_dados, "efeito_item") ? _dados.efeito_item : ""
+            variable_struct_exists(_dados, "efeito_item") ? _dados.efeito_item : "",
+            variable_struct_exists(_dados, "sinergias") ? _dados.sinergias : []
         );
         _item_online.online_definition_id = _ids[i];
         array_push(_carta.itens_equipados, _item_online);
@@ -1219,7 +1249,8 @@ function online_aplicar_estado_publico(_estado) {
         else { obj_controlador.vida_inimigo = _jogador.life; obj_controlador.primeiro_turno_inimigo = !_jogador.hasTakenTurn; }
     }
 
-    online_reconstruir_recursos(_estado.players);
+    online_reconstruir_recursos(_estado.players,
+        variable_struct_exists(_estado, "resources") ? _estado.resources : noone);
     online_sincronizar_efeitos_ativos(_estado.players, _estado.terrainDefinitionId);
     with (obj_carta) {
         if (travada && online_instance_id != "") online_presente = false;

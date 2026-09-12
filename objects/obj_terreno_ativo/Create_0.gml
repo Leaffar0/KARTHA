@@ -1,3 +1,5 @@
+dados_carta = noone;
+dono = "jogador";
 entrando = true;
 entrada_progresso = 0;
 entrada_duracao = 45; // dramático: mais longo que o pulo normal de carta

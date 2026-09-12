@@ -1,6 +1,9 @@
 depth = -100;
 dono = "jogador";
 virado = false;
+quantidade = 1;
+funcao_origem = noone;
+online_instance_id = "";
 slot_atual = noone;
 escala_recurso = 1;
 

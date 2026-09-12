@@ -19,6 +19,7 @@ export const PlayerSchema = schema({
   ossosUsed: t.number(),
   sucataUsed: t.number(),
   resourcePlaced: t.boolean(),
+  resourceRemoved: t.boolean(),
   troopsPlayed: t.number(),
   constructionsPlayed: t.number(),
   spellsUsed: t.number(),

@@ -9,12 +9,32 @@ export interface CostPart {
   amount: number;
 }
 
+export interface DeclarativeEffect {
+  tipo: "condicao" | "dano" | "cura" | "comprar" | "recurso" | "vida_maxima" | "destruir";
+  chave?: string;
+  valor?: number;
+  quantidade?: number;
+  limite_vida?: number;
+}
+
+export interface CardSynergy {
+  tag: string;
+  bonus_dano?: number;
+  bonus_defesa?: number;
+}
+
 export interface CardDefinition {
   id: string;
   name: string;
   category: CardCategory;
   cost: CostPart[];
   resourceType?: ResourceType;
+  resourceAmount?: number;
+  abyssSeal?: boolean;
+  tags?: string[];
+  synergies?: CardSynergy[];
+  effects?: DeclarativeEffect[];
+  target?: "inimigo" | "aliado" | "qualquer" | "nenhum";
   life?: number;
   attackDie?: number;
   attackDice?: number;
@@ -34,6 +54,7 @@ export interface CardDefinition {
   intelligenceRequired?: number;
   effectValue?: number;
   evolvesTo?: string;
+  mitosisChild?: string;
 }
 
 const cost = (type: CostPart["type"], amount: number): CostPart[] => [{ type, amount }];
@@ -55,7 +76,8 @@ export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
   esquilo: { ...troop("esquilo", "Esquilo", 5, 6, 0, 0, 0, 1, 2), evolvesTo: "esquilo_gigante" },
   lobo: { ...troop("lobo", "Lobo", 12, 8, 1, 1, 0, 2, 2, cost("sangue", 1)), evolvesTo: "lobo_alfa" },
   urso: troop("urso", "Urso", 14, 12, 2, 3, 0, 2, 3, cost("ossos", 2)),
-  slime: { ...troop("slime", "Slime", 14, 4, 2, 0, 0, 0, 3, [], ["mitose"], 2), evolvesTo: "slime_digestao" },
+  slime: { ...troop("slime", "Slime", 14, 4, 2, 0, 0, 0, 3, [], ["mitose"], 2),
+    evolvesTo: "slime_digestao", mitosisChild: "slimet", tags: ["slime"] },
   slimet: troop("slimet", "Slimet", 8, 4, 1, 0, 0, 0, 1),
   mimic: troop("mimic", "Mimic", 16, 10, 0, 3, 0, 1, 3,
     mixed(["sucata", 1], ["sangue", 1]), ["imitacao"], 1, 4, 1),
@@ -73,10 +95,10 @@ export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
   shroomilin: troop("shroomilin", "Shroomilin", 10, 4, 2, 2, 0, 0, 1,
     [], ["tiro_burro"], 2),
 
-  sangue: { id: "sangue", name: "Sangue", category: "recurso", cost: [], resourceType: "sangue" },
-  ossos: { id: "ossos", name: "Ossos", category: "recurso", cost: [], resourceType: "ossos" },
-  sucata: { id: "sucata", name: "Sucata", category: "recurso", cost: [], resourceType: "sucata" },
-  mana: { id: "mana", name: "Mana", category: "recurso", cost: [], resourceType: "mana" },
+  sangue: { id: "sangue", name: "Sangue", category: "recurso", cost: [], resourceType: "sangue", resourceAmount: 1 },
+  ossos: { id: "ossos", name: "Ossos", category: "recurso", cost: [], resourceType: "ossos", resourceAmount: 1 },
+  sucata: { id: "sucata", name: "Sucata", category: "recurso", cost: [], resourceType: "sucata", resourceAmount: 1 },
+  mana: { id: "mana", name: "Mana", category: "recurso", cost: [], resourceType: "mana", resourceAmount: 1 },
 
   torre_vigia: { id: "torre_vigia", name: "Torre de Vigia", category: "construcao", cost: cost("sucata", 1), life: 20, effect: "artilharia" },
   hemodrenario: { id: "hemodrenario", name: "Hemodrenário", category: "construcao", cost: mixed(["sangue", 1], ["sucata", 2]), life: 12, effect: "hemodrenario" },

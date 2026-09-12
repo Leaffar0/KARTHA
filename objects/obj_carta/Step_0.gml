@@ -190,7 +190,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
                 if (online_instance_id != "") online_enviar_acao("place_resource", { cardId: online_instance_id });
                 iniciar_retorno_carta(id); esta_na_mao = true; exit;
             }
-            var _resultado = colocar_recurso(tipo_recurso, _lado_acao, x, y, _slot_recurso_perto);
+            var _resultado = colocar_recurso(tipo_recurso, _lado_acao, x, y, _slot_recurso_perto, valor_recurso, funcao_dados_origem);
             
             if (_resultado == "colocado") {
                 registrar_ultima_carta_jogada(funcao_dados_origem, _lado_acao);
@@ -281,7 +281,8 @@ if (arrastando && mouse_check_button_released(mb_left)) {
     var _distancia_maxima_magia = 65;
     var _pode_executar = false;
 
-    if (efeito_tipo == "dados_manipulados" || efeito_tipo == "refracao_temporal" || efeito_tipo == "buscar_sangue") {
+    if ((array_length(efeitos_declarativos) > 0 && alvo_declarativo == "nenhum")
+        || efeito_tipo == "dados_manipulados" || efeito_tipo == "refracao_temporal" || efeito_tipo == "buscar_sangue") {
         _pode_executar = _distancia_arrastada > 80;
         if (efeito_tipo == "refracao_temporal" && ultima_carta_jogada(_lado_acao) == noone) {
             mostrar_aviso_regra("Jogue outra carta antes da Refração Temporal", x, y);
@@ -300,7 +301,9 @@ if (arrastando && mouse_check_button_released(mb_left)) {
     } else {
         with (obj_carta) {
             if (id == other.id || !travada) continue;
-            var _aceita = (other.efeito_tipo == "eutanasia") ? (vida <= 5) : (dono == _lado_oposto);
+            var _aceita = (other.efeito_tipo == "eutanasia") ? (vida <= 5)
+                : ((other.alvo_declarativo == "aliado") ? (dono == _lado_acao)
+                : ((other.alvo_declarativo == "qualquer") ? true : (dono == _lado_oposto)));
             if (!_aceita) continue;
             var _dist = point_distance(x, y, other.x, other.y);
             if (_dist < _distancia_maxima_magia && _dist < _menor_distancia_magia) {
@@ -381,7 +384,8 @@ if (arrastando && mouse_check_button_released(mb_left)) {
     var _alvo = noone;
     var _menor_distancia = 9999;
     with (obj_carta) {
-        if (id == other.id || !travada || dono != _lado_acao || mochila <= 0 || troca_item_usada_este_turno) continue;
+        if (id == other.id || !travada || dono != _lado_acao || mochila <= 0 || troca_item_usada_este_turno
+            || condicao == "adormecido" || condicao == "loucura") continue;
         if (nivel_inteligencia < other.requisito_inteligencia_item) continue;
         var _dist = point_distance(x, y, other.x, other.y);
         if (_dist < 60 && _dist < _menor_distancia) { _menor_distancia = _dist; _alvo = id; }
@@ -390,7 +394,8 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         pagar_custo(custo, _lado_acao, categoria);
         obj_controlador.itens_usados_este_turno += 1;
         var _dados_item = criar_dados_item_equipado(nome_carta, sprite_index, funcao_dados_origem,
-            bonus_mod_dano_item, bonus_defesa_item, sobrescreve_dado_dano_item, sobrescreve_mod_dano_item, efeito_item);
+            bonus_mod_dano_item, bonus_defesa_item, sobrescreve_dado_dano_item,
+            sobrescreve_mod_dano_item, efeito_item, sinergias);
         equipar_item_dados(_alvo, _dados_item);
         criar_animacao_item(sprite_index, x, y, _alvo.x, _alvo.y, c_aqua);
         _alvo.troca_item_usada_este_turno = true;
@@ -405,7 +410,49 @@ if (arrastando && mouse_check_button_released(mb_left)) {
     }
 
 } else if (categoria == "item_consumivel") {
-    if (string_pos("buscar_", efeito_tipo) == 1) {
+    // Cartas futuras com efeitos simples usam a mesma execucao declarativa das magias.
+    if (array_length(efeitos_declarativos) > 0) {
+        var _alvo_item_decl = noone;
+        var _menor_dist_decl = 9999;
+        var _precisa_alvo_decl = (alvo_declarativo != "nenhum");
+
+        if (_precisa_alvo_decl) {
+            with (obj_carta) {
+                if (id == other.id || !travada || categoria != "tropa") continue;
+                var _alvo_valido_decl = (other.alvo_declarativo == "qualquer")
+                    || (other.alvo_declarativo == "aliado" && dono == _lado_acao)
+                    || (other.alvo_declarativo == "inimigo" && dono != _lado_acao);
+                if (!_alvo_valido_decl) continue;
+                var _dist_decl = point_distance(x, y, other.x, other.y);
+                if (_dist_decl < 60 && _dist_decl < _menor_dist_decl) {
+                    _menor_dist_decl = _dist_decl;
+                    _alvo_item_decl = id;
+                }
+            }
+        }
+
+        var _arrastou_item_decl = point_distance(x, y, arrastar_inicio_x, arrastar_inicio_y) > 80;
+        var _posicao_valida_decl = _precisa_alvo_decl ? (_alvo_item_decl != noone) : _arrastou_item_decl;
+        if (_posicao_valida_decl && pode_pagar_custo(custo, _lado_acao, categoria)
+            && executar_efeitos_declarativos(efeitos_declarativos, _alvo_item_decl, _lado_acao)) {
+            pagar_custo(custo, _lado_acao, categoria);
+            obj_controlador.itens_usados_este_turno += 1;
+            var _index_decl = array_get_index(obj_controlador.mao, id);
+            if (_index_decl != -1) {
+                array_delete(obj_controlador.mao, _index_decl, 1);
+                organizar_mao();
+            }
+            registrar_ultima_carta_jogada(funcao_dados_origem, _lado_acao);
+            mostrar_feedback("USADA", x, y, c_gray, 30);
+            registrar_descarte(id);
+            instance_destroy(id);
+        } else {
+            if (_precisa_alvo_decl && _alvo_item_decl == noone)
+                mostrar_aviso_regra("Solte o item sobre um alvo valido", x, y);
+            iniciar_retorno_carta(id);
+            esta_na_mao = true;
+        }
+    } else if (string_pos("buscar_", efeito_tipo) == 1) {
         // --- Sangue Suga, Poção de Mãna (já existente) ---
         var _distancia_arrastada = point_distance(x, y, arrastar_inicio_x, arrastar_inicio_y);
         var _tipo_buscado = string_delete(efeito_tipo, 1, string_length("buscar_"));
@@ -640,6 +687,8 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         with (obj_slot_terreno) {
             _slot_terreno_destino = id;
             if (ocupado && terreno_atual != noone && instance_exists(terreno_atual)) {
+                if (is_struct(terreno_atual.dados_carta))
+                    registrar_descarte_dados(terreno_atual.dados_carta, terreno_atual.dono);
                 instance_destroy(terreno_atual);
             }
         }
@@ -650,6 +699,8 @@ if (arrastando && mouse_check_button_released(mb_left)) {
        if (_slot_terreno_destino != noone) {
 		    var _terreno_visual = instance_create_layer(x, y, "Instances", obj_terreno_ativo);
 		    _terreno_visual.sprite_index = sprite_index;
+            _terreno_visual.dados_carta = dados_carta;
+            _terreno_visual.dono = _lado_acao;
 
 		    _terreno_visual.escala_base = global.TERRENO_LARGURA_ALVO / sprite_get_height(sprite_index);
 

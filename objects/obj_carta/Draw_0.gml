@@ -264,7 +264,7 @@ if (evoluindo) {
 }
 
 #region Efeito visual de condição
-if (condicao != noone && condicao != "imune_queimado") {
+if (condicao != noone) {
     var _config = obter_config_condicao(condicao);
 
     efeito_timer += 1;
