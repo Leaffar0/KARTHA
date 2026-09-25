@@ -114,11 +114,9 @@ if (modo_partida == "online") {
     disputa_inicial_primeiro_escolhido = online_lado_do_assento(global.online_primeiro);
 }
 
-// Críticos do jogador abrem uma escolha. A fila também cobre dois críticos
-// quase simultâneos, como pode acontecer durante Golpe Duplo.
-critico_escolha_ativa = false;
-criticos_pendentes = [];
-critico_contexto = noone;
+// Estado transitório de interface e escolhas. Ele vive em um componente único,
+// permitindo trocar o roteamento de modais sem ampliar o god object.
+ui_modal = controlador_criar_estado_modal();
 
 // Cartas novas: memória da última carta, manipulação de dados e escolhas da Máquina Imã.
 ultima_carta_nao_tropa_jogador = noone;
@@ -128,11 +126,7 @@ dados_manipulados_usos_jogador = 0;
 dados_manipulados_valor_inimigo = 0;
 dados_manipulados_usos_inimigo = 0;
 dados_manipulados_escolhas = [];
-dados_manipulados_escolha_ativa = false;
-dados_manipulados_escolha_atual = noone;
 maquina_ima_pendencias = [];
-maquina_ima_escolha_ativa = false;
-maquina_ima_escolha_atual = noone;
 #endregion
 
 #region Recursos
@@ -163,22 +157,8 @@ menu_opcao_press_anim = [];
 opcao_hover_index = -1;
 tooltip_escala = 0;
 tropa_selecionada = noone;
-digestao_selecao_ativa = false;
-digestao_origem = noone;
-mitose_selecao_ativa = false;
-mitose_dados_pendentes = noone;
-mitose_funcao_pendente = noone;
-mitose_dono_pendente = "jogador";
-mitose_slots_pendentes = [];
-visao_veu_ativa = false;
-visao_veu_origem = noone;
-visao_veu_opcoes = [];
-troca_item_selecao_ativa = false;
-troca_item_origem = noone;
 recurso_retirado_no_turno = false;
 recurso_retirado_no_turno_inimigo = false;
-pausa_ativa = false;
-opcoes_pausa_ativa = false;
 carregar_configuracoes();
 hud_deslocamento_esquerda = 160;
 hud_deslocamento_direita = 180;
@@ -206,21 +186,11 @@ cemiterio_jogador = []; // descarte lógico; a visualização pode ser adicionad
 cemiterio_inimigo = [];
 descarte_jogador = []; // magias e itens consumidos; a pilha visual será ligada a este array
 descarte_inimigo = [];
-descarte_aberto = false;
-descarte_preview_indice = -1;
-confirmacao_descarte_ativa = false;
-carta_pendente_descarte = noone;
-confirmacao_recurso_ativa = false;
-recurso_pendente_retirada = noone;
-cemiterio_aberto = false;
-historico_aberto = false;
 historico_combate = [];
 max_historico_combate = 15;
 #endregion	
 
 #region Tutorial opcional
-tutorial_ativo = false;
-tutorial_pagina = 0;
 tutorial_paginas = [
     { titulo: "BEM-VINDO A KARTHA", texto: "O objetivo é reduzir a vida do castelo inimigo a zero. Use suas cartas para formar tropas, criar recursos e controlar as três fileiras." },
     { titulo: "QUEM COMEÇA", texto: "No início, pegue o D20 sobre a mesa, mova e solte para arremessá-lo. O inimigo joga o dele automaticamente. Em caso de empate, arremesse novamente. Quem vencer escolhe qual lado começa; depois, clique no deck para receber sua mão e iniciar a partida." },
@@ -241,7 +211,7 @@ tutorial_paginas = [
 ];
 abrir_livro_pendente = variable_global_exists("abrir_livro_menu") && global.abrir_livro_menu;
 if (variable_global_exists("abrir_tutorial_menu") && global.abrir_tutorial_menu) {
-    tutorial_ativo = true;
+    ui_modal.tutorial_ativo = true;
     global.abrir_tutorial_menu = false;
 }
 if (abrir_livro_pendente) global.abrir_livro_menu = false;
@@ -261,3 +231,7 @@ ritual_duracao = 180; // cerca de 3 segundos a 60 FPS
 ritual_som = -1;
 ritual_fade_final_iniciado = false;
 #endregion
+
+// Componentes independentes do controlador. Novos sistemas devem guardar seu
+// estado dentro dessas estruturas em vez de acrescentar mais flags soltas aqui.
+apresentacao_inicializar(id);

@@ -243,18 +243,18 @@ function online_configurar_callbacks(_sala) {
                 if (instance_exists(obj_controlador)) {
                     var _origem_veu_online = online_encontrar_carta_campo(_dados.cardId);
                     if (instance_exists(_origem_veu_online)) {
-                        obj_controlador.visao_veu_opcoes = [];
+                        obj_controlador.ui_modal.visao_veu_opcoes = [];
                         for (var _vo = 0; _vo < array_length(_dados.cards); _vo++) {
                             var _vc = _dados.cards[_vo];
-                            array_push(obj_controlador.visao_veu_opcoes, {
+                            array_push(obj_controlador.ui_modal.visao_veu_opcoes, {
                                 nome: _vc.name,
                                 armadilha: _vc.category == "armadilha",
                                 online_instance_id: _vc.instanceId
                             });
                         }
-                        obj_controlador.visao_veu_origem = _origem_veu_online;
+                        obj_controlador.ui_modal.visao_veu_origem = _origem_veu_online;
                         obj_controlador.visao_veu_revelacao_timer = 0;
-                        obj_controlador.visao_veu_ativa = true;
+                        obj_controlador.ui_modal.visao_veu_ativa = true;
                         obj_controlador.carta_menu_aberto = noone;
                     }
                 }
@@ -288,14 +288,14 @@ function online_configurar_callbacks(_sala) {
                 break;
             case "mitosis_choice":
                 if (instance_exists(obj_controlador)) {
-                    obj_controlador.mitose_slots_pendentes = [];
+                    obj_controlador.ui_modal.mitose_slots_pendentes = [];
                     for (var _mc = 0; _mc < array_length(_dados.candidates); _mc++) {
                         var _slot_mc = buscar_slot(online_lane_local(_dados.candidates[_mc].lane), online_posicao_local(_dados.candidates[_mc].position));
-                        if (_slot_mc != noone) array_push(obj_controlador.mitose_slots_pendentes, _slot_mc);
+                        if (_slot_mc != noone) array_push(obj_controlador.ui_modal.mitose_slots_pendentes, _slot_mc);
                     }
-                    obj_controlador.mitose_dados_pendentes = criar_dados_slimet();
-                    obj_controlador.mitose_dono_pendente = online_lado_local();
-                    obj_controlador.mitose_selecao_ativa = array_length(obj_controlador.mitose_slots_pendentes) > 0;
+                    obj_controlador.ui_modal.mitose_dados_pendentes = criar_dados_slimet();
+                    obj_controlador.ui_modal.mitose_dono_pendente = online_lado_local();
+                    obj_controlador.ui_modal.mitose_selecao_ativa = array_length(obj_controlador.ui_modal.mitose_slots_pendentes) > 0;
                 }
                 break;
 
@@ -1732,98 +1732,5 @@ function online_animar_confirmacao(_mensagem) {
         return;
     }
     if (_mensagem.kind != "attack" && _mensagem.kind != "choose_critical") return;
-    var _atacante = online_encontrar_carta_campo(_dados.cardId);
-    if (!instance_exists(_atacante)) return;
-    var _alvo = variable_struct_exists(_dados, "targetId") ? online_encontrar_carta_campo(_dados.targetId) : noone;
-    if (!instance_exists(_alvo) && variable_struct_exists(_dados, "targetId"))
-        _alvo = online_encontrar_construcao_campo(_dados.targetId);
-    var _atraso_online = variable_struct_exists(_dados, "visualDelay") ? _dados.visualDelay : 0;
-    var _destino_x = instance_exists(_alvo) ? _alvo.x : _atacante.x;
-    var _destino_y = instance_exists(_alvo) ? _alvo.y : _atacante.y - 70;
-    if (variable_struct_exists(_dados, "stealRoll") && _dados.stealRoll > 0) {
-        rolar_dado_visual(_atacante.x, _atacante.y, _destino_x, _destino_y - 70, 10, _dados.stealRoll, noone, 0, _atraso_online, 105);
-        if (variable_struct_exists(_dados, "stolenItem") && _dados.stolenItem != "")
-            mostrar_feedback("ROUBOU O EQUIPAMENTO", _destino_x, _destino_y - 55, c_yellow, 65);
-    }
-    if (variable_struct_exists(_dados, "counter") && is_struct(_dados.counter)) {
-        _dados.counter.visualDelay = _atraso_online + irandom_range(225, 275);
-        online_animar_confirmacao({ kind: "attack", payload: _dados.counter });
-    }
-    if (variable_struct_exists(_dados, "madnessNoDefense") && _dados.madnessNoDefense) {
-        mostrar_feedback("SEM DEFESA — ACERTO AUTOMÁTICO", _destino_x, _destino_y - 58, c_yellow, 88);
-    } else if (variable_struct_exists(_dados, "accuracy")) {
-        var _d20_natural_online = variable_struct_exists(_dados, "accuracyRoll") ? _dados.accuracyRoll : _dados.accuracy;
-        var _abrir_critico_online = variable_struct_exists(_dados, "criticalChoice") && _dados.criticalChoice;
-        var _acertou_online = !variable_struct_exists(_dados, "hit") || _dados.hit;
-        var _contexto_d20_online = { atacante: _atacante, alvo: _alvo, px: _destino_x, py: _destino_y,
-            natural: _d20_natural_online, total: _dados.accuracy, acertou: _acertou_online,
-            abrir_critico: _abrir_critico_online, qtd: variable_struct_exists(_dados, "dice") ? _dados.dice : 1,
-            dado: variable_struct_exists(_dados, "die") ? _dados.die : 0,
-            modo: (_atacante.condicao == "berserker") ? "VANTAGEM" : ((_atacante.condicao == "confusao") ? "DESVANTAGEM" : "") };
-        var _callback_d20_online = method(_contexto_d20_online, function(_ignorado) {
-            var _prefixo_d20 = (modo == "") ? "" : modo + " — ";
-            if (abrir_critico && instance_exists(atacante)) {
-                mostrar_feedback(_prefixo_d20 + "ACERTO CRÍTICO!", px, py - 58, c_yellow, 78);
-                obj_controlador.critico_contexto = { atacante: atacante, defensor: alvo, qtd_usada: qtd, dado_usado: dado, online: true };
-                obj_controlador.critico_escolha_ativa = true;
-                obj_controlador.carta_menu_aberto = noone;
-            } else if (!acertou) mostrar_feedback(_prefixo_d20 + "ERROU — " + string(total), px, py - 58, c_gray, 68);
-            else mostrar_feedback(_prefixo_d20 + "ACERTOU — " + string(total), px, py - 58, c_lime, 52);
-        });
-        var _rolagens_d20_online = variable_struct_exists(_dados, "accuracyRolls") && is_array(_dados.accuracyRolls) ? _dados.accuracyRolls : [_d20_natural_online];
-        for (var _ar = 0; _ar < array_length(_rolagens_d20_online); _ar++) {
-            var _offset_d20_online = (_ar - (array_length(_rolagens_d20_online) - 1) * 0.5) * 92;
-            rolar_dado_visual(_atacante.x, _atacante.y, _destino_x + _offset_d20_online, _destino_y - 55, 20,
-                _rolagens_d20_online[_ar], (_ar == array_length(_rolagens_d20_online) - 1) ? _callback_d20_online : noone,
-                0, _atraso_online + _ar * irandom_range(25, 40), 108 + irandom_range(-4, 14));
-        }
-        if (!_acertou_online || _abrir_critico_online) return;
-    }
-    var _qtd_dados_online = variable_struct_exists(_dados, "damageRolls") && is_array(_dados.damageRolls) ? array_length(_dados.damageRolls) : 0;
-    if (_qtd_dados_online > 0) {
-        var _tamanho = (_dados.attackType == "magica") ? _atacante.dado_dano_magico : _atacante.dado_dano;
-        if (variable_struct_exists(_dados, "itemDefinitionId") && _dados.itemDefinitionId != "") {
-            var _funcao_arma_dado = online_funcao_carta_por_id(_dados.itemDefinitionId);
-            if (_funcao_arma_dado != noone) {
-                var _dados_arma_dado = _funcao_arma_dado();
-                if (variable_struct_exists(_dados_arma_dado, "sobrescreve_dado_dano")) _tamanho = _dados_arma_dado.sobrescreve_dado_dano;
-            }
-        }
-        var _texto_impacto_online = "DANO " + string(_dados.damage);
-        if (_qtd_dados_online > 1) {
-            _texto_impacto_online = "";
-            for (var _soma_online = 0; _soma_online < _qtd_dados_online; _soma_online++) {
-                if (_soma_online > 0) _texto_impacto_online += " + ";
-                _texto_impacto_online += string(_dados.damageRolls[_soma_online]);
-            }
-            _texto_impacto_online += " = DANO " + string(_dados.damage);
-        }
-        var _cor_impacto_online = (variable_struct_exists(_dados, "critical") && _dados.critical) ? c_yellow : c_red;
-        var _contexto_impacto_online = { atacante: _atacante, alvo: _alvo, px: _destino_x, py: _destino_y,
-            texto: _texto_impacto_online, cor: _cor_impacto_online, dano: _dados.damage,
-            castelo: variable_struct_exists(_dados, "target") && _dados.target == "castle",
-            lado_castelo: (_atacante.dono == "jogador") ? "inimigo" : "jogador" };
-        var _callback_impacto_online = method(_contexto_impacto_online, function(_ignorado) {
-            if (instance_exists(atacante)) iniciar_animacao_ataque(atacante, alvo, 26, 26);
-            if (dano > 0 && instance_exists(alvo)) {
-                alvo.vida = max(0, alvo.vida - dano);
-                aplicar_flash_dano(alvo, 28, atacante);
-                mostrar_dano_tropa(alvo, dano);
-            } else if (dano > 0 && castelo) causar_dano_castelo(lado_castelo, dano);
-            mostrar_feedback(texto, px, py - 55, cor, 82);
-        });
-        for (var d = 0; d < _qtd_dados_online; d++) {
-            var _deslocamento = (d - (_qtd_dados_online - 1) * 0.5) * 78;
-            var _callback_dado_online = (d == _qtd_dados_online - 1) ? _callback_impacto_online : noone;
-            rolar_dado_visual(_atacante.x, _atacante.y, _destino_x + _deslocamento, _destino_y - 28, _tamanho, _dados.damageRolls[d], _callback_dado_online, 0, _atraso_online + 135 + d * irandom_range(55, 75), 110 + irandom_range(-5, 16));
-        }
-    } else if (variable_struct_exists(_dados, "damage")) {
-        iniciar_animacao_ataque(_atacante, _alvo, 26, 26);
-        mostrar_feedback("DANO " + string(_dados.damage), _destino_x, _destino_y - 55, c_red, 70);
-    }
-    if (_mensagem.kind == "choose_critical" && variable_struct_exists(_dados, "followUp") && is_struct(_dados.followUp)) {
-        var _espera_segundo_golpe = 260 + _qtd_dados_online * 75;
-        _dados.followUp.visualDelay = _espera_segundo_golpe;
-        online_animar_confirmacao({ kind: "attack", payload: _dados.followUp });
-    }
+    apresentacao_animar_ataque_confirmado(_mensagem.kind, _dados);
 }

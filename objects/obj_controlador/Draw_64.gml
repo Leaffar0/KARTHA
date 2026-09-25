@@ -386,7 +386,7 @@ draw_set_halign(fa_center);
 draw_set_valign(fa_middle);
 draw_text((_historico_x1 + _historico_x2) / 2, 226, "HISTÓRICO  " + string(array_length(historico_combate)));
 draw_set_color(c_white);
-if (historico_aberto) {
+if (ui_modal.historico_aberto) {
     var _primeiro_evento = max(0, array_length(historico_combate) - 12);
     var _eventos_visiveis = array_length(historico_combate) - _primeiro_evento;
     draw_set_alpha(0.88);
@@ -454,7 +454,7 @@ draw_text_transformed(_abismo_x2 - 18, (_abismo_y1 + _abismo_y2) / 2,
     "I " + string(array_length(abismo_inimigo)), 0.62, 0.62, 0);
 draw_set_color(c_white);
 
-if (cemiterio_aberto) {
+if (ui_modal.cemiterio_aberto) {
     var _lista_y1 = 110;
     var _lista_y2 = 300;
     draw_set_alpha(0.9);
@@ -487,7 +487,7 @@ draw_set_font(-1);
 #endregion
 
 #region Confirmação de retirada de recurso
-if (confirmacao_recurso_ativa && instance_exists(recurso_pendente_retirada)) {
+if (ui_modal.confirmacao_recurso_ativa && instance_exists(ui_modal.recurso_pendente_retirada)) {
     var _recurso_modal_largura = display_get_gui_width();
     var _recurso_modal_altura = display_get_gui_height();
     var _recurso_modal_cx = _recurso_modal_largura / 2;
@@ -512,7 +512,7 @@ if (confirmacao_recurso_ativa && instance_exists(recurso_pendente_retirada)) {
     draw_set_font(-1);
     draw_set_color(c_white);
     draw_text(_recurso_modal_cx, _recurso_modal_cy - 25,
-        string_upper(recurso_pendente_retirada.tipo));
+        string_upper(ui_modal.recurso_pendente_retirada.tipo));
 
     draw_set_color(c_black);
     draw_roundrect(_recurso_modal_cx - 180, _recurso_modal_cy + 42,
@@ -534,7 +534,7 @@ if (confirmacao_recurso_ativa && instance_exists(recurso_pendente_retirada)) {
 #endregion
 
 #region Confirmação de descarte manual
-if (confirmacao_descarte_ativa && instance_exists(carta_pendente_descarte)) {
+if (ui_modal.confirmacao_descarte_ativa && instance_exists(ui_modal.carta_pendente_descarte)) {
     var _confirmacao_largura = display_get_gui_width();
     var _confirmacao_altura = display_get_gui_height();
     var _confirmacao_cx = _confirmacao_largura / 2;
@@ -555,7 +555,7 @@ if (confirmacao_descarte_ativa && instance_exists(carta_pendente_descarte)) {
     draw_text(_confirmacao_cx, _confirmacao_cy - 62, "DESCARTAR CARTA?");
     draw_set_font(-1);
     draw_set_color(c_white);
-    draw_text(_confirmacao_cx, _confirmacao_cy - 25, carta_pendente_descarte.nome_carta);
+    draw_text(_confirmacao_cx, _confirmacao_cy - 25, ui_modal.carta_pendente_descarte.nome_carta);
     draw_set_color(c_black);
     draw_roundrect(_confirmacao_cx - 180, _confirmacao_cy + 42, _confirmacao_cx - 12, _confirmacao_cy + 82, false);
     draw_roundrect(_confirmacao_cx + 12, _confirmacao_cy + 42, _confirmacao_cx + 180, _confirmacao_cy + 82, false);
@@ -571,7 +571,7 @@ if (confirmacao_descarte_ativa && instance_exists(carta_pendente_descarte)) {
 #endregion
 
 #region Pilha de descarte
-if (descarte_aberto) {
+if (ui_modal.descarte_aberto) {
     var _descarte_largura = display_get_gui_width();
     var _descarte_altura = display_get_gui_height();
     var _descarte_cx = _descarte_largura / 2;
@@ -602,8 +602,8 @@ if (descarte_aberto) {
 
     draw_set_halign(fa_left);
     draw_set_valign(fa_top);
-    if (descarte_preview_indice >= 0 && descarte_preview_indice < array_length(descarte_jogador)) {
-        var _carta_descartada = descarte_jogador[descarte_preview_indice];
+    if (ui_modal.descarte_preview_indice >= 0 && ui_modal.descarte_preview_indice < array_length(descarte_jogador)) {
+        var _carta_descartada = descarte_jogador[ui_modal.descarte_preview_indice];
         var _sprite_descartada = variable_struct_exists(_carta_descartada, "sprite") ? _carta_descartada.sprite : spr_carta_placeholder;
         var _escala_descartada = min(155 / sprite_get_width(_sprite_descartada), 210 / sprite_get_height(_sprite_descartada));
         var _descricao_descartada = variable_struct_exists(_carta_descartada, "descricao") ? _carta_descartada.descricao : "Informações da carta indisponíveis nesta partida.";
@@ -644,7 +644,7 @@ if (descarte_aberto) {
     draw_roundrect(_descarte_cx + 240, _descarte_cy - 180, _descarte_cx + 280, _descarte_cy - 140, true);
     draw_text(_descarte_cx + 260, _descarte_cy - 160, "X");
     draw_set_color(c_gray);
-    draw_text(_descarte_cx, _descarte_y2 - 22, descarte_preview_indice != -1 ? "ESC ou X para voltar" : "ESC ou X para fechar");
+    draw_text(_descarte_cx, _descarte_y2 - 22, ui_modal.descarte_preview_indice != -1 ? "ESC ou X para voltar" : "ESC ou X para fechar");
     draw_set_halign(fa_left);
     draw_set_valign(fa_top);
     draw_set_color(c_white);
@@ -652,7 +652,7 @@ if (descarte_aberto) {
 #endregion
 
 #region Escolhas das novas cartas
-if (dados_manipulados_escolha_ativa && is_struct(dados_manipulados_escolha_atual)) {
+if (ui_modal.dados_manipulados_escolha_ativa && is_struct(ui_modal.dados_manipulados_escolha_atual)) {
     var _dm_w = display_get_gui_width();
     var _dm_h = display_get_gui_height();
     var _dm_cx = _dm_w / 2;
@@ -669,16 +669,16 @@ if (dados_manipulados_escolha_ativa && is_struct(dados_manipulados_escolha_atual
     draw_set_color(c_white);
     draw_roundrect(_dm_cx - 190, _dm_cy + 35, _dm_cx - 10, _dm_cy + 82, true);
     draw_roundrect(_dm_cx + 10, _dm_cy + 35, _dm_cx + 190, _dm_cy + 82, true);
-    draw_text(_dm_cx - 100, _dm_cy + 59, "ROLADO: " + string(dados_manipulados_escolha_atual.original));
-    draw_text(_dm_cx + 100, _dm_cy + 59, "FIXADO: " + string(dados_manipulados_escolha_atual.alternativo));
+    draw_text(_dm_cx - 100, _dm_cy + 59, "ROLADO: " + string(ui_modal.dados_manipulados_escolha_atual.original));
+    draw_text(_dm_cx + 100, _dm_cy + 59, "FIXADO: " + string(ui_modal.dados_manipulados_escolha_atual.alternativo));
 }
 
-if (maquina_ima_escolha_ativa && is_struct(maquina_ima_escolha_atual)) {
+if (ui_modal.maquina_ima_escolha_ativa && is_struct(ui_modal.maquina_ima_escolha_atual)) {
     var _mi_w = display_get_gui_width();
     var _mi_h = display_get_gui_height();
     var _mi_cx = _mi_w / 2;
     var _mi_cy = _mi_h / 2;
-    var _mi_total = array_length(maquina_ima_escolha_atual.itens);
+    var _mi_total = array_length(ui_modal.maquina_ima_escolha_atual.itens);
     var _mi_y2 = _mi_cy + max(75, _mi_total * 36 + 15);
     draw_set_alpha(0.72); draw_set_color(c_black); draw_rectangle(0, 0, _mi_w, _mi_h, false); draw_set_alpha(1);
     draw_set_color(c_black); draw_roundrect(_mi_cx - 250, _mi_cy - 115, _mi_cx + 250, _mi_y2, false);
@@ -690,7 +690,7 @@ if (maquina_ima_escolha_ativa && is_struct(maquina_ima_escolha_atual)) {
         var _mi_y = _mi_cy - 35 + _mi_i * 36;
         draw_set_color(c_black); draw_roundrect(_mi_cx - 210, _mi_y, _mi_cx + 210, _mi_y + 30, false);
         draw_set_color(c_white); draw_roundrect(_mi_cx - 210, _mi_y, _mi_cx + 210, _mi_y + 30, true);
-        draw_text(_mi_cx, _mi_y + 15, maquina_ima_escolha_atual.itens[_mi_i].nome);
+        draw_text(_mi_cx, _mi_y + 15, ui_modal.maquina_ima_escolha_atual.itens[_mi_i].nome);
     }
 }
 
@@ -698,12 +698,12 @@ draw_set_font(-1); draw_set_halign(fa_left); draw_set_valign(fa_top); draw_set_c
 #endregion
 
 #region Tutorial opcional
-if (tutorial_ativo) {
+if (ui_modal.tutorial_ativo) {
     var _tutorial_largura = display_get_gui_width();
     var _tutorial_altura = display_get_gui_height();
     var _tutorial_cx = _tutorial_largura / 2;
     var _tutorial_cy = _tutorial_altura / 2;
-    var _tutorial = tutorial_paginas[tutorial_pagina];
+    var _tutorial = tutorial_paginas[ui_modal.tutorial_pagina];
 
     draw_set_alpha(0.82);
     draw_set_color(c_black);
@@ -727,7 +727,7 @@ if (tutorial_ativo) {
     draw_set_font(Fontenil);
     draw_set_halign(fa_center);
     draw_set_valign(fa_middle);
-    desenhar_texto_interface(_tutorial_cx, _tutorial_cy + 105, string(tutorial_pagina + 1) + " / " + string(array_length(tutorial_paginas)));
+    desenhar_texto_interface(_tutorial_cx, _tutorial_cy + 105, string(ui_modal.tutorial_pagina + 1) + " / " + string(array_length(tutorial_paginas)));
 
     draw_set_color(c_black);
     draw_roundrect(_tutorial_cx - 230, _tutorial_cy + 150, _tutorial_cx - 70, _tutorial_cy + 195, false);
@@ -750,7 +750,7 @@ if (tutorial_ativo) {
 #endregion
 
 #region Painel de pausa
-if (pausa_ativa) {
+if (ui_modal.pausa_ativa) {
     var _pausa_largura = display_get_gui_width();
     var _pausa_altura = display_get_gui_height();
     var _pausa_cx = _pausa_largura / 2;
@@ -766,9 +766,9 @@ if (pausa_ativa) {
     draw_set_font(fnt_vitoria);
     draw_set_halign(fa_center);
     draw_set_valign(fa_middle);
-    desenhar_texto_interface(_pausa_cx, _pausa_cy - 88, opcoes_pausa_ativa ? "OPÇÕES" : "PAUSA");
+    desenhar_texto_interface(_pausa_cx, _pausa_cy - 88, ui_modal.opcoes_pausa_ativa ? "OPÇÕES" : "PAUSA");
     draw_set_font(Fontenil);
-    if (opcoes_pausa_ativa) {
+    if (ui_modal.opcoes_pausa_ativa) {
         desenhar_texto_interface(_pausa_cx - 125, _pausa_cy - 35, "<");
         desenhar_texto_interface(_pausa_cx + 125, _pausa_cy - 35, ">");
         desenhar_texto_interface(_pausa_cx, _pausa_cy - 35, "MÚSICA  " + string(round(global.volume_musica * 100)) + "%");
@@ -872,7 +872,7 @@ if (vida_jogador <= 0 || vida_inimigo <= 0) {
 
 #region Escolha de iniciativa
 // O painel só entra depois que os dois D20 terminaram; o voo e o resultado sobre a mesa ficam livres.
-if (disputa_inicial_estado == "troca_dado_local" && !tutorial_ativo) {
+if (disputa_inicial_estado == "troca_dado_local" && !ui_modal.tutorial_ativo) {
     var _troca_ini_w = display_get_gui_width();
     var _troca_ini_h = display_get_gui_height();
     draw_set_alpha(0.97);
@@ -897,7 +897,7 @@ var _mostrar_painel_iniciativa = (disputa_inicial_estado == "resultado"
     || disputa_inicial_estado == "escolha_local"
     || disputa_inicial_estado == "escolha_jogador"
     || disputa_inicial_estado == "escolha_inimigo");
-if (_mostrar_painel_iniciativa && !tutorial_ativo && !(instance_exists(obj_livro) && obj_livro.preview_ativo)) {
+if (_mostrar_painel_iniciativa && !ui_modal.tutorial_ativo && !(instance_exists(obj_livro) && obj_livro.preview_ativo)) {
     var _ini_largura = display_get_gui_width();
     var _ini_altura = display_get_gui_height();
     var _ini_cx = _ini_largura / 2;
@@ -954,7 +954,7 @@ if (_mostrar_painel_iniciativa && !tutorial_ativo && !(instance_exists(obj_livro
 #endregion
 
 #region Visão do Véu
-if (visao_veu_ativa && instance_exists(visao_veu_origem) && !tutorial_ativo && !pausa_ativa) {
+if (ui_modal.visao_veu_ativa && instance_exists(ui_modal.visao_veu_origem) && !ui_modal.tutorial_ativo && !ui_modal.pausa_ativa) {
     var _veu_w = display_get_gui_width(); var _veu_h = display_get_gui_height();
     var _veu_cx = _veu_w / 2; var _veu_cy = _veu_h / 2;
     draw_set_alpha(0.78); draw_set_color(c_black); draw_rectangle(0, 0, _veu_w, _veu_h, false); draw_set_alpha(1);
@@ -963,18 +963,18 @@ if (visao_veu_ativa && instance_exists(visao_veu_origem) && !tutorial_ativo && !
     draw_set_halign(fa_center); draw_set_valign(fa_middle); draw_set_font(fnt_vitoria);
     draw_text(_veu_cx, _veu_cy - 135, "VISÃO DO VÉU"); draw_set_font(Fontenil); draw_set_color(c_white);
     draw_text(_veu_cx, _veu_cy - 112, "Mão inimiga revelada — clique numa armadilha para destruí-la");
-    for (var i = 0; i < array_length(visao_veu_opcoes); i++) {
+    for (var i = 0; i < array_length(ui_modal.visao_veu_opcoes); i++) {
         var _revela_local = clamp((visao_veu_revelacao_timer - i * 7) / 12, 0, 1);
         if (_revela_local <= 0) continue;
         var _col = i mod 3; var _lin = floor(i / 3);
         var _x1 = _veu_cx - 270 + _col * 180; var _y1 = _veu_cy - 95 + _lin * 30;
         var _meia_revela = 85 * _revela_local;
         _x1 = _x1 + 85 - _meia_revela;
-        draw_set_color(visao_veu_opcoes[i].armadilha ? c_maroon : make_color_rgb(45,45,45));
+        draw_set_color(ui_modal.visao_veu_opcoes[i].armadilha ? c_maroon : make_color_rgb(45,45,45));
         draw_rectangle(_x1, _y1, _x1 + _meia_revela * 2, _y1 + 24, false);
-        draw_set_color(visao_veu_opcoes[i].armadilha ? c_yellow : c_gray);
+        draw_set_color(ui_modal.visao_veu_opcoes[i].armadilha ? c_yellow : c_gray);
         draw_rectangle(_x1, _y1, _x1 + _meia_revela * 2, _y1 + 24, true);
-        if (_revela_local > 0.58) draw_text_transformed(_x1 + _meia_revela, _y1 + 12, visao_veu_opcoes[i].nome, 0.34, 0.34, 0);
+        if (_revela_local > 0.58) draw_text_transformed(_x1 + _meia_revela, _y1 + 12, ui_modal.visao_veu_opcoes[i].nome, 0.34, 0.34, 0);
     }
     draw_set_color(c_black); draw_roundrect(_veu_cx - 190, _veu_cy + 125, _veu_cx + 190, _veu_cy + 170, false);
     draw_set_color(c_aqua); draw_roundrect(_veu_cx - 190, _veu_cy + 125, _veu_cx + 190, _veu_cy + 170, true);
@@ -984,14 +984,14 @@ if (visao_veu_ativa && instance_exists(visao_veu_origem) && !tutorial_ativo && !
 #endregion
 
 #region Escolha de dano crítico
-if (critico_escolha_ativa && is_struct(critico_contexto) && !tutorial_ativo && !pausa_ativa) {
+if (ui_modal.critico_escolha_ativa && is_struct(ui_modal.critico_contexto) && !ui_modal.tutorial_ativo && !ui_modal.pausa_ativa) {
     var _crit_largura = display_get_gui_width();
     var _crit_altura = display_get_gui_height();
     var _crit_cx = _crit_largura / 2;
     var _crit_cy = _crit_altura / 2;
-    var _crit_qtd = critico_contexto.qtd_usada;
-    var _crit_dado = critico_contexto.dado_usado;
-    var _crit_nome = instance_exists(critico_contexto.atacante) ? critico_contexto.atacante.nome_carta : "Tropa";
+    var _crit_qtd = ui_modal.critico_contexto.qtd_usada;
+    var _crit_dado = ui_modal.critico_contexto.dado_usado;
+    var _crit_nome = instance_exists(ui_modal.critico_contexto.atacante) ? ui_modal.critico_contexto.atacante.nome_carta : "Tropa";
 
     draw_set_alpha(0.74);
     draw_set_color(c_black);

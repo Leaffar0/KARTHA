@@ -10,7 +10,7 @@ if (bloqueado_turnos > 0) {
     mostrar_aviso_regra("Recurso bloqueado por " + string(bloqueado_turnos) + " turno(s)", x, y);
     exit;
 }
-if (obj_controlador.confirmacao_recurso_ativa) exit;
+if (obj_controlador.ui_modal.confirmacao_recurso_ativa) exit;
 
 var _escala_clique = escala_recurso * max(1, escala_animacao);
 var _meia_largura = sprite_get_width(sprite_index) * _escala_clique * 0.5;
@@ -27,5 +27,5 @@ if (!point_in_rectangle(mouse_x, mouse_y,
     x - _meia_largura, y - _meia_altura,
     x + _meia_largura, y + _meia_altura)) exit;
 
-obj_controlador.recurso_pendente_retirada = id;
-obj_controlador.confirmacao_recurso_ativa = true;
+obj_controlador.ui_modal.recurso_pendente_retirada = id;
+obj_controlador.ui_modal.confirmacao_recurso_ativa = true;

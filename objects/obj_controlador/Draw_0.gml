@@ -148,27 +148,27 @@ if (tropa_selecionada != noone && instance_exists(tropa_selecionada)) {
 #endregion
 
 #region Escolhas de alvo
-if (mitose_selecao_ativa) {
+if (ui_modal.mitose_selecao_ativa) {
     draw_set_halign(fa_center); draw_set_valign(fa_bottom); draw_set_color(c_lime);
     draw_text_transformed(room_width / 2, room_height / 2, "MITOSE: escolha a casa do segundo Slimet", 0.45, 0.45, 0);
-    for (var _mdi = 0; _mdi < array_length(mitose_slots_pendentes); _mdi++) {
-        var _mds = mitose_slots_pendentes[_mdi];
+    for (var _mdi = 0; _mdi < array_length(ui_modal.mitose_slots_pendentes); _mdi++) {
+        var _mds = ui_modal.mitose_slots_pendentes[_mdi];
         if (_mds != noone && !_mds.ocupado) {
             draw_set_alpha(0.4); draw_set_color(c_lime); draw_circle(_mds.x, _mds.y, 34, false); draw_set_alpha(1);
         }
     }
 }
-if (digestao_selecao_ativa && instance_exists(digestao_origem)) {
+if (ui_modal.digestao_selecao_ativa && instance_exists(ui_modal.digestao_origem)) {
     draw_set_halign(fa_center); draw_set_valign(fa_bottom); draw_set_color(c_lime);
-    draw_text_transformed(digestao_origem.x, digestao_origem.y - 55, "DIGESTÃO: escolha o alvo", 0.42, 0.42, 0);
-    with (obj_carta) if (alvo_valido_digestao(other.digestao_origem, id)) {
+    draw_text_transformed(ui_modal.digestao_origem.x, ui_modal.digestao_origem.y - 55, "DIGESTÃO: escolha o alvo", 0.42, 0.42, 0);
+    with (obj_carta) if (alvo_valido_digestao(other.ui_modal.digestao_origem, id)) {
         draw_set_alpha(0.35); draw_set_color(c_lime); draw_circle(x, y, 34, false); draw_set_alpha(1);
     }
 }
-if (troca_item_selecao_ativa && instance_exists(troca_item_origem)) {
+if (ui_modal.troca_item_selecao_ativa && instance_exists(ui_modal.troca_item_origem)) {
     draw_set_halign(fa_center); draw_set_valign(fa_bottom); draw_set_color(c_aqua);
-    draw_text_transformed(troca_item_origem.x, troca_item_origem.y - 55, "TRANSFERIR: escolha a tropa", 0.42, 0.42, 0);
-    with (obj_carta) if (id != other.troca_item_origem && travada && dono == other.troca_item_origem.dono && mochila > 0 && !troca_item_usada_este_turno) {
+    draw_text_transformed(ui_modal.troca_item_origem.x, ui_modal.troca_item_origem.y - 55, "TRANSFERIR: escolha a tropa", 0.42, 0.42, 0);
+    with (obj_carta) if (id != other.ui_modal.troca_item_origem && travada && dono == other.ui_modal.troca_item_origem.dono && mochila > 0 && !troca_item_usada_este_turno) {
         draw_set_alpha(0.35); draw_set_color(c_aqua); draw_circle(x, y, 34, false); draw_set_alpha(1);
     }
 }

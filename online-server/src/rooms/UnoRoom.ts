@@ -1535,7 +1535,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     attacker.life -= damage;
     const destroyed = attacker.life <= 0;
     if (destroyed) this.destroyPublicCard(attacker);
-    return { cardId: defender.instanceId, targetId: attacker.instanceId, attackType: "fisica", hit: true, damageRolls, modifier, defense, damage, destroyed, counterAttack: true };
+    return { cardId: defender.instanceId, targetId: attacker.instanceId, attackType: "fisica", hit: true, die, dice, damageRolls, modifier, defense, damage, destroyed, counterAttack: true };
   }
 
   private attack(seat: number, payload: Record<string, unknown>): ActionResult {
@@ -1586,7 +1586,9 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
         attacker.attacked = true;
         attacker.life -= selfDamage;
         if (attacker.life <= 0) this.destroyPublicCard(attacker, false);
-        return { ok: true, details: { cardId, attackType, frenzySelf: true, damageRolls: selfRolls, damage: selfDamage, destroyed: attacker.life <= 0 } };
+        return { ok: true, details: { cardId, targetId: cardId, attackType, frenzySelf: true,
+          die: Math.max(1, definition.attackDie ?? 1), dice: selfRolls.length,
+          damageRolls: selfRolls, damage: selfDamage, destroyed: attacker.life <= 0 } };
       }
     } else if (attackerState.frenzy === "bonus") {
       frenzyBonus = this.rollForSeat(seat, 8);
@@ -1631,7 +1633,8 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       const defender = this.playerBySeat(1 - seat)!;
       defender.life = Math.max(0, defender.life - damage);
       if (defender.life <= 0) { this.state.winner = seat; this.state.phase = "finished"; }
-      return { ok: true, details: { cardId, target: "castle", attackType, direct: true, hit: true, damageRolls, modifier, damage, defenderLife: defender.life, itemDefinitionId, frenzyBonus } };
+      return { ok: true, details: { cardId, target: "castle", attackType, direct: true, hit: true,
+        die, dice, damageRolls, modifier, damage, defenderLife: defender.life, itemDefinitionId, frenzyBonus } };
     }
 
     const madnessState = target?.category === "tropa" ? this.abilityState(target) : undefined;
@@ -1659,7 +1662,9 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       if (accuracy <= 10) {
         const counter = (accuracyRoll === 1 || attacker.condition === "confusao") && target.category === "tropa"
           ? this.counterAttack(target, attacker) : undefined;
-        return { ok: true, details: { cardId, targetId: target.instanceId, attackType, accuracy, accuracyRoll, accuracyRolls, hit: false, damageRolls: [], itemDefinitionId, stealRoll, stolenItem, counter } };
+        return { ok: true, details: { cardId, targetId: target.instanceId, attackType,
+          accuracy, accuracyRoll, accuracyRolls, hit: false, die, dice,
+          damageRolls: [], itemDefinitionId, stealRoll, stolenItem, counter } };
       }
       const targetDefinition = CARD_DEFINITIONS[target.definitionId];
       const targetState = this.abilityState(target);
@@ -1681,7 +1686,10 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
         }
         this.destroyPublicCard(target);
       }
-      return { ok: true, details: { cardId, targetId: target.instanceId, attackType, accuracy, accuracyRoll, accuracyRolls, hit: true, critical: false, damageRolls, modifier, defense, damage, destroyed, frenzyBonus, itemDefinitionId, stealRoll, stolenItem, madnessNoDefense } };
+      return { ok: true, details: { cardId, targetId: target.instanceId, attackType,
+        accuracy, accuracyRoll, accuracyRolls, hit: true, critical: false, die, dice,
+        damageRolls, modifier, defense, damage, destroyed, frenzyBonus,
+        itemDefinitionId, stealRoll, stolenItem, madnessNoDefense } };
     }
     return { ok: false, reason: "alvo_invalido" };
   }
@@ -1729,7 +1737,12 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       if (chainedCritical) chainedCritical.repeatAfter = repeatAfter - 1;
       attacker.attacked = true;
     }
-    return { ok: true, details: { cardId: pending.cardId, targetId: pending.targetId ?? "", target: pending.targetType === "castle" ? "castle" : "card", attackType: pending.attackType, criticalResolved: true, critical: true, choice, damageRolls, modifier: pending.modifier, defense: pending.defense, damage, destroyed, defenderLife, itemDefinitionId: pending.itemDefinitionId ?? "", followUp, criticalChoice: Boolean(this.pendingCritical) } };
+    return { ok: true, details: { cardId: pending.cardId, targetId: pending.targetId ?? "",
+      target: pending.targetType === "castle" ? "castle" : "card", attackType: pending.attackType,
+      criticalResolved: true, critical: true, choice, die: pending.die, dice: rollCount,
+      damageRolls, modifier: pending.modifier, defense: pending.defense, damage, destroyed,
+      defenderLife, itemDefinitionId: pending.itemDefinitionId ?? "", followUp,
+      criticalChoice: Boolean(this.pendingCritical) } };
   }
   private processMadness(seat: number): Record<string, unknown>[] {
     const events: Record<string, unknown>[] = [];

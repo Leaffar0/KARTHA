@@ -65,8 +65,8 @@ if (arrastando && mouse_check_button_released(mb_left)) {
     if (_pilha_descarte != noone
         && point_in_rectangle(x, y, _pilha_descarte.x - 20, _pilha_descarte.y - 20,
             _pilha_descarte.x + _pilha_descarte.sprite_width + 20, _pilha_descarte.y + _pilha_descarte.sprite_height + 20)) {
-        obj_controlador.confirmacao_descarte_ativa = true;
-        obj_controlador.carta_pendente_descarte = id;
+        obj_controlador.ui_modal.confirmacao_descarte_ativa = true;
+        obj_controlador.ui_modal.carta_pendente_descarte = id;
         exit;
     }
 	
