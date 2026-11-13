@@ -1,0 +1,12 @@
+view_enabled=false;
+som_previa=noone;
+modo=0; tempo=0; som_contato=false; pausado=false; repetir=false;
+rotulos=["Impacto", "Magia", "Criaturas", "Contra-ataque", "Final", "Equipamento", "Habilidade", "Sons"];
+grupos=["deslize","encaixe","dado","metal","golpe","abrir","empurrao","recurso"];
+grupo=0; habilidade=0; magia=0;
+magias=["Rastro mágico","Bola de Fogo","Veneno","Gelo","Choque"];
+habilidades=["imitacao","golpe_duplo","sombra_translucida","digestao","ferida_exposta","visao_do_veu","carnica_frenetica"];
+visual_habilidade_chave=""; visual_habilidade_timer=0;
+amostras=[criar_dados_mimic(),criar_dados_slime(),criar_dados_olho_demonio()];
+item=criar_dados_item_espada();
+laboratorio_reiniciar(id);

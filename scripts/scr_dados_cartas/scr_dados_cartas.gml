@@ -8,7 +8,7 @@
 // Deixe true enquanto ainda estiver ajustando balanceamento/bugs;
 // mude pra false quando quiser um console limpo pra jogar de verdade.
 // (o valor inicial é definido no Create Event do obj_controlador)
-function debug_combate(_msg) {
+function debug_combate(_msg, _envolvidos = []) {
     if (global.DEBUG_COMBATE) {
         show_debug_message(_msg);
     }
@@ -24,9 +24,15 @@ function debug_combate(_msg) {
         }
         var _rotulo_turno = variable_instance_exists(_controle, "turno")
             && (_controle.turno == "jogador" || _controle.turno == "inimigo") ? nome_jogador_lado(_controle.turno) : "Preparação";
+        if (!variable_instance_exists(_controle, "historico_referencias")) _controle.historico_referencias = [];
+        if (array_length(_envolvidos) == 0) {
+            with (obj_carta) if (travada && nome_carta != "" && string_pos(nome_carta, _msg) > 0) array_push(_envolvidos, id);
+        }
+        array_push(_controle.historico_referencias, _envolvidos);
         array_push(_controle.historico_combate, "[" + _rotulo_turno + "] " + _msg);
         while (array_length(_controle.historico_combate) > _controle.max_historico_combate) {
             array_delete(_controle.historico_combate, 0, 1);
+            array_delete(_controle.historico_referencias, 0, 1);
         }
     }
 }

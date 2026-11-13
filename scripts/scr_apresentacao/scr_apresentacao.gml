@@ -85,6 +85,8 @@ function apresentacao_animar_ataque_confirmado(_tipo_mensagem, _dados) {
     }
 
     if (variable_struct_exists(_dados, "counter") && is_struct(_dados.counter)) {
+        var _carta_contra = online_encontrar_carta_campo(_dados.counter.cardId);
+        if (instance_exists(_carta_contra)) apresentar_contra_ataque(_carta_contra);
         _dados.counter.visualDelay = _atraso + irandom_range(225, 275);
         apresentacao_animar_ataque_confirmado("attack", _dados.counter);
     }
@@ -262,6 +264,7 @@ function desenhar_efeitos_identidade(_carta, _x, _y, _escala, _angulo, _alpha) {
 }
 
 function apresentar_teste_imitacao(_mimic, _inimigo, _total_mimic, _total_inimigo, _contra = false) {
+    ligar_efeito_alvo(_mimic,_inimigo,c_purple);
     if (!instance_exists(_mimic) || !instance_exists(_inimigo)) return;
     var _ctx = { mimic: _mimic, inimigo: _inimigo, contra: _contra };
     rolar_dado_visual(_mimic.x, _mimic.y, _mimic.x - 45, _mimic.y - 65,
@@ -296,38 +299,43 @@ function apresentar_ativacao_habilidade(_carta, _chave) {
     if (!audio_is_playing(_som)) audio_play_sound(_som, 1, false, _volume, 0, 1);
 }
 
-function desenhar_ativacoes_habilidade() {
-    var _cam = view_camera[0];
-    var _gw = display_get_gui_width(), _gh = display_get_gui_height();
-    draw_set_font(Fontenil);
-    draw_set_halign(fa_center); draw_set_valign(fa_middle);
-    with (obj_carta) if (visual_habilidade_timer > 0) {
-        var _t = 1 - visual_habilidade_timer / 84;
-        var _a = min(1, (1 - _t) * 5);
-        var _px = (x - camera_get_view_x(_cam)) * _gw / camera_get_view_width(_cam);
-        var _py = (y - camera_get_view_y(_cam)) * _gh / camera_get_view_height(_cam);
+// Um único desenho para a partida e o laboratório; coordenadas já estão na GUI.
+function desenhar_ativacao_habilidade_gui(_px,_py,_altura_gui,_chave,_tempo) {
+    if(_tempo<0 || _tempo>=84) return;
+    var _t=_tempo/84, _a=min(1,(1-_t)*5);
+    var _gw=display_get_gui_width(), _gh=display_get_gui_height();
+    draw_set_font(Fontenil);draw_set_halign(fa_center);draw_set_valign(fa_middle);
         var _cor = make_color_rgb(245, 197, 104);
-        var _raio = 25 + 95 * (1 - power(1 - min(1, _t * 2), 3));
-        draw_set_color(_cor); draw_set_alpha(_a * max(0, 1 - _t * 2));
+        var _raio_base = max(65,_altura_gui*0.6);
+        var _raio = _raio_base * (0.65 + 0.65 * (1 - power(1 - min(1, _t * 2), 3)));
+        draw_set_color(_cor); draw_set_alpha(_a * max(0, 1 - _t * 2) * min(1,fator_efeitos_visuais()));
         for (var _i = 0; _i < 12; _i++) {
             var _ang = _i * 30 + _t * 40;
             draw_line_width(_px + lengthdir_x(_raio, _ang), _py + lengthdir_y(_raio, _ang),
                 _px + lengthdir_x(_raio + 18, _ang), _py + lengthdir_y(_raio + 18, _ang), 2);
         }
-        var _nome = string_upper(obter_nome_exibicao_habilidade(visual_habilidade_chave));
-        var _w = min(_gw - 32, max(210, string_width(_nome) * 0.65 + 36));
+        var _nome = string_upper(obter_nome_exibicao_habilidade(_chave));
+        var _w = min(_gw - 32, max(250, string_width(_nome) * 0.75 + 36));
         var _bx = clamp(_px, _w / 2 + 16, _gw - _w / 2 - 16);
-        var _by = clamp(_py - 90 - min(1, _t * 6) * 12, 40, _gh - 40);
+        var _by = clamp(_py - _altura_gui*0.5 - 36 - min(1, _t * 6) * 12, 40, _gh - 40);
         draw_set_alpha(_a * 0.94); draw_set_color(make_color_rgb(22, 15, 30));
         draw_rectangle(_bx - _w/2, _by - 25, _bx + _w/2, _by + 25, false);
         draw_set_color(_cor); draw_set_alpha(_a);
         draw_rectangle(_bx - _w/2, _by - 25, _bx + _w/2, _by + 25, true);
-        var _s = min(0.65, (_w - 24) / max(1, string_width(_nome)));
+        var _s = min(0.75, (_w - 24) / max(1, string_width(_nome)));
         draw_text_transformed(_bx, _by - 5, _nome, _s, _s, 0);
         draw_text_transformed(_bx, _by + 14, "HABILIDADE ATIVADA", 0.32, 0.32, 0);
+    draw_set_alpha(1);draw_set_color(c_white);
+    draw_set_halign(fa_left);draw_set_valign(fa_top);draw_set_font(-1);
+}
+function desenhar_ativacoes_habilidade() {
+    var _cam=view_camera[0], _gw=display_get_gui_width(), _gh=display_get_gui_height();
+    with(obj_carta) if(visual_habilidade_timer>0) {
+        desenhar_ativacao_habilidade_gui((x-camera_get_view_x(_cam))*_gw/camera_get_view_width(_cam),
+            (y-camera_get_view_y(_cam))*_gh/camera_get_view_height(_cam),
+            sprite_get_height(sprite_index)*abs(image_yscale)*_gh/camera_get_view_height(_cam),
+            visual_habilidade_chave,84-visual_habilidade_timer);
     }
-    draw_set_alpha(1); draw_set_color(c_white);
-    draw_set_halign(fa_left); draw_set_valign(fa_top); draw_set_font(-1);
 }
 
 // Som cosmético: alterna arquivos sem interferir nas rolagens da partida.
@@ -344,6 +352,7 @@ function tocar_som_variado(_grupo, _volume = 0.3, _pitch = 1) {
     };
     static _indices = {};
     static _instantes = {};
+    static _vozes = {};
     if (!variable_struct_exists(_grupos, _grupo)) return noone;
     if (variable_struct_exists(_instantes, _grupo)
         && current_time - variable_struct_get(_instantes, _grupo) < 75) return noone;
@@ -351,5 +360,253 @@ function tocar_som_variado(_grupo, _volume = 0.3, _pitch = 1) {
     var _indice = variable_struct_exists(_indices, _grupo) ? variable_struct_get(_indices, _grupo) : 0;
     variable_struct_set(_indices, _grupo, (_indice + 1) mod array_length(_sons));
     variable_struct_set(_instantes, _grupo, current_time);
-    return audio_play_sound(_sons[_indice], 1, false, clamp(_volume, 0, 1), 0, _pitch);
+    // No máximo duas vozes por categoria, mesmo em sequências rápidas.
+    var _ativas = variable_struct_exists(_vozes, _grupo) ? variable_struct_get(_vozes, _grupo) : [];
+    for (var _v = array_length(_ativas) - 1; _v >= 0; _v--) {
+        if (!audio_is_playing(_ativas[_v])) array_delete(_ativas, _v, 1);
+    }
+    if (array_length(_ativas) >= 2) {
+        audio_stop_sound(_ativas[0]);
+        array_delete(_ativas, 0, 1);
+    }
+    var _voz = audio_play_sound(_sons[_indice], 1, false, clamp(_volume, 0, 1), 0, _pitch);
+    array_push(_ativas, _voz);
+    variable_struct_set(_vozes, _grupo, _ativas);
+    return _voz;
+}
+
+// Resíduos usam tempo visual e uma fila limitada; não alteram o tabuleiro.
+function registrar_marca_mesa(_x, _y, _magica = false) {
+    if (!instance_exists(obj_controlador)) return;
+    var _c = obj_controlador;
+    array_push(_c.marcas_mesa, {x:_x, y:_y, magica:_magica, tempo:0});
+    if (array_length(_c.marcas_mesa) > 24) array_delete(_c.marcas_mesa, 0, 1);
+}
+function desenhar_marca_mesa(_x, _y, _tempo, _magica) {
+    var _p = clamp(_tempo / 150, 0, 1);
+    var _a = (1 - _p) * 0.38 * min(1.3,fator_efeitos_visuais());
+    draw_set_color(_magica ? make_color_rgb(125, 92, 190) : make_color_rgb(30, 20, 16));
+    draw_set_alpha(_a);
+    var _r = 36 + min(1, _tempo / 14) * 24;
+    if (_magica) {
+        draw_circle(_x, _y, _r, true);
+        for (var i=0; i<8; i++) {
+            var _ang=i*45 + _tempo*0.25;
+            draw_circle(_x+lengthdir_x(_r,_ang), _y+lengthdir_y(_r,_ang), 2, false);
+        }
+    } else {
+        draw_ellipse(_x-_r, _y-9, _x+_r, _y+9, false);
+        for (var i=0; i<7; i++) {
+            var _ang=i*51+12;
+            draw_line_width(_x+lengthdir_x(12,_ang), _y+lengthdir_y(9,_ang),
+                _x+lengthdir_x(_r+8,_ang), _y+lengthdir_y(_r*0.5,_ang), 2);
+        }
+    }
+    draw_set_alpha(1); draw_set_color(c_white);
+}
+function personalidade_visual(_nome, _voa, _tempo) {
+    var _s = 1, _y = 0, _r = 0;
+    if (_voa) _y = -2 - sin(_tempo * 0.0018) * 2;
+    else if (string_pos("slim", string_lower(_nome)) > 0) _s = 1 + sin(_tempo * 0.0014) * 0.018;
+    else if (string_pos("mimic", string_lower(_nome)) > 0) {
+        var _fase = (_tempo mod 7600) / 7600;
+        if (_fase > 0.90) _r = sin((_fase-0.90)*180) * sin((_fase-0.90)*10*pi) * 0.65;
+    }
+    return {escala:_s, y:_y, rotacao:_r};
+}
+function apresentar_contra_ataque(_carta) {
+    if (!instance_exists(_carta)) return;
+    _carta.contra_visual_timer = 60;
+    _carta.contra_ataque_pendente = true;
+    mostrar_feedback("CONTRA-ATAQUE", _carta.x, _carta.y-70, c_yellow, 65);
+    tocar_som_variado("empurrao", 0.23);
+}
+function desenhar_quebra_castelo(_x, _y, _tempo, _escala = 1) {
+    // Doze quadros de antecipação, depois cada pedaço segue sua própria trajetória.
+    var _p = clamp((_tempo - 12) / 42, 0, 1);
+    draw_set_color(make_color_rgb(223, 182, 104)); draw_set_alpha(1-_p);
+    for (var i=0; i<5; i++) {
+        var _sx = _x + ((i-2)*16 + (i-2)*_p*40) * _escala;
+        var _sy = _y + (-sin(_p*pi)*30 + _p*_p*70 + (i mod 2)*_p*16) * _escala;
+        draw_rectangle(_sx-7*_escala,_sy-15*_escala,_sx+7*_escala,_sy+16*_escala,false);
+        draw_rectangle(_sx-7*_escala,_sy-24*_escala,_sx-1*_escala,_sy-15*_escala,false);
+        draw_rectangle(_sx+2*_escala,_sy-24*_escala,_sx+7*_escala,_sy-15*_escala,false);
+    }
+    draw_set_alpha(1); draw_set_color(c_white);
+}
+
+function abrir_laboratorio_visual() {
+    if (!instance_exists(obj_controlador) || obj_controlador.modo_partida == "online") return;
+    global.laboratorio_origem = room;
+    global.laboratorio_persistencia = room_persistent;
+    global.laboratorio_views = view_enabled;
+    global.laboratorio_voltando = false;
+    obj_controlador.ui_modal.pausa_ativa = true;
+    room_persistent = true;
+    if (!variable_global_exists("laboratorio_room")) {
+        global.laboratorio_room = room_add();
+        room_instance_add(global.laboratorio_room,0,0,obj_laboratorio);
+    }
+    room_goto(global.laboratorio_room);
+}
+function laboratorio_reiniciar(_lab) {
+    if (_lab.som_previa!=noone && audio_is_playing(_lab.som_previa)) audio_stop_sound(_lab.som_previa);
+    _lab.som_previa=noone;
+    _lab.tempo=0; _lab.som_contato=false;
+    switch (_lab.modo) {
+        case 0: tocar_som_variado("empurrao",0.26); break;
+        case 1: if(_lab.magia==1) _lab.som_previa=audio_play_sound(snd_bola_fogo_voo,1,false,0.5); break;
+        case 3: tocar_som_variado("empurrao",0.23); break;
+        case 5: tocar_som_variado("deslize",0.38); break;
+        case 6: apresentar_ativacao_habilidade(_lab,_lab.habilidades[_lab.habilidade]); break;
+        case 7: tocar_som_variado(_lab.grupos[_lab.grupo],0.32); break;
+    }
+}
+
+function fator_efeitos_visuais() {
+    var _nivel=variable_global_exists("intensidade_visual")?global.intensidade_visual:1;
+    return _nivel==0?0.35:(_nivel==2?1.35:1);
+}
+function opcao_efeitos_visuais(_x,_y) {
+    var _nomes=["DISCRETO","NORMAL","INTENSO"];
+    desenhar_texto_interface(_x,_y,"VISUAL: "+_nomes[global.intensidade_visual]+"  >");
+}
+function alternar_efeitos_visuais() {
+    global.intensidade_visual=(global.intensidade_visual+1) mod 3;
+    salvar_configuracoes();
+}
+function ligar_efeito_alvo(_origem,_alvo,_cor=c_aqua) {
+    if (!instance_exists(_origem)||!instance_exists(_alvo)||!instance_exists(obj_controlador)) return;
+    array_push(obj_controlador.ligacoes_visuais,{x1:_origem.x,y1:_origem.y,x2:_alvo.x,y2:_alvo.y,cor:_cor,t:0,
+        raio:max(40,sprite_get_width(_alvo.sprite_index)*abs(_alvo.image_xscale)*0.65)});
+    if(array_length(obj_controlador.ligacoes_visuais)>12) array_delete(obj_controlador.ligacoes_visuais,0,1);
+}
+function desenhar_ligacao_gui(_x1,_y1,_x2,_y2,_r,_cor,_tempo) {
+    if(_tempo<0 || _tempo>=54) return;
+    var _p=_tempo/54, _forca=clamp(fator_efeitos_visuais(),0.55,1.2);
+        var _fade=min(1,(1-_p)*3);
+        draw_set_color(_cor);
+        for(var j=11;j>=0;j--) {
+            var _a=clamp(_p*1.75-j*0.025,0,1);
+            var _x=lerp(_x1,_x2,_a), _y=lerp(_y1,_y2,_a)-sin(_a*pi)*_r*0.55;
+            var _size=max(2,_r*(0.13-j*0.007));
+            draw_set_alpha(_fade*_forca*(0.85-j*0.05));
+            draw_circle(_x,_y,_size,false);
+        }
+        // O pulso confirma o alvo mesmo quando origem e destino coincidem.
+        if(_p>0.40) {
+            var _impacto=clamp((_p-0.40)/0.60,0,1);
+            var _raio=_r*(0.65+_impacto*0.65);
+            draw_set_alpha((1-_impacto)*0.85*_forca);
+            draw_circle(_x2,_y2,_raio,true);
+            draw_circle(_x2,_y2,_raio+3,true);
+            for(var k=0;k<10;k++) {
+                var _ang=k*36;
+                draw_line_width(_x2+lengthdir_x(_raio,_ang),_y2+lengthdir_y(_raio,_ang),
+                    _x2+lengthdir_x(_raio+12,_ang),_y2+lengthdir_y(_raio+12,_ang),2);
+            }
+        }
+    draw_set_alpha(1);draw_set_color(c_white);
+}
+function desenhar_ligacoes_visuais() {
+    var _c=obj_controlador, _cam=view_camera[0];
+    var _sx=display_get_gui_width()/camera_get_view_width(_cam),_sy=display_get_gui_height()/camera_get_view_height(_cam);
+    var _vx=camera_get_view_x(_cam),_vy=camera_get_view_y(_cam);
+    for(var i=0;i<array_length(_c.ligacoes_visuais);i++) {
+        var _l=_c.ligacoes_visuais[i];
+        desenhar_ligacao_gui((_l.x1-_vx)*_sx,(_l.y1-_vy)*_sy,(_l.x2-_vx)*_sx,(_l.y2-_vy)*_sy,
+            max(36,_l.raio*max(_sx,_sy)),_l.cor,_l.t);
+    }
+}
+
+// Read-only attack preview: never rolls dice, pays costs or changes the selected weapon.
+function dados_previa_ataque(_carta,_opcao) {
+    if (!instance_exists(_carta) || string_pos("Atacar",_opcao)!=1 || string_pos("[",_opcao)>0) return noone;
+    var _magica=_opcao=="Atacar (Mágica)",_arma=noone;
+    if (string_pos("Atacar com ",_opcao)==1) {
+        var _nome=string_delete(_opcao,1,string_length("Atacar com "));
+        for(var i=0;i<array_length(_carta.itens_equipados);i++)
+            if(_carta.itens_equipados[i].nome==_nome) _arma=_carta.itens_equipados[i];
+        if(!is_struct(_arma)) return noone;
+    }
+    var _alcance=!is_struct(_arma) && tem_habilidade(_carta,_magica?"alcance_magico":"alcance");
+    var _sentido=direcao_avanco(_carta.dono),_alvo=noone,_nome_alvo="Sem alvo válido",_defesa=0;
+    var _slot=buscar_slot(_carta.lane_atual,_carta.posicao_atual+_sentido);
+    if((_slot==noone||!_slot.ocupado)&&_alcance) _slot=buscar_slot(_carta.lane_atual,_carta.posicao_atual+_sentido*2);
+    if(_slot!=noone && _slot.ocupado && instance_exists(_slot.carta_atual)) {
+        var _c=_slot.carta_atual;
+        if(_c.dono!=_carta.dono && !_c.sombra_ativa
+            && !(_carta.posicao_atual==posicao_assalto(_carta.dono) && _c.posicao_atual==posicao_entrada(_c.dono) && !_c.defendendo_castelo)
+            && (!tem_habilidade(_c,"voar")||tem_habilidade(_carta,"voar")||tem_habilidade(_carta,"alcance")||tem_habilidade(_carta,"alcance_magico"))) _alvo=_c;
+    }
+    if(_alvo==noone && _carta.posicao_atual==posicao_assalto(_carta.dono)) {
+        _alvo=_alcance?buscar_construcao(_carta.lane_atual,lado_oposto(_carta.dono)):noone;
+        if(_alvo==noone) _alvo=buscar_defensor_castelo(_carta.lane_atual,lado_oposto(_carta.dono));
+        if(_alvo==noone) _nome_alvo="Castelo inimigo";
+    }
+    if(instance_exists(_alvo)) {
+        _nome_alvo=_alvo.nome_carta;
+        if(_alvo.object_index==obj_carta) _defesa=(_magica?calcular_defesa_magica_total(_alvo):calcular_defesa_fisica_total(_alvo))+obj_controlador.terreno_bonus_defesa;
+    }
+    var _qtd=_magica?_carta.qtd_dados_dano_magico:_carta.qtd_dados_dano;
+    var _dado=_magica?_carta.dado_dano_magico:_carta.dado_dano;
+    var _mod=_magica?_carta.mod_dano_magico:_carta.mod_dano;
+    if(is_struct(_arma)) { _qtd=1;_dado=_arma.dado;_mod=_arma.modificador; }
+    var _texto=_carta.nome_carta+" > "+_nome_alvo+"\nDados base: "+string(_qtd)+"D"+string(_dado)+" + "+string(_mod)+" | Defesa: "+string(_defesa);
+    _texto+="\nBônus, condições e testes são resolvidos ao atacar.";
+    if(_carta.iludido_por_imitacao) _texto+="\nImitação: exige novo teste; pode provocar contra-ataque.";
+    else if(instance_exists(_alvo)&&_alvo.object_index==obj_carta&&_alvo.dado_dano>0) _texto+="\nFalha crítica pode provocar contra-ataque.";
+    return {alvo:_alvo,texto:_texto};
+}
+function desenhar_previa_ataque() {
+    var _c=obj_controlador;
+    if(!instance_exists(_c.carta_menu_aberto)||_c.menu_submenu!="ataque"||_c.opcao_hover_index<0
+        ||controlador_modal_atual(_c)!=""||_c.carta_preview!=noone) return;
+    var _opcoes=obter_opcoes_menu(_c.carta_menu_aberto);
+    if(_c.opcao_hover_index>=array_length(_opcoes)) return;
+    var _prev=dados_previa_ataque(_c.carta_menu_aberto,_opcoes[_c.opcao_hover_index]);
+    if(!is_struct(_prev)) return;
+    var _cam=view_camera[0],_gw=display_get_gui_width(),_gh=display_get_gui_height();
+    var _refs=[_c.carta_menu_aberto,_prev.alvo];
+    draw_set_color(c_aqua);
+    for(var i=0;i<2;i++) if(instance_exists(_refs[i])) {
+        var _r=_refs[i],_sx=_gw/camera_get_view_width(_cam),_sy=_gh/camera_get_view_height(_cam);
+        var _x=(_r.x-camera_get_view_x(_cam))*_sx,_y=(_r.y-camera_get_view_y(_cam))*_sy;
+        var _w=sprite_get_width(_r.sprite_index)*abs(_r.image_xscale)*_sx*0.53;
+        var _h=sprite_get_height(_r.sprite_index)*abs(_r.image_yscale)*_sy*0.53;
+        draw_rectangle(_x-_w,_y-_h,_x+_w,_y+_h,true);
+    }
+    var _pw=min(520,_gw-24),_px=(_gw-_pw)/2;
+    draw_set_font(Fontenil);draw_set_halign(fa_left);draw_set_valign(fa_top);
+    var _paginas=paginar_detalhes_carta(_prev.texto,_pw-24,140,0.50);
+    var _ph=min(164,string_height(_paginas[0])*0.5+24);
+    draw_set_color(make_color_rgb(15,22,29));draw_set_alpha(0.96);draw_roundrect(_px,12,_px+_pw,12+_ph,false);
+    draw_set_alpha(1);draw_set_color(c_aqua);draw_roundrect(_px,12,_px+_pw,12+_ph,true);
+    draw_set_color(c_white);draw_text_transformed(_px+12,24,_paginas[0],0.5,0.5,0);
+    draw_set_font(-1);draw_set_halign(fa_left);draw_set_valign(fa_top);
+}
+
+function desenhar_projetil_magia_gui(_sprite,_frame,_px,_py,_ex,_ey,_angulo,_cor,_alpha,_impacto,_tempo_impacto,_escala_tela) {
+    draw_sprite_ext(_sprite,_frame,_px,_py,_ex*1.2,_ey*1.2,_angulo,_cor,_alpha);
+    if(_impacto) {
+        var _p=clamp(_tempo_impacto/36,0,1),_r=(24+_p*60)*_escala_tela;
+        draw_set_alpha((1-_p)*0.75*min(1,fator_efeitos_visuais()));
+        draw_set_color(make_color_rgb(255,155,45));
+        draw_circle(_px,_py,_r,true);draw_circle(_px,_py,_r+3,true);
+    }
+    draw_set_color(c_white);draw_set_alpha(1);
+}
+function desenhar_projeteis_magia_gui() {
+    var _cam=view_camera[0];
+    var _sx=display_get_gui_width()/camera_get_view_width(_cam),_sy=display_get_gui_height()/camera_get_view_height(_cam);
+    var _vx=camera_get_view_x(_cam),_vy=camera_get_view_y(_cam);
+    with(obj_bola_fogo_projetil) desenhar_projetil_magia_gui(sprite_index,image_index,(x-_vx)*_sx,(y-_vy)*_sy,
+        image_xscale*_sx,image_yscale*_sy,image_angle,image_blend,image_alpha,impactou,36-alarm[0],max(_sx,_sy));
+}
+function posicao_encaixe_equipamento(_ox,_oy,_fx,_fy,_altura,_rotacao,_p) {
+    var _entrada=clamp(_p/0.45,0,1);_entrada=_entrada*_entrada*(3-2*_entrada);
+    var _encaixe=clamp((_p-0.45)/0.55,0,1);_encaixe=1-power(1-_encaixe,3);
+    var _ax=_fx+lengthdir_x(_altura*0.65,270+_rotacao);
+    var _ay=_fy+lengthdir_y(_altura*0.65,270+_rotacao);
+    return {x:lerp(lerp(_ox,_ax,_entrada),_fx,_encaixe),y:lerp(lerp(_oy,_ay,_entrada),_fy,_encaixe)};
 }

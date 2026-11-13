@@ -14,7 +14,7 @@ var _x_desenho = x + ataque_offset_x + arrasto_offset_visual_x + recuo_dano_x;
 var _y_desenho = y + y_offset_atual + ataque_offset_y - ataque_elevacao + arrasto_offset_visual_y + recuo_dano_y;
 if (evoluindo) _y_desenho -= sin(clamp(evolucao_progresso, 0, 1) * pi) * 16;
 if (travada && !morrendo && !evoluindo && vida > 0 && vida <= max(1, vida_maxima * 0.2))
-    _rotacao_total += sin(current_time * 0.002 + xstart * 0.013 + ystart * 0.017) * 0.35;
+    _rotacao_total += sin(current_time * 0.002 + xstart * 0.013 + ystart * 0.017) * 0.35 * fator_efeitos_visuais();
 var _quique_pouso = 0;
 if (travada && impacto_colocacao_timer > 0 && pulso_pouso_timer > 0) {
     _quique_pouso = 2 * sin((1 - pulso_pouso_timer / pulso_pouso_duracao) * pi);
@@ -31,6 +31,13 @@ if (travada) {
 image_xscale = _escala_final;
 image_yscale = _escala_final;
 
+if (travada && categoria == "tropa" && !morrendo && !evoluindo && !pulando
+    && ataque_animacao == noone && tropa_pode_agir(id)) {
+    var _personalidade = personalidade_visual(nome_carta, tem_habilidade(id, "voar"), current_time + xstart*7 + ystart*3);
+    _y_desenho += _personalidade.y;
+    _rotacao_total += _personalidade.rotacao;
+    _escala_final *= _personalidade.escala;
+}
 var _alpha_carta = sombra_ativa ? 0.4 : 1;
 draw_set_alpha(_alpha_carta);
 
@@ -99,7 +106,7 @@ if (impacto_colocacao_timer > 0) {
 var _cor_final = cor_evolucao;
 if (dano_flash_timer > 0) {
     var _flash_progresso = dano_flash_timer / dano_flash_duracao;
-    _cor_final = merge_color(cor_evolucao, make_color_rgb(255, 84, 67), 0.76 * sqr(_flash_progresso));
+    _cor_final = merge_color(cor_evolucao, make_color_rgb(255, 84, 67), min(0.95,0.76 * fator_efeitos_visuais()) * sqr(_flash_progresso));
 }
 
 if (efeito_timer > 0 && efeito_timer <= 18 && efeito_visual_tipo == "envenenado")
@@ -108,7 +115,19 @@ if (efeito_timer > 0 && efeito_timer <= 18 && efeito_visual_tipo == "envenenado"
 // A derrota consome a carta de fora para dentro: ela escurece, queima e encolhe.
 if (morrendo) {
     var _progresso_morte = 1 - (morte_timer / morte_duracao);
-    _alpha_carta *= 1 - _progresso_morte;
+    if (!selo_abissal && _progresso_morte > 0.55) {
+        var _pilha = instance_find(obj_descarte,0);
+        if (_pilha != noone) {
+            var _voo = clamp((_progresso_morte-0.55)/0.45,0,1);
+            var _suave = _voo*_voo*(3-2*_voo);
+            var _dx = dono=="jogador"?_pilha.x:room_width-_pilha.x;
+            var _dy = dono=="jogador"?_pilha.y:room_height-_pilha.y;
+            _x_desenho=lerp(_x_desenho,_dx,_suave);
+            _y_desenho=lerp(_y_desenho,_dy,_suave)-sin(_voo*pi)*18;
+            _rotacao_total+=sin(_voo*pi)*12;
+        }
+    }
+    _alpha_carta *= 1 - power(_progresso_morte,3);
     _escala_final *= 1 - _progresso_morte * 0.72;
     if (tipo_morte_visual == "magica") {
         _cor_final = merge_color(_cor_final, make_color_rgb(75, 205, 255), _progresso_morte * 0.85);
@@ -155,18 +174,15 @@ if (travada && categoria == "tropa" && array_length(itens_equipados) > 0) {
         var _equip_x = _x_desenho + lengthdir_x(_distancia_equip, _direcao_equip);
         var _equip_y = _y_desenho + lengthdir_y(_distancia_equip, _direcao_equip);
 
+        if (!is_struct(_anim_equip)) {
+            _equip_x += (_indice_equip-(_qtd_equipamentos-1)*0.5)*32*leque_equipamento;
+            _equip_y -= 32*leque_equipamento;
+        }
         if (is_struct(_anim_equip)) {
             var _p_equip = clamp(_anim_equip.timer / _anim_equip.duracao, 0, 1);
-            // Aproxima por baixo e depois encaixa, sem desaparecer sobre a tropa.
-            var _entrada = clamp(_p_equip / 0.45, 0, 1);
-            _entrada = _entrada * _entrada * (3 - 2 * _entrada);
-            var _encaixe = clamp((_p_equip - 0.45) / 0.55, 0, 1);
-            _encaixe = 1 - power(1 - _encaixe, 3);
-            var _abaixo = _altura_tropa_visual * 0.65;
-            var _apoio_x = _equip_x + lengthdir_x(_abaixo, 270 + _rotacao_total);
-            var _apoio_y = _equip_y + lengthdir_y(_abaixo, 270 + _rotacao_total);
-            _equip_x = lerp(lerp(_anim_equip.origem_x, _apoio_x, _entrada), _equip_x, _encaixe);
-            _equip_y = lerp(lerp(_anim_equip.origem_y, _apoio_y, _entrada), _equip_y, _encaixe);
+            var _encaixe_visual=posicao_encaixe_equipamento(_anim_equip.origem_x,_anim_equip.origem_y,
+                _equip_x,_equip_y,_altura_tropa_visual,_rotacao_total,_p_equip);
+            _equip_x=_encaixe_visual.x;_equip_y=_encaixe_visual.y;
         }
 
         draw_sprite_ext(_sprite_equipamento, 0, _equip_x, _equip_y,
@@ -174,7 +190,7 @@ if (travada && categoria == "tropa" && array_length(itens_equipados) > 0) {
 
         // Cartas sem arte usam o placeholder; nesse caso o título é desenhado
         // manualmente para a faixa visível continuar identificando o item.
-        if (_sprite_equipamento == spr_carta_placeholder) {
+        if (_sprite_equipamento == spr_carta_placeholder || leque_equipamento > 0.5) {
             var _nome_equipamento = variable_struct_exists(_item_visual, "nome")
                 ? _item_visual.nome : "Equipamento";
             var _topo_local = -(sprite_get_height(_sprite_equipamento) * _escala_equipamento * 0.5)
@@ -228,7 +244,7 @@ if (morrendo) {
     else if (tipo_morte_visual == "veneno" || tipo_morte_visual == "apodrecer") _cor_fragmento = c_lime;
     else _cor_fragmento = make_color_rgb(220, 100, 55);
     draw_set_color(_cor_fragmento);
-    for (var _brasa = 0; _brasa < 5; _brasa++) {
+    for (var _brasa = 0; _brasa < max(2,round(5*fator_efeitos_visuais())); _brasa++) {
         var _angulo_fragmento = _brasa * 72 + morte_timer * 4;
         var _raio_fragmento = 8 + _progresso_morte * 38;
         var _fx1 = _x_desenho + lengthdir_x(_raio_fragmento, _angulo_fragmento);

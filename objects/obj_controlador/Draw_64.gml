@@ -796,7 +796,8 @@ if (ui_modal.pausa_ativa) {
         draw_set_color(c_gray);
         desenhar_texto_interface(_pausa_cx, _pausa_cy + 55, "TELA CHEIA: " + (window_get_fullscreen() ? "SIM" : "NÃO"));
         desenhar_opcao_tamanho_interface(_pausa_cx, _pausa_cy + 98);
-        desenhar_texto_interface(_pausa_cx, _pausa_cy + 147, "VOLTAR");
+        opcao_efeitos_visuais(_pausa_cx,_pausa_cy+142);
+        desenhar_texto_interface(_pausa_cx, _pausa_cy + 190, "VOLTAR");
     } else {
         desenhar_texto_interface(_pausa_cx, _pausa_cy - 38, "A partida está aguardando.");
     draw_set_color(c_black);
@@ -815,7 +816,7 @@ if (ui_modal.pausa_ativa) {
     draw_roundrect(_pausa_cx - 125, _pausa_cy + 145, _pausa_cx + 125, _pausa_cy + 185, true);
     desenhar_texto_interface(_pausa_cx, _pausa_cy + 165, "VOLTAR AO MENU");
     draw_set_color(c_gray);
-    desenhar_texto_interface(_pausa_cx, _pausa_cy + 210, "F1 abre o tutorial");
+    desenhar_texto_interface(_pausa_cx, _pausa_cy + 210, modo_partida == "online" ? "F1 abre o tutorial" : "F1: tutorial | F7: laboratório de efeitos");
     }
     draw_set_color(c_white);
     draw_set_halign(fa_left);
@@ -824,7 +825,13 @@ if (ui_modal.pausa_ativa) {
 #endregion
 
 #region Tela final da partida
-if (vida_jogador <= 0 || vida_inimigo <= 0) {
+if ((vida_jogador <= 0 || vida_inimigo <= 0) && fim_animacao_timer < 55) {
+    draw_set_color(c_black); draw_set_alpha(0.55);
+    draw_rectangle(0,0,display_get_gui_width(),display_get_gui_height(),false);
+    draw_set_alpha(1);
+    desenhar_quebra_castelo(display_get_gui_width()/2, display_get_gui_height()/2, fim_animacao_timer, 2);
+}
+if ((vida_jogador <= 0 || vida_inimigo <= 0) && fim_animacao_timer >= 55) {
     var _fim_largura = display_get_gui_width();
     var _fim_altura = display_get_gui_height();
     var _fim_x = _fim_largura / 2;
@@ -852,7 +859,7 @@ if (vida_jogador <= 0 || vida_inimigo <= 0) {
     draw_set_color(partida_local_ativa()
         ? ((vida_inimigo <= 0) ? c_aqua : c_red)
         : (_venceu ? c_yellow : c_red));
-    var _fim_p = clamp(fim_animacao_timer / 28, 0, 1);
+    var _fim_p = clamp((fim_animacao_timer - 55) / 28, 0, 1);
     var _fim_escala = 1 + (1 - _fim_p) * 1.4 + sin(_fim_p * pi) * 0.10;
     draw_set_alpha(_fim_p);
     draw_text_transformed(_fim_x, _fim_y - 35, _titulo_fim, _fim_escala, _fim_escala, 0);
@@ -1035,4 +1042,8 @@ if (ui_modal.critico_escolha_ativa && is_struct(ui_modal.critico_contexto) && !u
 desenhar_ajuda_arrasto_gui();
 
 // Names and activation bursts stay readable above the battlefield.
+desenhar_projeteis_magia_gui();
+desenhar_ligacoes_visuais();
 desenhar_ativacoes_habilidade();
+
+desenhar_previa_ataque();

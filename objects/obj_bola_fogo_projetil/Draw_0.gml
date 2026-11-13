@@ -1,1 +1,1 @@
-draw_self();
+// Desenhado pelo controlador no Draw GUI para permanecer acima das cartas.

@@ -10,7 +10,7 @@
   "compression": 0,
   "compressionQuality": 4,
   "conversionMode": 0,
-  "duration": 1.6,
+  "duration": 1.4987755102040816,
   "exportDir": "",
   "name": "snd_madeira_mimic",
   "parent": {

@@ -1225,7 +1225,7 @@ function montar_deck_personalizado(_catalogo, _contagens) {
 
 // Executor declarativo para cartas futuras. Uma carta pode fornecer um array
 // efeitos com structs {tipo, ...} sem precisar ganhar um novo switch exclusivo.
-function executar_efeitos_declarativos(_efeitos, _alvo, _dono) {
+function executar_efeitos_declarativos(_efeitos, _alvo, _dono, _origem = noone) {
     if (!is_array(_efeitos)) return false;
     var _executou = false;
     for (var i = 0; i < array_length(_efeitos); i++) {
@@ -1273,6 +1273,7 @@ function executar_efeitos_declarativos(_efeitos, _alvo, _dono) {
                 break;
         }
     }
+    if (_executou) ligar_efeito_alvo(_origem,_alvo,c_aqua);
     return _executou;
 }
 
@@ -1663,7 +1664,6 @@ function colocar_recurso(_tipo, _dono, _origem_x = noone, _origem_y = noone, _sl
         if (_dono == "jogador") mostrar_aviso_regra("Você já colocou 1 recurso neste turno", _origem_x, _origem_y);
         return "ja_colocou_no_turno";
     }
-	 audio_play_sound(snd_colocar,1,0,.5,0,random_range(.5,2))
     var _slot_livre = _slot_preferido;
     if (_slot_livre == noone || _slot_livre.ocupado || _slot_livre.dono != _dono) {
         _slot_livre = noone;
@@ -1694,6 +1694,7 @@ function colocar_recurso(_tipo, _dono, _origem_x = noone, _origem_y = noone, _sl
     _recurso.entrada_origem_y = _y_criacao;
     _recurso.entrando_no_campo = (_origem_x != noone && _origem_y != noone);
     _recurso.entrada_progresso = 0;
+    if (!_recurso.entrando_no_campo) tocar_som_variado("recurso", 0.30);
     _recurso.slot_atual = _slot_livre;
 
     switch (_tipo) {

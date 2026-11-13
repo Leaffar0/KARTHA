@@ -225,7 +225,7 @@ if (opcoes_abertas && mouse_check_button_pressed(mb_left)) {
     var _efeitos_y = room_height / 2 + 10;
     var _tela_y = room_height / 2 + 55;
     var _interface_y = room_height / 2 + 98;
-    var _voltar_y = room_height / 2 + 147;
+    var _voltar_y = room_height / 2 + 190;
     if (point_in_rectangle(mouse_x, mouse_y, _opcoes_x - 160, _musica_y - 18, _opcoes_x - 90, _musica_y + 18)) {
         global.volume_musica = clamp(global.volume_musica - 0.1, 0, 1);
         aplicar_config_audio();
@@ -247,6 +247,8 @@ if (opcoes_abertas && mouse_check_button_pressed(mb_left)) {
         salvar_configuracoes();
     } else if (point_in_rectangle(mouse_x, mouse_y, _opcoes_x - 150, _interface_y - 18, _opcoes_x + 150, _interface_y + 18)) {
         alternar_tamanho_interface();
+    } else if (point_in_rectangle(mouse_x, mouse_y, _opcoes_x-150, room_height/2+124, _opcoes_x+150, room_height/2+160)) {
+        alternar_efeitos_visuais();
     } else if (point_in_rectangle(mouse_x, mouse_y, _opcoes_x - 150, _voltar_y - 22, _opcoes_x + 150, _voltar_y + 22)) {
         opcoes_abertas = false;
     }

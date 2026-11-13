@@ -10,7 +10,7 @@
   "compression": 0,
   "compressionQuality": 4,
   "conversionMode": 0,
-  "duration": 0.6891156462585034,
+  "duration": 0.2713378684807256,
   "exportDir": "",
   "name": "snd_papel_encaixe_2",
   "parent": {

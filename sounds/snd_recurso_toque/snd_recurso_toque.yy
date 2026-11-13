@@ -10,7 +10,7 @@
   "compression": 0,
   "compressionQuality": 4,
   "conversionMode": 0,
-  "duration": 0.16959183673469388,
+  "duration": 0.1308390022675737,
   "exportDir": "",
   "name": "snd_recurso_toque",
   "parent": {

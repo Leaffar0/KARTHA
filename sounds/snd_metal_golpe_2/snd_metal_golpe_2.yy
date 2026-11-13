@@ -10,7 +10,7 @@
   "compression": 0,
   "compressionQuality": 4,
   "conversionMode": 0,
-  "duration": 0.7680045351473923,
+  "duration": 0.5436734693877551,
   "exportDir": "",
   "name": "snd_metal_golpe_2",
   "parent": {

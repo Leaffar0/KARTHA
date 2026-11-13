@@ -1361,7 +1361,7 @@ function online_animar_confirmacao(_mensagem) {
         }
     }
     if (_mensagem.kind == "place_resource") {
-        tocar_som_variado("encaixe", 0.55, random_range(0.88, 1.12));
+        tocar_som_variado("recurso", 0.30);
         mostrar_feedback("RECURSO COLOCADO", room_width / 2, (_mensagem.seat == global.online_assento) ? room_height - 155 : 120, c_aqua, 48);
         return;
     }
@@ -1412,6 +1412,8 @@ function online_animar_confirmacao(_mensagem) {
     }
     if (_mensagem.kind == "use_ability") {
         var _origem_habilidade = online_encontrar_carta_campo(_dados.cardId);
+        if (variable_struct_exists(_dados,"targetId") && _dados.ability != "imitacao")
+            ligar_efeito_alvo(_origem_habilidade,online_encontrar_carta_campo(_dados.targetId),c_aqua);
         if (variable_struct_exists(_dados, "ability") && _dados.ability == "imitacao"
             && variable_struct_exists(_dados, "attackerRoll") && variable_struct_exists(_dados, "defenderRoll")) {
             apresentar_teste_imitacao(_origem_habilidade, online_encontrar_carta_campo(_dados.targetId),
@@ -1551,6 +1553,14 @@ function online_animar_confirmacao(_mensagem) {
             _alvo_especial = online_encontrar_carta_campo(_dados.targetId);
             if (!instance_exists(_alvo_especial)) _alvo_especial = online_encontrar_construcao_campo(_dados.targetId);
         }
+        if (_mensagem.kind=="play_spell" && instance_exists(_alvo_especial)
+            && (!variable_struct_exists(_dados,"effect") || _dados.effect!="bola_fogo")) {
+            array_push(obj_controlador.ligacoes_visuais, {x1:room_width/2,
+                y1:(_mensagem.seat==global.online_assento)?obj_controlador.mao_y:25,
+                x2:_alvo_especial.x,y2:_alvo_especial.y,cor:c_aqua,t:0,
+                raio:max(40,sprite_get_width(_alvo_especial.sprite_index)*abs(_alvo_especial.image_xscale)*0.65)});
+            if(array_length(obj_controlador.ligacoes_visuais)>12) array_delete(obj_controlador.ligacoes_visuais,0,1);
+        }
         var _fx = instance_exists(_alvo_especial) ? _alvo_especial.x : room_width / 2;
         var _fy = instance_exists(_alvo_especial) ? _alvo_especial.y - 45 : room_height / 2;
         if (_mensagem.kind == "play_effect" && variable_struct_exists(_dados, "category")
@@ -1559,13 +1569,14 @@ function online_animar_confirmacao(_mensagem) {
             var _nome_ritual_online = "EFEITO";
             if (_funcao_ritual_online != noone) _nome_ritual_online = _funcao_ritual_online().nome;
             iniciar_animacao_bencao_maldicao(_dados.category, _nome_ritual_online);
-        } else {
-            tocar_som_variado("encaixe", 0.48, random_range(0.88, 1.12));
+        } else if (_mensagem.kind != "play_item") {
+            tocar_som_variado("encaixe", 0.34, 1);
         }
         if (_mensagem.kind == "play_item" && instance_exists(_alvo_especial) && variable_struct_exists(_dados, "definitionId")) {
             var _funcao_item_online = online_funcao_carta_por_id(_dados.definitionId);
             if (_funcao_item_online != noone) {
                 var _dados_item_online = _funcao_item_online();
+                if (_dados_item_online.categoria != "item_equipavel") tocar_som_variado("abrir", 0.28);
                 var _indice_equipado = variable_struct_exists(_dados, "equipment") && is_array(_dados.equipment)
                     ? array_length(_dados.equipment) - 1 : -1;
                 criar_animacao_item(variable_struct_exists(_dados_item_online, "sprite_carta") ? _dados_item_online.sprite_carta : noone, room_width / 2,
@@ -1842,7 +1853,16 @@ function registrar_historico_online(_mensagem) {
         if (variable_struct_exists(_dados, "damage")) _acao += ": " + string(_dados.damage) + " de dano";
         if (variable_struct_exists(_dados, "attackerRoll") && variable_struct_exists(_dados, "defenderRoll"))
             _acao += "; teste de inteligência " + string(_dados.attackerRoll) + " contra " + string(_dados.defenderRoll);
-        debug_combate(_acao + ".");
+        var _refs = [];
+        if (variable_struct_exists(_dados, "cardId")) {
+            var _ref_origem = online_encontrar_carta_campo(_dados.cardId);
+            if (instance_exists(_ref_origem)) array_push(_refs, _ref_origem);
+        }
+        if (variable_struct_exists(_dados, "targetId")) {
+            var _ref_alvo = online_encontrar_carta_campo(_dados.targetId);
+            if (instance_exists(_ref_alvo)) array_push(_refs, _ref_alvo);
+        }
+        debug_combate(_acao + ".", _refs);
     }
     if (variable_struct_exists(_dados, "conditionEvents") && is_array(_dados.conditionEvents)) {
         for (var i = 0; i < array_length(_dados.conditionEvents); i++) {

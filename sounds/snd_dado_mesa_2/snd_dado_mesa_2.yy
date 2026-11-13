@@ -10,7 +10,7 @@
   "compression": 0,
   "compressionQuality": 4,
   "conversionMode": 0,
-  "duration": 0.6468707482993197,
+  "duration": 0.5134467120181406,
   "exportDir": "",
   "name": "snd_dado_mesa_2",
   "parent": {

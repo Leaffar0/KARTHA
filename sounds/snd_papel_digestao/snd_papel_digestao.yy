@@ -10,7 +10,7 @@
   "compression": 0,
   "compressionQuality": 4,
   "conversionMode": 0,
-  "duration": 0.8640136054421769,
+  "duration": 0.46931972789115645,
   "exportDir": "",
   "name": "snd_papel_digestao",
   "parent": {

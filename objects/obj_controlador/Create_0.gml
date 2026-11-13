@@ -197,6 +197,7 @@ cemiterio_inimigo = [];
 descarte_jogador = []; // magias e itens consumidos; a pilha visual será ligada a este array
 descarte_inimigo = [];
 historico_combate = [];
+historico_referencias = [];
 max_historico_combate = 80;
 historico_pagina = 0;
 historico_total_paginas = 1;
@@ -251,3 +252,9 @@ apresentacao_inicializar(id);
 
 previa_visual_carta = noone;
 previa_visual_progresso = 0;
+
+marcas_mesa = [];
+
+dano_castelo_pausa_final = 0;
+
+ligacoes_visuais = [];

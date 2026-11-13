@@ -453,6 +453,7 @@ function carregar_configuracoes() {
     ini_open("kartha_config.ini");
     global.volume_musica = clamp(ini_read_real("audio", "musica", 0.8), 0, 1);
     global.volume_efeitos = clamp(ini_read_real("audio", "efeitos", 0.8), 0, 1);
+    global.intensidade_visual = clamp(round(ini_read_real("video", "intensidade_visual", 1)), 0, 2);
     var _tela_cheia = ini_read_real("video", "tela_cheia", 0) >= 0.5;
     definir_tamanho_interface(ini_read_real("video", "tamanho_interface", 0));
     ini_close();
@@ -462,6 +463,7 @@ function carregar_configuracoes() {
 
 function salvar_configuracoes() {
     ini_open("kartha_config.ini");
+    ini_write_real("video", "intensidade_visual", global.intensidade_visual);
     ini_write_real("audio", "musica", global.volume_musica);
     ini_write_real("audio", "efeitos", global.volume_efeitos);
     ini_write_real("video", "tela_cheia", window_get_fullscreen() ? 1 : 0);
@@ -510,7 +512,7 @@ function aplicar_config_audio() {
     var _efeitos = variable_global_exists("volume_efeitos") ? global.volume_efeitos : 0.8;
     audio_sound_gain(snd_menu, _musica, 0);
     audio_sound_gain(snd_jogo, _musica, 0);
-    var _sons_efeito = [snd_bencao, snd_maldicao, snd_bola_fogo_fogo, snd_bola_fogo_impacto, snd_bola_fogo_voo, snd_colocar, snd_moeda_arremesso, snd_moeda_impacto, snd_shuffle];
+    var _sons_efeito = [snd_bencao, snd_maldicao, snd_bola_fogo_fogo, snd_bola_fogo_impacto, snd_bola_fogo_voo, snd_colocar, snd_moeda_arremesso, snd_moeda_impacto, snd_shuffle, snd_corte_ferida, snd_dado_mesa, snd_dado_mesa_2, snd_dado_mesa_3, snd_madeira_mimic, snd_metal_defesa, snd_metal_defesa_2, snd_metal_golpe, snd_metal_golpe_2, snd_metal_golpe_3, snd_papel_abrir, snd_papel_abrir_2, snd_papel_deslize, snd_papel_deslize_2, snd_papel_deslize_3, snd_papel_digestao, snd_papel_empurrao, snd_papel_empurrao_2, snd_papel_encaixe, snd_papel_encaixe_2, snd_papel_encaixe_3, snd_recurso_toque, snd_recurso_toque_2, snd_sussurro_sombra];
     for (var i = 0; i < array_length(_sons_efeito); i++) {
         audio_sound_gain(_sons_efeito[i], _efeitos, 0);
     }
@@ -1062,25 +1064,50 @@ function mouse_sobre_historico() {
 }
 
 function desenhar_historico_legivel() {
-    var _c = obj_controlador;
-    var _l = layout_historico();
-    var _texto = "";
-    for (var i = array_length(_c.historico_combate) - 1; i >= 0; i--)
-        _texto += (_texto == "" ? "" : "\n\n") + _c.historico_combate[i];
-    if (_texto == "") _texto = "As ações da partida aparecerão aqui.";
+    var _c = obj_controlador, _l = layout_historico();
     draw_set_font(Fontenil); draw_set_halign(fa_left); draw_set_valign(fa_top);
-    var _paginas = paginar_detalhes_carta(_texto, _l.largura - 24, _l.altura - 75, 0.60);
-    _c.historico_total_paginas = max(1, array_length(_paginas));
-    _c.historico_pagina = clamp(_c.historico_pagina, 0, _c.historico_total_paginas - 1);
-    draw_set_alpha(0.96); draw_set_color(make_color_rgb(15, 19, 27));
-    draw_roundrect(_l.x, _l.y, _l.x + _l.largura, _l.y + _l.altura, false);
+    var _paginas = [], _pagina = [], _usado = 0, _disponivel = max(40, _l.altura - 78);
+    for (var i=array_length(_c.historico_combate)-1; i>=0; i--) {
+        var _partes = paginar_detalhes_carta(_c.historico_combate[i], _l.largura-28, _disponivel-12, 0.60);
+        for (var j=0; j<array_length(_partes); j++) {
+            var _h = string_height(_partes[j])*0.60 + 12;
+            if (_usado+_h > _disponivel && array_length(_pagina)>0) {
+                array_push(_paginas,_pagina); _pagina=[]; _usado=0;
+            }
+            array_push(_pagina,{texto:_partes[j], indice:i, altura:_h}); _usado+=_h;
+        }
+    }
+    array_push(_paginas,_pagina);
+    _c.historico_total_paginas = array_length(_paginas);
+    _c.historico_pagina = clamp(_c.historico_pagina,0,array_length(_paginas)-1);
+    draw_set_alpha(0.96); draw_set_color(make_color_rgb(15,19,27));
+    draw_roundrect(_l.x,_l.y,_l.x+_l.largura,_l.y+_l.altura,false);
     draw_set_alpha(1); draw_set_color(c_yellow);
-    desenhar_texto_ajustado_ui("HISTÓRICO — MAIS RECENTES PRIMEIRO", _l.x + 12, _l.y + 9, _l.largura - 24, 0.58);
-    draw_set_color(c_white);
-    draw_text_transformed(_l.x + 12, _l.y + 39, _paginas[_c.historico_pagina], 0.60, 0.60, 0);
+    desenhar_texto_ajustado_ui("HISTÓRICO — PASSE O MOUSE NAS AÇÕES",_l.x+12,_l.y+9,_l.largura-24,0.55);
+    var _py=_l.y+39, _mx=device_mouse_x_to_gui(0), _my=device_mouse_y_to_gui(0);
+    var _linhas=_paginas[_c.historico_pagina];
+    if (array_length(_linhas)==0) { draw_set_color(c_white); draw_text_transformed(_l.x+12,_py,"As ações aparecerão aqui.",0.6,0.6,0); }
+    for (var i=0; i<array_length(_linhas); i++) {
+        var _linha=_linhas[i];
+        var _hover=mouse_sobre_historico() && point_in_rectangle(_mx,_my,_l.x,_py,_l.x+_l.largura,_py+_linha.altura);
+        draw_set_color(_hover ? c_yellow : c_white);
+        draw_text_transformed(_l.x+12,_py,_linha.texto,0.60,0.60,0);
+        if (_hover && _linha.indice < array_length(_c.historico_referencias)) {
+            var _refs=_c.historico_referencias[_linha.indice];
+            var _cam=view_camera[0];
+            for (var r=0; r<array_length(_refs); r++) if (instance_exists(_refs[r]) && !_refs[r].morrendo && _refs[r].travada) {
+                var _ref=_refs[r], _sx=display_get_gui_width()/camera_get_view_width(_cam), _sy=display_get_gui_height()/camera_get_view_height(_cam);
+                var _x=(_ref.x-camera_get_view_x(_cam))*_sx, _y=(_ref.y-camera_get_view_y(_cam))*_sy;
+                var _w=sprite_get_width(_ref.sprite_index)*abs(_ref.image_xscale)*_sx*0.52;
+                var _h=sprite_get_height(_ref.sprite_index)*abs(_ref.image_yscale)*_sy*0.52;
+                draw_set_color(c_yellow); draw_rectangle(_x-_w-3,_y-_h-3,_x+_w+3,_y+_h+3,true);
+                draw_text_transformed(_x-_w,_y-_h-18,_ref.nome_carta,0.42,0.42,0);
+            }
+        }
+        _py+=_linha.altura;
+    }
     draw_set_color(c_silver);
-    desenhar_texto_ajustado_ui("Página " + string(_c.historico_pagina + 1) + "/" + string(_c.historico_total_paginas)
-        + " — roda do mouse para navegar", _l.x + 12, _l.y + _l.altura - 25, _l.largura - 24, 0.48);
+    desenhar_texto_ajustado_ui("Página "+string(_c.historico_pagina+1)+"/"+string(_c.historico_total_paginas)+" — roda do mouse",_l.x+12,_l.y+_l.altura-25,_l.largura-24,0.48);
     draw_set_color(c_white);
 }
 

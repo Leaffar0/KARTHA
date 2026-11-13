@@ -76,6 +76,7 @@ function controlador_processar_fluxo_e_modais(_controle) {
     var _processar = method(_controle, function() {
 // Tela final: bloqueia a partida e permite recomeçar sem fechar o jogo.
 if (vida_jogador <= 0 || vida_inimigo <= 0) {
+    if (fim_animacao_timer < 55) return true;
     var _fim_gui_x = device_mouse_x_to_gui(0);
     var _fim_gui_y = device_mouse_y_to_gui(0);
     var _fim_centro_x = display_get_gui_width() / 2;
@@ -403,7 +404,7 @@ if (ui_modal.pausa_ativa) {
         var _efeitos_y = _pausa_cy + 10;
         var _tela_y = _pausa_cy + 55;
         var _interface_y = _pausa_cy + 98;
-        var _voltar_y = _pausa_cy + 147;
+        var _voltar_y = _pausa_cy + 190;
         if (keyboard_check_pressed(vk_escape)) {
             ui_modal.opcoes_pausa_ativa = false;
         } else if (mouse_check_button_pressed(mb_left) && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _pausa_cx - 160, _musica_y - 18, _pausa_cx - 90, _musica_y + 18)) {
@@ -427,6 +428,8 @@ if (ui_modal.pausa_ativa) {
             salvar_configuracoes();
         } else if (mouse_check_button_pressed(mb_left) && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _pausa_cx - 150, _interface_y - 18, _pausa_cx + 150, _interface_y + 18)) {
             alternar_tamanho_interface();
+        } else if (mouse_check_button_pressed(mb_left) && point_in_rectangle(_tutorial_gui_x,_tutorial_gui_y,_pausa_cx-150,_pausa_cy+124,_pausa_cx+150,_pausa_cy+160)) {
+            alternar_efeitos_visuais();
         } else if (mouse_check_button_pressed(mb_left) && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _pausa_cx - 150, _voltar_y - 22, _pausa_cx + 150, _voltar_y + 22)) {
             ui_modal.opcoes_pausa_ativa = false;
         }

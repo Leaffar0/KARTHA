@@ -84,7 +84,7 @@ function mover_tropa(_carta, _direcao) {
     if (_frente_olhar != noone && instance_exists(_frente_olhar.carta_atual))
         verificar_olhar_vazio(_frente_olhar.carta_atual);
 
-    debug_combate(_carta.nome_carta + " avançou na fileira " + string(_carta.lane_atual + 1) + ".");
+    debug_combate(_carta.nome_carta + " avançou na fileira " + string(_carta.lane_atual + 1) + ".", [_carta]);
 
     return "movido";
 }
@@ -116,11 +116,13 @@ function iniciar_animacao_ataque(_carta, _alvo = noone, _intensidade = 10, _dura
             _alcance = min(_alcance, _distancia * 0.55);
         }
     }
-    var _preparo = max(3, round(_duracao * 0.23));
+    var _contra = variable_instance_exists(_carta, "contra_ataque_pendente") && _carta.contra_ataque_pendente;
+    if (_contra) { _carta.contra_ataque_pendente = false; _duracao = 16; _alcance *= 1.18; }
+    var _preparo = _contra ? 7 : max(3, round(_duracao * 0.23));
     var _golpe = max(3, round(_duracao * 0.17));
     _carta.ataque_animacao = { quadro: 0, preparo: _preparo, contato: _preparo + _golpe, pausa_contato: _critico ? 2 : 0,
         retorno: max(7, _duracao - _preparo - _golpe), dir_x: _dir_x, dir_y: _dir_y,
-        alcance: _alcance, recuo: min(6, _intensidade * 0.32) };
+        alcance: _alcance, recuo: _contra ? 10 : min(6, _intensidade * 0.32) };
     return _preparo + _golpe;
 }
 
@@ -155,10 +157,10 @@ function atualizar_animacao_ataque(_carta) {
 }
 
 // O impacto visual acompanha o golpe. A resolução da vida continua no evento de combate.
-function apresentar_impacto_tropa(_atacante, _alvo, _dano, _defesa = 0, _texto = "", _cor = c_red, _critico = false) {
+function apresentar_impacto_tropa(_atacante, _alvo, _dano, _defesa = 0, _texto = "", _cor = c_red, _critico = false, _magica = false) {
     var _atraso = iniciar_animacao_ataque(_atacante, _alvo, _critico ? 21 : 18, 18, _critico);
     var _impacto = evento_partida_criar("impacto_tropa", { atacante: _atacante, alvo: _alvo,
-        dano: _dano, defesa: _defesa, texto: _texto, cor: _cor, critico: _critico, x: _alvo.x, y: _alvo.y });
+        dano: _dano, defesa: _defesa, texto: _texto, cor: _cor, critico: _critico, magica: _magica, x: _alvo.x, y: _alvo.y });
     if (_atraso > 0 && instance_exists(obj_controlador)) apresentacao_enfileirar(_impacto, _atraso);
     else evento_partida_aplicar(_impacto);
 }
@@ -171,7 +173,7 @@ function aplicar_flash_dano(_carta, _duracao = 18, _origem = noone, _defesa = 0,
     if (_defesa > 0) _carta.defesa_impacto_timer = _carta.defesa_impacto_duracao;
     if (instance_exists(_origem)) {
         var _direcao = point_direction(_origem.x, _origem.y, _carta.x, _carta.y);
-        var _recuo = _critico ? 11 : 7;
+        var _recuo = (_critico ? 11 : 7) * fator_efeitos_visuais();
         _carta.recuo_dano_x = lengthdir_x(_recuo, _direcao);
         _carta.recuo_dano_y = lengthdir_y(_recuo, _direcao);
     }
@@ -457,9 +459,14 @@ function atualizar_animacao_dano_castelo() {
         _controle.dano_castelo_valor = _evento.valor;
         _controle.dano_castelo_timer = _controle.dano_castelo_duracao;
         _controle.dano_castelo_aplicado = false;
+        var _vida_final = _evento.dono == "jogador" ? _controle.vida_jogador : _controle.vida_inimigo;
+        _controle.dano_castelo_pausa_final = _evento.valor >= _vida_final ? 8 : 0;
     }
 
     if (!_controle.dano_castelo_ativo) return;
+    if (_controle.dano_castelo_timer == 16 && _controle.dano_castelo_pausa_final > 0) {
+        _controle.dano_castelo_pausa_final--; return;
+    }
 
     _controle.dano_castelo_timer -= 1;
     // Os últimos 15 frames são o impacto: a vida diminui exatamente aqui.
@@ -955,6 +962,7 @@ function ia_escolher_modo_critico(_contexto) {
 function executar_contra_ataque(_atacante, _defensor) {
     if (!instance_exists(_atacante) || !instance_exists(_defensor) || _defensor.dado_dano <= 0) return;
     if (!tropa_pode_agir(_defensor) || !tentar_romper_imitacao(_defensor)) return;
+    apresentar_contra_ataque(_defensor);
     var _mod_contra_exibido = _defensor.mod_dano + bonus_cemiterio_dano(_defensor);
     var _dados_contra = { atacante: _atacante, defensor: _defensor };
 
@@ -970,7 +978,7 @@ function executar_contra_ataque(_atacante, _defensor) {
                 - obj_controlador.terreno_bonus_defesa);
             atacante.vida -= _dano_contra;
             apresentar_impacto_tropa(defensor, atacante, _dano_contra);
-            debug_combate(atacante.nome_carta + " tomou " + string(_dano_contra) + " de contra-ataque. Vida: " + string(atacante.vida));
+            debug_combate(atacante.nome_carta + " tomou " + string(_dano_contra) + " de contra-ataque. Vida: " + string(atacante.vida), [defensor, atacante]);
             if (atacante.vida <= 0) {
                 if (tem_habilidade(defensor, "digestao")) defensor.digestao_cadaver_disponivel = true;
                 destruir_tropa(atacante);
@@ -1970,6 +1978,7 @@ function habilidade_ferida_exposta(_carta) {
         if (_resultado == 1) { // cara
             var _dano = rolar_varios_dados(atacante.qtd_dados_dano, atacante.dado_dano_base);
             alvo.vida -= _dano;
+            ligar_efeito_alvo(atacante,alvo,c_red);
             aplicar_sangramento(alvo);
 
             debug_combate(alvo.nome_carta + " ficou SANGRANDO pela Ferida Exposta!");
@@ -2042,6 +2051,7 @@ function resolver_digestao(_carta, _alvo = noone) {
         return true;
     }
     if (!alvo_valido_digestao(_carta, _alvo)) return false;
+    ligar_efeito_alvo(_alvo,_carta,c_lime);
     destruir_tropa(_alvo, _alvo.dono != _carta.dono);
     aplicar_beneficio_digestao(_carta);
     return true;

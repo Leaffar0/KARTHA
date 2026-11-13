@@ -10,7 +10,7 @@
   "compression": 0,
   "compressionQuality": 4,
   "conversionMode": 0,
-  "duration": 0.7208163265306122,
+  "duration": 0.706530612244898,
   "exportDir": "",
   "name": "snd_papel_abrir",
   "parent": {

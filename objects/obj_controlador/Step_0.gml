@@ -1,6 +1,26 @@
 // =============================================================================
 // obj_controlador — Step Event
 // =============================================================================
+if (variable_global_exists("laboratorio_voltando") && global.laboratorio_voltando) {
+    global.laboratorio_voltando = false;
+    room_persistent = global.laboratorio_persistencia;
+    view_enabled = global.laboratorio_views;
+    keyboard_clear(vk_f7); keyboard_clear(vk_escape);
+    exit;
+}
+if (keyboard_check_pressed(vk_f7) && modo_partida != "online"
+    && rolagens_pendentes == 0 && (controlador_modal_atual(id) == "" || ui_modal.pausa_ativa)
+    && vida_jogador > 0 && vida_inimigo > 0) {
+    abrir_laboratorio_visual(); exit;
+}
+for (var _m = array_length(marcas_mesa)-1; _m >= 0; _m--) {
+    marcas_mesa[_m].tempo++;
+    if (marcas_mesa[_m].tempo >= 150) array_delete(marcas_mesa, _m, 1);
+}
+for(var _lv=array_length(ligacoes_visuais)-1;_lv>=0;_lv--) {
+    ligacoes_visuais[_lv].t++;
+    if(ligacoes_visuais[_lv].t>=54) array_delete(ligacoes_visuais,_lv,1);
+}
 atualizar_escala_hud(id);
 if (instance_exists(carta_preview)) {
     if (previa_visual_carta != carta_preview) {
@@ -66,7 +86,10 @@ for (var _i_anim_item = array_length(animacoes_item) - 1; _i_anim_item >= 0; _i_
         array_delete(animacoes_item, _i_anim_item, 1);
     }
 }
-if (vida_jogador <= 0 || vida_inimigo <= 0) fim_animacao_timer = min(fim_animacao_duracao, fim_animacao_timer + 1);
+if (vida_jogador <= 0 || vida_inimigo <= 0) {
+    fim_animacao_timer = min(fim_animacao_duracao, fim_animacao_timer + 1);
+    if (fim_animacao_timer == 12) tocar_som_variado("metal", 0.48, 0.8);
+}
 
 // Opção vinda da tela inicial: abre o livro assim que a instância da room existir.
 if (abrir_livro_pendente && instance_exists(obj_livro)) {

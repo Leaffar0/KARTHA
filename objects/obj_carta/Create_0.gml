@@ -200,7 +200,7 @@ defesa_impacto_duracao = 20;
 tipo_morte_visual = "normal";
 morrendo = false;
 morte_timer = 0;
-morte_duracao = 30;
+morte_duracao = 54;
 #endregion
 
 #region Efeito de voo (tropas com a habilidade Voar)
@@ -220,3 +220,8 @@ evolucao_sprite_anterior = noone;
 visual_habilidade_chave = "";
 visual_habilidade_usada = false;
 visual_habilidade_timer = 0;
+
+contra_visual_timer = 0;
+contra_ataque_pendente = false;
+
+leque_equipamento = 0;

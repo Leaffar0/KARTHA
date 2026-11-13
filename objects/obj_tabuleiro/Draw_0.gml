@@ -93,3 +93,11 @@ draw_set_color(c_white);
 draw_set_halign(fa_left);
 draw_set_valign(fa_top);
 #endregion
+
+if (instance_exists(obj_controlador)) {
+    var _marcas = obj_controlador.marcas_mesa;
+    for (var _m = 0; _m < array_length(_marcas); _m++) {
+        var _marca = _marcas[_m];
+        desenhar_marca_mesa(_marca.x, _marca.y, _marca.tempo, _marca.magica);
+    }
+}

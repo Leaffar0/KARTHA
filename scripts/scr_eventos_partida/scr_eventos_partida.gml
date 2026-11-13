@@ -64,6 +64,7 @@ function evento_partida_aplicar(_evento) {
             return true;
 
         case "impacto_tropa":
+            registrar_marca_mesa(_dados.x, _dados.y + 32, variable_struct_exists(_dados, "magica") && _dados.magica);
             if (_dados.dano > 0 && !_dados.critico && _dados.defesa <= 0)
                 tocar_som_variado("empurrao", 0.26, 0.92);
             if (_dados.critico && _dados.dano > 0)
@@ -89,10 +90,10 @@ function evento_partida_aplicar(_evento) {
 
         case "dano_tropa":
             if (!instance_exists(_dados.alvo)) return false;
-            apresentar_impacto_tropa(_dados.atacante, _dados.alvo, _dados.dano, _dados.defesa, _dados.texto, _dados.cor, _dados.critico);
+            apresentar_impacto_tropa(_dados.atacante, _dados.alvo, _dados.dano, _dados.defesa, _dados.texto, _dados.cor, _dados.critico, _dados.tipo_ataque == "magica");
             _dados.alvo.vida = max(0, _dados.alvo.vida - _dados.dano);
             debug_combate(_dados.alvo.nome_carta + " tomou " + string(_dados.dano)
-                + " de dano " + _dados.tipo_ataque + "! Vida agora: " + string(_dados.alvo.vida));
+                + " de dano " + _dados.tipo_ataque + "! Vida agora: " + string(_dados.alvo.vida), [_dados.atacante, _dados.alvo]);
 
             if (_dados.destruir && _dados.alvo.vida <= 0) {
                 if (instance_exists(_dados.atacante) && tem_habilidade(_dados.atacante, "digestao"))

@@ -10,7 +10,7 @@
   "compression": 0,
   "compressionQuality": 4,
   "conversionMode": 0,
-  "duration": 1.8,
+  "duration": 1.7619727891156463,
   "exportDir": "",
   "name": "snd_sussurro_sombra",
   "parent": {

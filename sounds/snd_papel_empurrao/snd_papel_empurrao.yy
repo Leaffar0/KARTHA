@@ -10,7 +10,7 @@
   "compression": 0,
   "compressionQuality": 4,
   "conversionMode": 0,
-  "duration": 0.7658730158730159,
+  "duration": 0.7252834467120182,
   "exportDir": "",
   "name": "snd_papel_empurrao",
   "parent": {

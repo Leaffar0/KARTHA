@@ -10,7 +10,7 @@
   "compression": 0,
   "compressionQuality": 4,
   "conversionMode": 0,
-  "duration": 1.655986394557823,
+  "duration": 0.4616780045351474,
   "exportDir": "",
   "name": "snd_metal_defesa",
   "parent": {

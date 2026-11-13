@@ -17,6 +17,7 @@ if (entrando_no_campo) {
         escala_animacao = 1;
         alpha_animacao = 1;
         pulso_virada_timer = pulso_virada_duracao;
+        tocar_som_variado("recurso", 0.30);
     }
 }
 

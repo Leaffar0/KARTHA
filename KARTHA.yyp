@@ -49,6 +49,7 @@
   },
   "name":"KARTHA",
   "resources":[
+    {"id":{"name":"obj_laboratorio","path":"objects/obj_laboratorio/obj_laboratorio.yy",},},
     {"id":{"name":"snd_recurso_toque_2","path":"sounds/snd_recurso_toque_2/snd_recurso_toque_2.yy",},},
     {"id":{"name":"snd_recurso_toque","path":"sounds/snd_recurso_toque/snd_recurso_toque.yy",},},
     {"id":{"name":"snd_papel_empurrao_2","path":"sounds/snd_papel_empurrao_2/snd_papel_empurrao_2.yy",},},

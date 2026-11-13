@@ -10,7 +10,7 @@
   "compression": 0,
   "compressionQuality": 4,
   "conversionMode": 0,
-  "duration": 0.5840816326530612,
+  "duration": 0.22662131519274376,
   "exportDir": "",
   "name": "snd_papel_deslize_2",
   "parent": {

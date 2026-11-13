@@ -1,6 +1,13 @@
 if (travada && categoria == "tropa" && !morrendo && obj_controlador.modo_partida != "online")
     verificar_olhar_vazio(id);
 atualizar_efeitos_identidade(id);
+var _hover_equip=travada && !morrendo && array_length(itens_equipados)>0
+    && controlador_modal_atual(obj_controlador)=="" && obj_controlador.carta_preview==noone
+    && !mouse_sobre_historico() && !mouse_sobre_painel_regras()
+    && point_in_rectangle(mouse_x,mouse_y,x-sprite_width*abs(image_xscale)*0.5,y-sprite_height*abs(image_yscale)*0.5,
+        x+sprite_width*abs(image_xscale)*0.5,y+sprite_height*abs(image_yscale)*0.5);
+leque_equipamento=lerp(leque_equipamento,_hover_equip?1:0,0.18);
+if (contra_visual_timer > 0) contra_visual_timer--;
 var _lado_acao = dono;
 var _lado_oposto = lado_oposto(_lado_acao);
 
@@ -368,12 +375,14 @@ if (arrastando && mouse_check_button_released(mb_left)) {
             case "choque": _executou_magia = aplicar_eletrocutado(_alvo_magia); break;
             default:
                 if (array_length(efeitos_declarativos) > 0)
-                    _executou_magia = executar_efeitos_declarativos(efeitos_declarativos, _alvo_magia, _lado_acao);
+                    _executou_magia = executar_efeitos_declarativos(efeitos_declarativos, _alvo_magia, _lado_acao, id);
                 else _executou_magia = aplicar_condicao_por_chave(_alvo_magia, efeito_tipo);
             break;
         }
 
         if (_executou_magia) {
+            if (array_length(efeitos_declarativos)==0 && efeito_tipo!="bola_fogo")
+                ligar_efeito_alvo(id,instance_exists(_alvo_magia)?_alvo_magia:id,c_aqua);
             pagar_custo(custo, _lado_acao, categoria);
             obj_controlador.magias_usadas_este_turno += 1;
             var _index_magia = array_get_index(obj_controlador.mao, id);
@@ -454,7 +463,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         var _arrastou_item_decl = point_distance(x, y, arrastar_inicio_x, arrastar_inicio_y) > 80;
         var _posicao_valida_decl = _precisa_alvo_decl ? (_alvo_item_decl != noone) : _arrastou_item_decl;
         if (_posicao_valida_decl && pode_pagar_custo(custo, _lado_acao, categoria)
-            && executar_efeitos_declarativos(efeitos_declarativos, _alvo_item_decl, _lado_acao)) {
+            && executar_efeitos_declarativos(efeitos_declarativos, _alvo_item_decl, _lado_acao, id)) {
             pagar_custo(custo, _lado_acao, categoria);
             obj_controlador.itens_usados_este_turno += 1;
             var _index_decl = array_get_index(obj_controlador.mao, id);

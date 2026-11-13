@@ -290,3 +290,5 @@ if (carta_menu_aberto != noone && instance_exists(carta_menu_aberto) && menu_esc
 #endregion
 
 desenhar_animacoes_cartas_mesa();
+
+// Rastros de habilidades são desenhados no Draw GUI, acima das cartas.

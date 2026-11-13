@@ -35,3 +35,7 @@ Volumes: cada recurso .yy usa volume 0.7; o ganho por ação está nas chamadas 
 - `snd_recurso_toque_2`: `chip-lay-2.ogg`.
 
 As variações alternam por categoria, sem repetir imediatamente nem consumir o gerador aleatório da partida. Intervalo mínimo de 75 ms por categoria evita acumular sons simultâneos. Grupos e volumes em `tocar_som_variado`, no script scr_apresentacao.
+
+## Revisão de sincronismo
+
+Removido silêncio inicial das cópias WAV; intensidade do trecho ativo ajustada com limite de pico e fades. Detalhes em REVISAO_AUDIO.txt. Recursos tocam no pouso e não em tentativa recusada; equipamento online toca no deslize e no encaixe, sem toque antecipado extra. Máximo de duas vozes por grupo. Revisão técnica de arquivos e código; equilíbrio perceptivo ainda não avaliado numa partida.
