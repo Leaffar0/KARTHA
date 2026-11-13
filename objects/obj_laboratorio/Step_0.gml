@@ -12,7 +12,26 @@ for(var i=0;i<8;i++) {
     }
 }
 if(keyboard_check_pressed(vk_space)) laboratorio_reiniciar(id);
-if(keyboard_check_pressed(ord("P"))) pausado=!pausado;
+if(keyboard_check_pressed(ord("P"))) {
+    pausado=!pausado;
+    var _vozes=array_concat(sons_combate,[som_previa]);
+    for(var _v=0;_v<array_length(_vozes);_v++) if(_vozes[_v]!=noone) {
+        if(pausado) audio_pause_sound(_vozes[_v]); else audio_resume_sound(_vozes[_v]);
+    }
+}
+if(modo==0) {
+    var _alterou=false;
+    if(keyboard_check_pressed(vk_left)||keyboard_check_pressed(vk_right)) {
+        atacante_previa=(atacante_previa+array_length(combatentes)+(keyboard_check_pressed(vk_right)?1:-1)) mod array_length(combatentes); _alterou=true;
+    }
+    if(keyboard_check_pressed(vk_up)||keyboard_check_pressed(vk_down)) {
+        alvo_previa=(alvo_previa+array_length(combatentes)+(keyboard_check_pressed(vk_down)?1:-1)) mod array_length(combatentes); _alterou=true;
+    }
+    if(keyboard_check_pressed(ord("B"))) {bloqueio_previa=!bloqueio_previa;_alterou=true;}
+    if(keyboard_check_pressed(ord("C"))) {critico_previa=!critico_previa;_alterou=true;}
+    if(keyboard_check_pressed(ord("M"))) {magia_previa=!magia_previa;_alterou=true;}
+    if(_alterou) laboratorio_reiniciar(id);
+}
 if(keyboard_check_pressed(ord("R"))) repetir=!repetir;
 if(modo==7 && (keyboard_check_pressed(vk_left)||keyboard_check_pressed(vk_right))) {
     grupo=(grupo+array_length(grupos)+(keyboard_check_pressed(vk_right)?1:-1)) mod array_length(grupos);
@@ -33,15 +52,22 @@ if(modo==7 && (keyboard_check_pressed(vk_up)||keyboard_check_pressed(vk_down))) 
     laboratorio_reiniciar(id);
 }
 if(!pausado) tempo++;
-if(!som_contato && tempo>=((modo==4)?12:((modo==1 && magia==1)?70:32))) {
+if(!pausado && !som_contato && tempo>=((modo==4)?12:((modo==1 && magia==1)?70:32))) {
     som_contato=true;
+    if(modo==0) {
+        sons_combate=tocar_som_impacto_criatura({atacante:noone,alvo:noone,
+            nome_atacante:combatentes[atacante_previa].nome,nome_alvo:combatentes[alvo_previa].nome,
+            dano:bloqueio_previa?0:3,defesa:bloqueio_previa?4:0,critico:critico_previa,magica:magia_previa});
+        if(bloqueio_previa) array_push(sons_combate,tocar_som_variado(magia_previa?"magia_escudo":"defesa_escudo",0.25));
+        else if(critico_previa) array_push(sons_combate,tocar_som_variado("critico",0.40,0.90));
+    }
     if(modo==1 && magia==1) {
         if(som_previa!=noone) audio_stop_sound(som_previa);
         som_previa=audio_play_sound(snd_bola_fogo_impacto,1,false,0.6);
     }
-    if(modo==3) tocar_som_variado("empurrao",0.30);
-    if(modo==4) tocar_som_variado("metal",0.48,0.8);
-    if(modo==5) tocar_som_variado("encaixe",0.40);
+    if(modo==3) array_push(sons_combate,tocar_som_variado("empurrao",0.30));
+    if(modo==4) array_push(sons_combate,tocar_som_variado("metal",0.48,0.8));
+    if(modo==5) array_push(sons_combate,tocar_som_variado("encaixe",0.40));
 }
 // Sons longos terminam antes da próxima repetição automática.
-if(repetir && tempo>180 && (som_previa==noone || !audio_is_playing(som_previa))) laboratorio_reiniciar(id);
+if(!pausado && repetir && tempo>180 && (som_previa==noone || !audio_is_playing(som_previa))) laboratorio_reiniciar(id);

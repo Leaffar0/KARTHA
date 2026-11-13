@@ -454,6 +454,10 @@ function carregar_configuracoes() {
     ini_open("kartha_config.ini");
     global.volume_musica = clamp(ini_read_real("audio", "musica", 0.8), 0, 1);
     global.volume_efeitos = clamp(ini_read_real("audio", "efeitos", 0.8), 0, 1);
+    global.volume_interface = clamp(ini_read_real("audio", "interface", 1), 0, 1);
+    global.volume_combate = clamp(ini_read_real("audio", "combate", 1), 0, 1);
+    global.volume_magias = clamp(ini_read_real("audio", "magias", 1), 0, 1);
+    global.canal_audio_opcoes = 0;
     global.intensidade_visual = clamp(round(ini_read_real("video", "intensidade_visual", 1)), 0, 2);
     var _tela_cheia = ini_read_real("video", "tela_cheia", 0) >= 0.5;
     definir_tamanho_interface(ini_read_real("video", "tamanho_interface", 0));
@@ -468,6 +472,9 @@ function salvar_configuracoes() {
     ini_write_real("video", "intensidade_visual", global.intensidade_visual);
     ini_write_real("audio", "musica", global.volume_musica);
     ini_write_real("audio", "efeitos", global.volume_efeitos);
+    ini_write_real("audio", "interface", global.volume_interface);
+    ini_write_real("audio", "combate", global.volume_combate);
+    ini_write_real("audio", "magias", global.volume_magias);
     ini_write_real("video", "tela_cheia", window_get_fullscreen() ? 1 : 0);
     ini_write_real("video", "tamanho_interface", global.nivel_interface);
     ini_close();
@@ -521,8 +528,32 @@ function aplicar_config_audio() {
         for(var _s=0;_s<array_length(_lista);_s++) if(array_get_index(_sons_efeito,_lista[_s])<0) array_push(_sons_efeito,_lista[_s]);
     }
     for (var i = 0; i < array_length(_sons_efeito); i++) {
-        audio_sound_gain(_sons_efeito[i], _efeitos, 0);
+        audio_sound_gain(_sons_efeito[i], _efeitos * multiplicador_audio_asset(_sons_efeito[i]), 0);
     }
+}
+
+function chave_canal_audio() {
+    return ["volume_efeitos","volume_interface","volume_combate","volume_magias"][global.canal_audio_opcoes];
+}
+function ajustar_canal_audio(_delta) {
+    var _chave=chave_canal_audio();
+    variable_global_set(_chave,clamp(variable_global_get(_chave)+_delta,0,1));
+}
+function desenhar_seletor_audio(_x,_y) {
+    var _nomes=["GERAL","INTERFACE","COMBATE","MAGIAS"];
+    desenhar_texto_ajustado_ui(_nomes[global.canal_audio_opcoes]+" "+string(round(variable_global_get(chave_canal_audio())*100))+"%",_x,_y,165,0.5);
+    desenhar_texto_ajustado_ui("Clique no nome para trocar",_x,_y+21,190,0.28);
+}
+function multiplicador_audio_asset(_som) {
+    var _nome=audio_get_name(_som);
+    var _canal="volume_combate";
+    if (string_pos("snd_ui_",_nome)==1 || string_pos("snd_foley_livro",_nome)==1
+        || string_pos("snd_foley_pagina",_nome)==1 || string_pos("snd_papel_",_nome)==1
+        || string_pos("snd_recurso",_nome)==1 || _som==snd_colocar || _som==snd_shuffle) _canal="volume_interface";
+    if (string_pos("snd_magia",_nome)==1 || string_pos("snd_arcano",_nome)==1 || string_pos("snd_impacto_gelo",_nome)==1
+        || string_pos("snd_bola_fogo",_nome)==1 || _som==snd_bencao || _som==snd_maldicao
+        || _som==snd_sussurro_sombra || _som==snd_papel_digestao) _canal="volume_magias";
+    return variable_global_exists(_canal)?variable_global_get(_canal):1;
 }
 
 function tocar_musica(_musica) {
@@ -664,12 +695,9 @@ function desenhar_resumo_regras_turno() {
     if (!painel_regras_disponivel()) return;
     var _layout = layout_painel_regras();
     draw_set_font(Fontenil); draw_set_halign(fa_left); draw_set_valign(fa_top);
-    draw_set_alpha(0.94); draw_set_color(make_color_rgb(15, 19, 27));
-    draw_roundrect(_layout.x, _layout.y, _layout.x + 180, _layout.y + 28, false);
-    draw_set_alpha(1); draw_set_color(c_aqua);
-    draw_roundrect(_layout.x, _layout.y, _layout.x + 180, _layout.y + 28, true);
-    desenhar_texto_ajustado_ui((_c.painel_regras_aberto ? "[-] " : "[+] ") + "Regras do turno [Tab]",
-        _layout.x + 9, _layout.y + 5, 162, 0.55);
+    botao_carta_painel(_layout.x,_layout.y,_layout.x+180,_layout.y+28,
+        (_c.painel_regras_aberto?"[-] ":"[+] ")+"Regras do turno [Tab]",true);
+    draw_set_halign(fa_left);draw_set_valign(fa_top);
     if (_c.painel_regras_animacao <= 0.005) { draw_set_color(c_white); return; }
     var _p = _c.painel_regras_animacao;
     var _alpha_painel = _p * _p * (3 - 2 * _p);
@@ -684,11 +712,9 @@ function desenhar_resumo_regras_turno() {
     var _largura = _layout.largura;
     var _coluna = (_largura - 24) / 3;
     draw_set_font(Fontenil); draw_set_halign(fa_left); draw_set_valign(fa_top);
-    draw_set_alpha(0.91 * _alpha_painel); draw_set_color(make_color_rgb(15, 19, 27));
-    draw_roundrect(_x, _y, _x + _largura, _y + 139, false);
-    draw_set_alpha(_alpha_painel); draw_set_color(make_color_rgb(76, 105, 125));
-    draw_roundrect(_x, _y, _x + _largura, _y + 139, true);
-    draw_set_color(c_aqua);
+    desenhar_painel_carta_menu(_x,_y,_x+_largura,_y+139,_alpha_painel,false);
+    draw_set_halign(fa_left);draw_set_valign(fa_top);
+    draw_set_color(make_color_rgb(235,210,164));
     desenhar_texto_ajustado_ui("AÇÕES DO TURNO — " + nome_jogador_lado(_lado), _x + 12, _y + 7, _largura - 24, 0.62);
     for (var i = 0; i < 9; i++) {
         var _bloqueado = _primeiro && (i == 1 || i == 2 || i == 4);
@@ -745,7 +771,7 @@ function layout_previa_carta(_largura_gui, _altura_gui, _largura_sprite, _altura
     var _altura_util = _altura_gui - 2 * _margem - 36;
     // O tamanho do HUD não deve mudar a disposição escolhida para a janela.
     var _lado_a_lado = round(_largura_gui * _escala_hud) >= 640 || _largura_gui >= _altura_gui * 1.45;
-    var _largura_painel = min(350, _lado_a_lado ? (_largura_util - _espaco) * 0.5 : _largura_util);
+    var _largura_painel = min(460, _lado_a_lado ? (_largura_util - _espaco) * 0.5 : _largura_util);
     var _altura_painel = _lado_a_lado ? 0 : min(260, _altura_util * 0.45);
     var _limite_largura_carta = _lado_a_lado ? _largura_util - _largura_painel - _espaco : _largura_util;
     var _limite_altura_carta = _lado_a_lado ? _altura_util : _altura_util - _altura_painel - _espaco;
@@ -775,7 +801,7 @@ function layout_previa_carta(_largura_gui, _altura_gui, _largura_sprite, _altura
 
     return { carta_x: _carta_x, carta_y: _carta_y, escala_carta: _escala_carta,
         painel_x: _painel_x, painel_y: _painel_y, painel_largura: _largura_painel,
-        painel_altura: _altura_painel, rodape_y: _painel_y + _altura_painel + 12 };
+        painel_altura: _altura_painel, lado_a_lado: _lado_a_lado, rodape_y: _painel_y + _altura_painel + 12 };
 }
 
 // Quebra em linhas e páginas sem reduzir o texto até ficar ilegível.
@@ -1256,4 +1282,100 @@ function layout_menu_tropa(_carta, _quantidade) {
     return { x: clamp(_x, _vx + 12, _vx + _vw - _w - 24),
         y: clamp(_carta.y - _total * 0.5, _vy + 12, _vy + _vh - _total - 16),
         largura: _w, altura: _h, espaco: _gap, total: _total };
+}
+
+// Menu em cartas: a mesma geometria dirige desenho e interação.
+function carta_menu_layout(_indice, _titulo, _tempo, _w, _h, _hover = 0) {
+    var _largura = _titulo ? min(118, _w/8.2, _h*0.18) : min(170, _w/5.2);
+    var _altura = _titulo ? _largura*1.48 : min(108,_h*0.19);
+    var _passo = _largura * (_titulo ? 1.12 : 1.10);
+    var _x = _w/2 + (_indice-(_titulo?2.5:1.5))*_passo;
+    var _fase = _indice*1.73;
+    var _y = _h*(_titulo?0.34:0.77) + sin(_tempo*(_titulo?1.05+_indice*0.09:0.8)+_fase)*(_titulo?7:2) - _hover*10;
+    var _p = clamp((_tempo-(_titulo?_indice*0.10:0.48+_indice*0.09))/0.85,0,1);
+    var _e = 1-power(1-_p,3);
+    var _ox = _titulo ? ((_indice mod 2==0)?-_largura:_w+_largura) : _x;
+    var _oy = _titulo ? -_altura-_indice*28 : _h+_altura;
+    var _rot = _titulo ? sin(_tempo*(0.65+_indice*0.07)+_fase)*2.4 : (_indice-1.5)*1.3*(1-_hover);
+    return {x:lerp(_ox,_x,_e),y:lerp(_oy,_y,_e),w:_largura,h:_altura,
+        rot:lerp((_indice mod 2==0)?-28:28,_rot,_e),alpha:clamp(_p*3,0,1),pronto:_p>=0.9};
+}
+function ponto_carta_menu(_c,_x,_y) {
+    var _dx=_x-_c.x,_dy=_y-_c.y;
+    var _lx=_dx*dcos(_c.rot)-_dy*dsin(_c.rot);
+    var _ly=_dx*dsin(_c.rot)+_dy*dcos(_c.rot);
+    return _c.pronto && abs(_lx)<=_c.w/2 && abs(_ly)<=_c.h/2;
+}
+function moldura_carta_menu(_x,_y,_w,_h,_rot,_cor,_borda) {
+    var _xs=[-_w/2,_w/2,_w/2,-_w/2];
+    var _ys=[-_h/2,-_h/2,_h/2,_h/2];
+    var _px=[],_py=[];
+    for(var _i=0;_i<4;_i++) {
+        _px[_i]=_x+_xs[_i]*dcos(_rot)+_ys[_i]*dsin(_rot);
+        _py[_i]=_y-_xs[_i]*dsin(_rot)+_ys[_i]*dcos(_rot);
+    }
+    draw_set_color(_cor);
+    if(_borda) for(var _i=0;_i<4;_i++) draw_line(_px[_i],_py[_i],_px[(_i+1) mod 4],_py[(_i+1) mod 4]);
+    else {
+        draw_primitive_begin(pr_trianglefan);
+        for(var _i=0;_i<4;_i++) draw_vertex(_px[_i],_py[_i]);
+        draw_primitive_end();
+    }
+}
+function desenhar_carta_menu(_c,_texto,_titulo,_hover,_indice) {
+    draw_set_alpha(_c.alpha*0.45);
+    moldura_carta_menu(_c.x+7,_c.y+11,_c.w,_c.h,_c.rot,c_black,false);
+    draw_set_alpha(_c.alpha);
+    moldura_carta_menu(_c.x,_c.y,_c.w,_c.h,_c.rot,make_color_rgb(29+_hover*9,27+_hover*7,25),false);
+    var _ouro=merge_color(make_color_rgb(115,96,65),make_color_rgb(226,196,139),_hover);
+    moldura_carta_menu(_c.x,_c.y,_c.w,_c.h,_c.rot,_ouro,true);
+    moldura_carta_menu(_c.x,_c.y,_c.w-10,_c.h-10,_c.rot,make_color_rgb(70,61,46),true);
+    draw_set_font(Fontenil);draw_set_halign(fa_center);draw_set_valign(fa_middle);
+    draw_set_color(make_color_rgb(235,220,189));
+    var _escala=min(_titulo?2.8:0.65,(_c.w-24)/max(1,string_width(_texto)),_c.h*0.43/max(1,string_height(_texto)));
+    draw_text_transformed(_c.x,_c.y,_texto,_escala,_escala,_c.rot);
+    draw_set_color(_ouro);
+    var _dist=_c.h*0.34;
+    for(var _s=-1;_s<=1;_s+=2) {
+        var _dx=_c.x+_dist*_s*dsin(_c.rot),_dy=_c.y+_dist*_s*dcos(_c.rot);
+        moldura_carta_menu(_dx,_dy,4,4,_c.rot+45,_ouro,false);
+    }
+    draw_set_alpha(1);draw_set_color(c_white);
+}
+
+function tipo_painel_menu(_m) {
+    if(_m.online_aberto) return "online";
+    if(_m.deck_aberto) return "baralho";
+    if(_m.modo_jogo_aberto) return "jogar";
+    if(_m.opcoes_abertas) return "opcoes";
+    return "";
+}
+function centro_painel_menu(_m) {
+    return room_height/2 + 42*power(1-_m.painel_menu_abertura,3);
+}
+function desenhar_painel_carta_menu(_x1,_y1,_x2,_y2,_alpha=1,_ornamentos=true) {
+    var _x=(_x1+_x2)/2,_y=(_y1+_y2)/2,_w=_x2-_x1,_h=_y2-_y1;
+    draw_set_alpha(0.45*_alpha);
+    moldura_carta_menu(_x+9,_y+12,_w,_h,0,c_black,false);
+    draw_set_alpha(_alpha);
+    moldura_carta_menu(_x,_y,_w,_h,0,make_color_rgb(29,27,25),false);
+    moldura_carta_menu(_x,_y,_w,_h,0,make_color_rgb(158,130,83),true);
+    moldura_carta_menu(_x,_y,_w-12,_h-12,0,make_color_rgb(76,64,45),true);
+    if(_ornamentos) for(var _lado=-1;_lado<=1;_lado+=2)
+        moldura_carta_menu(_x+_lado*(_w/2-18),_y1+18,6,6,45,make_color_rgb(192,160,102),false);
+    draw_set_font(Fontenil);draw_set_halign(fa_center);draw_set_valign(fa_middle);draw_set_color(make_color_rgb(235,220,189));
+}
+function botao_carta_painel(_x1,_y1,_x2,_y2,_texto,_gui=false) {
+    var _mx=_gui?device_mouse_x_to_gui(0):mouse_x;
+    var _my=_gui?device_mouse_y_to_gui(0):mouse_y;
+    var _sobre=point_in_rectangle(_mx,_my,_x1,_y1,_x2,_y2);
+    var _cor=_sobre?make_color_rgb(66,54,36):make_color_rgb(37,34,29);
+    moldura_carta_menu((_x1+_x2)/2,(_y1+_y2)/2,_x2-_x1,_y2-_y1,0,_cor,false);
+    moldura_carta_menu((_x1+_x2)/2,(_y1+_y2)/2,_x2-_x1,_y2-_y1,0,make_color_rgb(151,126,83),true);
+    draw_set_color(make_color_rgb(235,220,189));draw_set_halign(fa_center);draw_set_valign(fa_middle);
+    desenhar_texto_ajustado_ui(_texto,(_x1+_x2)/2,(_y1+_y2)/2,_x2-_x1-16,0.56);
+}
+function carta_modo_menu(_i,_cy) {
+    var _w=min(190,(room_width-100)/3.3);
+    return {x:room_width/2+(_i-1)*(_w+16),y:_cy+5,w:_w,h:180,rot:0,alpha:1,pronto:true};
 }

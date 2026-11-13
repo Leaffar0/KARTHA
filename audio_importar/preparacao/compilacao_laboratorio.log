@@ -1,0 +1,94 @@
+Options: C:/ProgramData/GameMakerStudio2-LTS2026/Cache/runtimes/runtime-2026.0.0.23\bin\platform_setting_defaults.json
+Options: C:/Users/Administrador/AppData/Roaming/GameMakerStudio2-LTS2026/unknownUser_unknownUserID\local_settings.json
+Setting up the Asset compiler
+Found Project Format 2
+Core Resources : Info - +++ GMSC serialisation:  SUCCESSFUL LOAD AND LINK TIME: 401.3835ms
+Success
+finished merging assets from C:/ProgramData/GameMakerStudio2-LTS2026/Prefabs/io.gamemaker.gm_filter_mask-1.0.0/io.gamemaker.gm_filter_mask-1.0.0.yyp.
+finished merging assets from C:/ProgramData/GameMakerStudio2-LTS2026/Prefabs/io.gamemaker.gm_filter_old_film-1.0.0/io.gamemaker.gm_filter_old_film-1.0.0.yyp.
+finished merging assets from C:/ProgramData/GameMakerStudio2-LTS2026/Prefabs/io.gamemaker.gm_effect_windblown_particles-1.0.0/io.gamemaker.gm_effect_windblown_particles-1.0.0.yyp.
+finished merging assets from C:/ProgramData/GameMakerStudio2-LTS2026/Prefabs/io.gamemaker.sdfshaders-1.0.0/io.gamemaker.sdfshaders-1.0.0.yyp.
+finished merging assets from C:/ProgramData/GameMakerStudio2-LTS2026/Prefabs/io.gamemaker.gm_filter_twirl_distort-1.0.0/io.gamemaker.gm_filter_twirl_distort-1.0.0.yyp.
+finished merging assets from C:/ProgramData/GameMakerStudio2-LTS2026/Prefabs/io.gamemaker.gm_effect_blend_ext-1.0.0/io.gamemaker.gm_effect_blend_ext-1.0.0.yyp.
+finished merging assets from C:/ProgramData/GameMakerStudio2-LTS2026/Prefabs/io.gamemaker.gm_effect_blend-1.0.0/io.gamemaker.gm_effect_blend-1.0.0.yyp.
+finished merging assets from C:/Users/Administrador/GameMakerProjects/KARTHA/KARTHA.yyp.
+Release build
+Options: C:\Users\Administrador\AppData\Local\Packages\openai.codex_2p2nqsd0c76g0\AC\#!sandbox.{30402be4-cdef-4aeb-8799-d98e679d326f}\Temp\kartha-lab-final-3ad32128b94249909c9b876facd87def/cache\ExtensionOptions.json
+OptionsIni
+Options: C:\Users\Administrador\AppData\Local\Packages\openai.codex_2p2nqsd0c76g0\AC\#!sandbox.{30402be4-cdef-4aeb-8799-d98e679d326f}\Temp\kartha-lab-final-3ad32128b94249909c9b876facd87def/cache\PlatformOptions.json
+[Compile] Run asset compiler
+Looking for built-in fallback image in C:/ProgramData/GameMakerStudio2-LTS2026/Cache/runtimes/runtime-2026.0.0.23\bin\BuiltinImages
+Compile Constants...finished.
+Remove DnD...finished.
+Compile Scripts...finished.
+Compile Rooms...finished..... 0 CC empty
+finished..... 0 CC empty
+Compile Objects...finished.... 0 empty events
+Compile Timelines...finished.
+Compile Triggers...finished.
+Compile Extensions...Compile UI Layers...finished.
+Global scripts...finished.
+collapsing enums.
+Final Compile...Final Compile finished.
+Saving IFF file... C:\Users\Administrador\AppData\Local\Packages\openai.codex_2p2nqsd0c76g0\AC\#!sandbox.{30402be4-cdef-4aeb-8799-d98e679d326f}\Temp\kartha-lab-final-3ad32128b94249909c9b876facd87def\KARTHA.win
+Writing Chunk... GEN8 size ... -0.00 MB
+option_game_speed=60
+Writing Chunk... OPTN size ... 0.00 MB
+Writing Chunk... LANG size ... 0.00 MB
+Writing Chunk... EXTN size ... 0.00 MB
+Writing Chunk... SOND size ... 0.02 MB
+Converting snd_ui_clique_2 to Wav 16bit mono @ 44100Hz
+Converting snd_ui_clique_1 to Wav 16bit mono @ 44100Hz
+Converting snd_ui_aviso to Wav 16bit mono @ 44100Hz
+Converting snd_moeda_impacto to Wav 16bit mono @ 44100Hz
+Converting snd_maldicao to Wav 16bit mono @ 44100Hz
+Converting snd_colocar to Wav 16bit mono @ 44100Hz
+Converting snd_menu to Wav 16bit mono @ 44100Hz
+Converting snd_bola_fogo_fogo to Wav 16bit mono @ 44100Hz
+Converting snd_bencao to Wav 16bit mono @ 44100Hz
+Converting snd_bola_fogo_voo to Wav 16bit mono @ 44100Hz
+Converting snd_bola_fogo_impacto to Wav 16bit mono @ 44100Hz
+Converting snd_jogo to Wav 16bit mono @ 44100Hz
+Converting snd_moeda_arremesso to Wav 16bit mono @ 44100Hz
+Converting snd_shuffle to Wav 16bit mono @ 44100Hz
+Writing Chunk... AGRP size ... 0.00 MB
+Writing Chunk... SPRT size ... 0.00 MB
+Writing Chunk... BGND size ... 0.01 MB
+Writing Chunk... PATH size ... 0.00 MB
+Writing Chunk... SCPT size ... 0.00 MB
+Writing Chunk... GLOB size ... 0.01 MB
+Writing Chunk... SHDR size ... 0.00 MB
+Compiling Shader Shader__filter_old_film_shader... compiled with vs_4_0_level_9_1 (optimised)
+Compiling Shader Shader__filter_old_film_shader... compiled with ps_4_0_level_9_3 (optimised)
+Writing Chunk... FONT size ... 0.01 MB
+Writing Chunk... TMLN size ... 0.01 MB
+Writing Chunk... OBJT size ... 0.00 MB
+Writing Chunk... FEDS size ... 0.01 MB
+Writing Chunk... ACRV size ... 0.00 MB
+Writing Chunk... SEQN size ... 0.01 MB
+Writing Chunk... TAGS size ... 0.00 MB
+Writing Chunk... ROOM size ... 0.00 MB
+Writing Chunk... UILR size ... 0.00 MB
+Writing Chunk... DAFL size ... 0.00 MB
+Writing Chunk... EMBI size ... 0.00 MB
+Writing Chunk... PSEM size ... 0.00 MB
+Writing Chunk... PSYS size ... 0.00 MB
+Writing Chunk... TPAGE size ... 0.00 MB
+Texture Group - __YY__0fallbacktexture.png_YYG_AUTO_GEN_TEX_GROUP_NAME_
+Texture Group - Default
+Writing Chunk... TGIN size ... 0.00 MB
+Writing Chunk... CODE size ... 0.00 MB
+Writing Chunk... VARI size ... 0.63 MB
+Writing Chunk... FUNC size ... 0.09 MB
+Writing Chunk... FEAT size ... 0.02 MB
+Writing Chunk... STRG size ... 0.00 MB
+Writing Chunk... TXTR size ... 0.25 MB
+0 Compressing texture... writing texture __yy__0fallbacktexture.png_yyg_auto_gen_tex_group_name__0.yytex... 
+1 Compressing texture... writing texture default_0.yytex... 
+2 Compressing texture... writing texture default_1.yytex... 
+3 Compressing texture... writing texture default_2.yytex... 
+4 Compressing texture... writing texture default_3.yytex... 
+Writing Chunk... AUDO size ... 3.11 MB
+Stats : GMA : Elapsed=5272.1245
+Stats : GMA : sp=62,au=76,bk=0,pt=0,sc=986,sh=6,fo=3,tl=0,ob=24,ro=2,da=13,ex=1,ma=6,fm=0x1040929D6FF62BA0
+Igor complete.

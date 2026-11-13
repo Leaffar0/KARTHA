@@ -436,15 +436,18 @@ function abrir_laboratorio_visual() {
     room_goto(global.laboratorio_room);
 }
 function laboratorio_reiniciar(_lab) {
-    if (_lab.som_previa!=noone && audio_is_playing(_lab.som_previa)) audio_stop_sound(_lab.som_previa);
+    for(var _i=0;_i<array_length(_lab.sons_combate);_i++) audio_stop_sound(_lab.sons_combate[_i]);
+    _lab.sons_combate=[];
+    _lab.pausado=false;
+    if (_lab.som_previa!=noone) audio_stop_sound(_lab.som_previa);
     _lab.som_previa=noone;
     _lab.tempo=0; _lab.som_contato=false;
     switch (_lab.modo) {
-        case 0: tocar_som_variado("empurrao",0.26); break;
+        case 0: if(_lab.magia_previa) _lab.som_previa=tocar_som_magia("arcana"); break;
         case 1: if(_lab.magia==1) _lab.som_previa=audio_play_sound(snd_bola_fogo_voo,1,false,0.5);
             else _lab.som_previa=tocar_som_magia(["arcana","bola_fogo","veneno","gelo","choque"][_lab.magia]); break;
-        case 3: tocar_som_variado("empurrao",0.23); break;
-        case 5: tocar_som_variado("deslize",0.38); break;
+        case 3: _lab.som_previa=tocar_som_variado("empurrao",0.23); break;
+        case 5: _lab.som_previa=tocar_som_variado("deslize",0.38); break;
         case 6: _lab.som_previa=apresentar_ativacao_habilidade(_lab,_lab.habilidades[_lab.habilidade]); break;
         case 7:
             var _sons=variable_struct_get(catalogo_sons_jogo(),_lab.grupos[_lab.grupo]);
@@ -625,6 +628,7 @@ function catalogo_sons_jogo() {
         sombra: [snd_foley_tecido,snd_sussurro_sombra],
         ferida: [snd_foley_corte_seco,snd_corte_ferida],
         digestao: [snd_papel_digestao],
+        magia_impacto: [snd_impacto_gelo_1,snd_impacto_gelo_2],
         magia_arcana: [snd_magia_sombria],
         magia_antiga: [snd_arcano_1,snd_arcano_2,snd_arcano_3,snd_arcano_4,snd_arcano_5,snd_arcano_6,snd_arcano_7],
         magia_veneno: [snd_magia_sombria],
@@ -690,15 +694,17 @@ function nome_tropa_sonora(_carta) {
 }
 
 function tocar_som_impacto_criatura(_dados) {
-    if (_dados.dano <= 0) return;
+    var _vozes=[];
+    if (_dados.dano <= 0) return _vozes;
     var _magica = variable_struct_exists(_dados, "magica") && _dados.magica;
     // O alvo pode já ter morrido quando o impacto agendado é apresentado.
     var _origem = variable_struct_exists(_dados, "nome_atacante") ? _dados.nome_atacante : nome_tropa_sonora(_dados.atacante);
     var _destino = variable_struct_exists(_dados, "nome_alvo") ? _dados.nome_alvo : nome_tropa_sonora(_dados.alvo);
     var _ataque = _magica ? "" : grupo_som_criatura(_origem);
     var _dano = grupo_som_criatura(_destino, true);
-    if (_ataque != "") tocar_som_variado(_ataque, 0.30);
-    if (_dano != "" && _dano != _ataque) tocar_som_variado(_dano, 0.26);
+    if (_ataque != "") array_push(_vozes,tocar_som_variado(_ataque, 0.30));
+    if (_dano != "" && _dano != _ataque) array_push(_vozes,tocar_som_variado(_dano, 0.26));
     if (_ataque == "" && _dano == "" && !_dados.critico && _dados.defesa <= 0)
-        tocar_som_variado(_magica ? "magia_arcana" : "ataque_corpo", 0.26, 0.98);
+        array_push(_vozes,tocar_som_variado(_magica ? "magia_impacto" : "ataque_corpo", 0.26, 0.98));
+    return _vozes;
 }

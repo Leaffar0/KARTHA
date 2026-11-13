@@ -388,13 +388,16 @@ if (instance_exists(previa_visual_carta) && previa_visual_progresso > 0 && contr
     var _centro_y = _layout_preview.carta_y;
     var _escala_preview = _layout_preview.escala_carta;
 
-    var _abertura = previa_visual_progresso * previa_visual_progresso * (3 - 2 * previa_visual_progresso);
+    var _entrada_carta = clamp(previa_visual_progresso / 0.72, 0, 1);
+    var _abertura = 1 - power(1 - _entrada_carta, 3);
+    var _entrada_painel = clamp((previa_visual_progresso - 0.28) / 0.72, 0, 1);
+    var _abertura_painel = _entrada_painel * _entrada_painel * (3 - 2 * _entrada_painel);
     var _cam_preview = view_camera[0];
     var _origem_preview_x = (_carta.x - camera_get_view_x(_cam_preview)) * _gui_largura_preview / camera_get_view_width(_cam_preview);
     var _origem_preview_y = (_carta.y - camera_get_view_y(_cam_preview)) * _gui_altura_preview / camera_get_view_height(_cam_preview);
     var _escala_origem_preview = abs(_carta.image_xscale) * _gui_largura_preview / camera_get_view_width(_cam_preview);
     _centro_x = lerp(_origem_preview_x, _centro_x, _abertura);
-    _centro_y = lerp(_origem_preview_y, _centro_y, _abertura);
+    _centro_y = lerp(_origem_preview_y, _centro_y, _abertura) - sin(_entrada_carta*pi)*18;
     _escala_preview = lerp(_escala_origem_preview, _escala_preview, _abertura);
     draw_set_alpha(0.7 * _abertura);
     draw_set_color(c_black);
@@ -402,6 +405,54 @@ if (instance_exists(previa_visual_carta) && previa_visual_progresso > 0 && contr
     draw_set_alpha(1);
     draw_set_font(Fontenil);
 
+    // Painel atrás da carta: emerge da lateral após a aproximação.
+    #region Painel de detalhes da carta
+    var _painel_largura = _layout_preview.painel_largura;
+    var _painel_x = lerp(_layout_preview.lado_a_lado ? _centro_x - _painel_largura*0.5 : _layout_preview.painel_x,
+        _layout_preview.painel_x, _abertura_painel);
+    var _painel_altura = _layout_preview.painel_altura;
+    var _painel_y = lerp(_layout_preview.lado_a_lado ? _layout_preview.painel_y : _centro_y - _painel_altura*0.5,
+        _layout_preview.painel_y, _abertura_painel);
+    var _texto_detalhes = descricao_carta_preview(_carta);
+
+    desenhar_painel_carta_menu(_painel_x,_painel_y,_painel_x+_painel_largura,_painel_y+_painel_altura,_abertura_painel,false);
+    draw_set_font(Fontenil);
+    draw_set_halign(fa_left);
+    draw_set_valign(fa_top);
+    draw_set_color(c_yellow);
+    desenhar_texto_ajustado_ui("DETALHES DA CARTA", _painel_x + 14, _painel_y + 12, _painel_largura - 28, 0.75);
+    draw_set_color(c_white);
+    var _faixa_itens = 0;
+    if (_carta.categoria == "tropa" && array_length(_carta.itens_equipados) > 0) {
+        _faixa_itens = 76;
+        var _qtd = array_length(_carta.itens_equipados);
+        var _passo = min(54, (_painel_largura - 28) / _qtd);
+        for (var _eq = 0; _eq < _qtd; _eq++) {
+            var _item = _carta.itens_equipados[_eq];
+            var _spr = sprite_exists(_item.sprite) ? _item.sprite : spr_carta_placeholder;
+            var _es = min((_passo - 4) / sprite_get_width(_spr), 66 / sprite_get_height(_spr));
+            var _ix = _painel_x + 14 + _eq * _passo;
+            var _iy = _painel_y + 42;
+            draw_sprite_ext(_spr, 0, _ix + sprite_get_xoffset(_spr) * _es,
+                _iy + sprite_get_yoffset(_spr) * _es, _es, _es, 0, c_white, _abertura_painel);
+        }
+    }
+    var _paginas_detalhes = paginar_detalhes_carta(_texto_detalhes, _painel_largura - 28, _painel_altura - 88 - _faixa_itens);
+    detalhes_total_paginas = max(1, array_length(_paginas_detalhes));
+    detalhes_pagina = clamp(detalhes_pagina, 0, detalhes_total_paginas - 1);
+    draw_text_transformed(_painel_x + 14, _painel_y + 42 + _faixa_itens, _paginas_detalhes[detalhes_pagina], 0.64, 0.64, 0);
+    draw_set_color(c_silver);
+    desenhar_texto_ajustado_ui("Página " + string(detalhes_pagina + 1) + "/" + string(detalhes_total_paginas)
+        + (detalhes_total_paginas > 1 ? " — use a roda do mouse" : ""),
+        _painel_x + 14, _painel_y + _painel_altura - 30, _painel_largura - 28, 0.55);
+    #endregion
+    draw_set_alpha(0.28 * _abertura);
+    draw_set_color(c_black);
+    draw_roundrect(_centro_x-_largura_real*_escala_preview*0.5+8,
+        _centro_y-_altura_real*_escala_preview*0.5+12,
+        _centro_x+_largura_real*_escala_preview*0.5+8,
+        _centro_y+_altura_real*_escala_preview*0.5+12,false);
+    draw_set_alpha(1);draw_set_color(c_white);
     draw_sprite_ext(
         _carta.sprite_index,
         _carta.image_index,
@@ -452,49 +503,7 @@ if (instance_exists(previa_visual_carta) && previa_visual_progresso > 0 && contr
             _centro_x, _centro_y, _largura_real, _altura_real, _escala_preview, _escala_vida_construcao);
     }
 
-    #region Painel de detalhes da carta
-    var _painel_largura = _layout_preview.painel_largura;
-    var _painel_x = _layout_preview.painel_x + (1 - _abertura) * 24;
-    var _painel_altura = _layout_preview.painel_altura;
-    var _painel_y = _layout_preview.painel_y;
-    var _texto_detalhes = descricao_carta_preview(_carta);
 
-    draw_set_alpha(0.92);
-    draw_set_color(c_black);
-    draw_roundrect(_painel_x, _painel_y, _painel_x + _painel_largura, _painel_y + _painel_altura, false);
-    draw_set_alpha(1);
-    draw_set_color(c_white);
-    draw_roundrect(_painel_x, _painel_y, _painel_x + _painel_largura, _painel_y + _painel_altura, true);
-    draw_set_font(Fontenil);
-    draw_set_halign(fa_left);
-    draw_set_valign(fa_top);
-    draw_set_color(c_yellow);
-    desenhar_texto_ajustado_ui("DETALHES DA CARTA", _painel_x + 14, _painel_y + 12, _painel_largura - 28, 0.75);
-    draw_set_color(c_white);
-    var _faixa_itens = 0;
-    if (_carta.categoria == "tropa" && array_length(_carta.itens_equipados) > 0) {
-        _faixa_itens = 76;
-        var _qtd = array_length(_carta.itens_equipados);
-        var _passo = min(54, (_painel_largura - 28) / _qtd);
-        for (var _eq = 0; _eq < _qtd; _eq++) {
-            var _item = _carta.itens_equipados[_eq];
-            var _spr = sprite_exists(_item.sprite) ? _item.sprite : spr_carta_placeholder;
-            var _es = min((_passo - 4) / sprite_get_width(_spr), 66 / sprite_get_height(_spr));
-            var _ix = _painel_x + 14 + _eq * _passo;
-            var _iy = _painel_y + 42;
-            draw_sprite_ext(_spr, 0, _ix + sprite_get_xoffset(_spr) * _es,
-                _iy + sprite_get_yoffset(_spr) * _es, _es, _es, 0, c_white, 1);
-        }
-    }
-    var _paginas_detalhes = paginar_detalhes_carta(_texto_detalhes, _painel_largura - 28, _painel_altura - 88 - _faixa_itens);
-    detalhes_total_paginas = max(1, array_length(_paginas_detalhes));
-    detalhes_pagina = clamp(detalhes_pagina, 0, detalhes_total_paginas - 1);
-    draw_text_transformed(_painel_x + 14, _painel_y + 42 + _faixa_itens, _paginas_detalhes[detalhes_pagina], 0.64, 0.64, 0);
-    draw_set_color(c_silver);
-    desenhar_texto_ajustado_ui("Página " + string(detalhes_pagina + 1) + "/" + string(detalhes_total_paginas)
-        + (detalhes_total_paginas > 1 ? " — use a roda do mouse" : ""),
-        _painel_x + 14, _painel_y + _painel_altura - 30, _painel_largura - 28, 0.55);
-    #endregion
 
     draw_set_halign(fa_center);
     draw_set_color(c_silver);
@@ -777,46 +786,40 @@ if (ui_modal.pausa_ativa) {
     draw_set_color(c_black);
     draw_rectangle(0, 0, _pausa_largura, _pausa_altura, false);
     draw_set_alpha(1);
-    draw_set_color(c_black);
-    draw_roundrect(_pausa_cx - 235, _pausa_cy - 150, _pausa_cx + 235, _pausa_cy + 225, false);
-    draw_set_color(c_white);
-    draw_roundrect(_pausa_cx - 235, _pausa_cy - 150, _pausa_cx + 235, _pausa_cy + 225, true);
+    desenhar_painel_carta_menu(_pausa_cx-235,_pausa_cy-150,_pausa_cx+235,_pausa_cy+225);
     draw_set_font(fnt_vitoria);
     draw_set_halign(fa_center);
     draw_set_valign(fa_middle);
     desenhar_texto_interface(_pausa_cx, _pausa_cy - 88, ui_modal.opcoes_pausa_ativa ? "OPÇÕES" : "PAUSA");
     draw_set_font(Fontenil);
     if (ui_modal.opcoes_pausa_ativa) {
+        for(var _r=0;_r<2;_r++) {
+            var _ay=_pausa_cy+(_r==0?-35:10);
+            botao_carta_painel(_pausa_cx-160,_ay-18,_pausa_cx-90,_ay+18,"",true);
+            botao_carta_painel(_pausa_cx+90,_ay-18,_pausa_cx+160,_ay+18,"",true);
+        }
+        botao_carta_painel(_pausa_cx-160,_pausa_cy+37,_pausa_cx+160,_pausa_cy+73,"",true);
+        botao_carta_painel(_pausa_cx-150,_pausa_cy+80,_pausa_cx+150,_pausa_cy+116,"",true);
+        botao_carta_painel(_pausa_cx-150,_pausa_cy+124,_pausa_cx+150,_pausa_cy+160,"",true);
+        botao_carta_painel(_pausa_cx-150,_pausa_cy+168,_pausa_cx+150,_pausa_cy+212,"",true);
         desenhar_texto_interface(_pausa_cx - 125, _pausa_cy - 35, "<");
         desenhar_texto_interface(_pausa_cx + 125, _pausa_cy - 35, ">");
         desenhar_texto_interface(_pausa_cx, _pausa_cy - 35, "MÚSICA  " + string(round(global.volume_musica * 100)) + "%");
         desenhar_texto_interface(_pausa_cx - 125, _pausa_cy + 10, "<");
         desenhar_texto_interface(_pausa_cx + 125, _pausa_cy + 10, ">");
-        desenhar_texto_interface(_pausa_cx, _pausa_cy + 10, "EFEITOS  " + string(round(global.volume_efeitos * 100)) + "%");
+        desenhar_seletor_audio(_pausa_cx, _pausa_cy + 10);
         draw_set_color(c_gray);
         desenhar_texto_interface(_pausa_cx, _pausa_cy + 55, "TELA CHEIA: " + (window_get_fullscreen() ? "SIM" : "NÃO"));
         desenhar_opcao_tamanho_interface(_pausa_cx, _pausa_cy + 98);
         opcao_efeitos_visuais(_pausa_cx,_pausa_cy+142);
         desenhar_texto_interface(_pausa_cx, _pausa_cy + 190, "VOLTAR");
     } else {
-        desenhar_texto_interface(_pausa_cx, _pausa_cy - 38, "A partida está aguardando.");
-    draw_set_color(c_black);
-    draw_roundrect(_pausa_cx - 125, _pausa_cy + 35, _pausa_cx + 125, _pausa_cy + 75, false);
-    draw_set_color(c_white);
-    draw_roundrect(_pausa_cx - 125, _pausa_cy + 35, _pausa_cx + 125, _pausa_cy + 75, true);
-    desenhar_texto_interface(_pausa_cx, _pausa_cy + 55, "CONTINUAR  [P / ESC]");
-    draw_set_color(c_black);
-    draw_roundrect(_pausa_cx - 125, _pausa_cy + 90, _pausa_cx + 125, _pausa_cy + 130, false);
-    draw_set_color(c_white);
-    draw_roundrect(_pausa_cx - 125, _pausa_cy + 90, _pausa_cx + 125, _pausa_cy + 130, true);
-    desenhar_texto_interface(_pausa_cx, _pausa_cy + 110, "OPÇÕES");
-    draw_set_color(c_black);
-    draw_roundrect(_pausa_cx - 125, _pausa_cy + 145, _pausa_cx + 125, _pausa_cy + 185, false);
-    draw_set_color(c_aqua);
-    draw_roundrect(_pausa_cx - 125, _pausa_cy + 145, _pausa_cx + 125, _pausa_cy + 185, true);
-    desenhar_texto_interface(_pausa_cx, _pausa_cy + 165, "VOLTAR AO MENU");
+        desenhar_texto_interface(_pausa_cx,_pausa_cy-38,"A partida está aguardando.");
+        botao_carta_painel(_pausa_cx-125,_pausa_cy+35,_pausa_cx+125,_pausa_cy+75,"CONTINUAR  [P / ESC]",true);
+        botao_carta_painel(_pausa_cx-125,_pausa_cy+90,_pausa_cx+125,_pausa_cy+130,"OPÇÕES",true);
+        botao_carta_painel(_pausa_cx-125,_pausa_cy+145,_pausa_cx+125,_pausa_cy+185,"VOLTAR AO MENU",true);
     draw_set_color(c_gray);
-    desenhar_texto_interface(_pausa_cx, _pausa_cy + 210, modo_partida == "online" ? "F1 abre o tutorial" : "F1: tutorial | F7: laboratório de efeitos");
+    desenhar_texto_ajustado_ui(modo_partida=="online"?"F1 abre o tutorial":"F1: tutorial | F7: laboratório de efeitos",_pausa_cx,_pausa_cy+210,430,0.45);
     }
     draw_set_color(c_white);
     draw_set_halign(fa_left);
@@ -892,8 +895,9 @@ if (disputa_inicial_estado == "troca_dado_local" && !ui_modal.tutorial_ativo) {
     draw_set_alpha(1);
     draw_set_halign(fa_center);
     draw_set_valign(fa_middle);
+    desenhar_painel_carta_menu(_troca_ini_w/2-285,_troca_ini_h/2-100,_troca_ini_w/2+285,_troca_ini_h/2+110);
     draw_set_font(fnt_vitoria);
-    draw_set_color(c_red);
+    draw_set_color(c_yellow);
     draw_text(_troca_ini_w / 2, _troca_ini_h / 2 - 34, "PASSE PARA O JOGADOR 2");
     draw_set_font(Fontenil);
     draw_set_color(c_white);
@@ -918,10 +922,9 @@ if (_mostrar_painel_iniciativa && !ui_modal.tutorial_ativo && !(instance_exists(
     draw_set_color(c_black);
     draw_rectangle(0, 0, _ini_largura, _ini_altura, false);
     draw_set_alpha(1);
-    draw_set_color(c_black);
-    draw_roundrect(_ini_cx - 285, _ini_cy - 155, _ini_cx + 285, _ini_cy + 145, false);
-    draw_set_color(c_white);
-    draw_roundrect(_ini_cx - 285, _ini_cy - 155, _ini_cx + 285, _ini_cy + 145, true);
+    desenhar_painel_carta_menu(_ini_cx-285,_ini_cy-155,_ini_cx+285,_ini_cy+145);
+    desenhar_painel_carta_menu(_ini_cx-220,_ini_cy-76,_ini_cx-20,_ini_cy+1,1,false);
+    desenhar_painel_carta_menu(_ini_cx+20,_ini_cy-76,_ini_cx+220,_ini_cy+1,1,false);
     draw_set_halign(fa_center);
     draw_set_valign(fa_middle);
     draw_set_font(fnt_vitoria);
@@ -944,14 +947,10 @@ if (_mostrar_painel_iniciativa && !ui_modal.tutorial_ativo && !(instance_exists(
             ? nome_jogador_lado(disputa_inicial_vencedor) + " VENCEU. QUEM COMEÇA?"
             : "VOCÊ VENCEU. QUEM COMEÇA?";
         draw_text(_ini_cx, _ini_cy + 18, _texto_vencedor_ini);
-        draw_set_color(c_black);
-        draw_roundrect(_ini_cx - 215, _ini_cy + 55, _ini_cx - 15, _ini_cy + 105, false);
-        draw_roundrect(_ini_cx + 15, _ini_cy + 55, _ini_cx + 215, _ini_cy + 105, false);
-        draw_set_color(c_white);
-        draw_roundrect(_ini_cx - 215, _ini_cy + 55, _ini_cx - 15, _ini_cy + 105, true);
-        draw_roundrect(_ini_cx + 15, _ini_cy + 55, _ini_cx + 215, _ini_cy + 105, true);
-        draw_text(_ini_cx - 115, _ini_cy + 80, partida_local_ativa() ? "JOGADOR 1 COMEÇA" : "EU COMEÇO");
-        draw_text(_ini_cx + 115, _ini_cy + 80, partida_local_ativa() ? "JOGADOR 2 COMEÇA" : "INIMIGO COMEÇA");
+        botao_carta_painel(_ini_cx-215,_ini_cy+55,_ini_cx-15,_ini_cy+105,
+            partida_local_ativa()?"JOGADOR 1 COMEÇA":"EU COMEÇO",true);
+        botao_carta_painel(_ini_cx+15,_ini_cy+55,_ini_cx+215,_ini_cy+105,
+            partida_local_ativa()?"JOGADOR 2 COMEÇA":"INIMIGO COMEÇA",true);
     } else if (disputa_inicial_estado == "escolha_inimigo") {
         draw_set_color(c_red);
         draw_text(_ini_cx, _ini_cy + 25, "O INIMIGO VENCEU E ESTÁ ESCOLHENDO...");

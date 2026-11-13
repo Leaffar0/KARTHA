@@ -407,6 +407,8 @@ if (ui_modal.pausa_ativa) {
         var _voltar_y = _pausa_cy + 190;
         if (keyboard_check_pressed(vk_escape)) {
             ui_modal.opcoes_pausa_ativa = false;
+        } else if (mouse_check_button_pressed(mb_left) && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _pausa_cx-85, _efeitos_y-18, _pausa_cx+85, _efeitos_y+18)) {
+            global.canal_audio_opcoes=(global.canal_audio_opcoes+1) mod 4;
         } else if (mouse_check_button_pressed(mb_left) && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _pausa_cx - 160, _musica_y - 18, _pausa_cx - 90, _musica_y + 18)) {
             global.volume_musica = clamp(global.volume_musica - 0.1, 0, 1);
             aplicar_config_audio();
@@ -416,11 +418,11 @@ if (ui_modal.pausa_ativa) {
             aplicar_config_audio();
             salvar_configuracoes();
         } else if (mouse_check_button_pressed(mb_left) && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _pausa_cx - 160, _efeitos_y - 18, _pausa_cx - 90, _efeitos_y + 18)) {
-            global.volume_efeitos = clamp(global.volume_efeitos - 0.1, 0, 1);
+            ajustar_canal_audio(-0.1);
             aplicar_config_audio();
             salvar_configuracoes();
         } else if (mouse_check_button_pressed(mb_left) && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _pausa_cx + 90, _efeitos_y - 18, _pausa_cx + 160, _efeitos_y + 18)) {
-            global.volume_efeitos = clamp(global.volume_efeitos + 0.1, 0, 1);
+            ajustar_canal_audio(0.1);
             aplicar_config_audio();
             salvar_configuracoes();
         } else if (mouse_check_button_pressed(mb_left) && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _pausa_cx - 160, _tela_y - 18, _pausa_cx + 160, _tela_y + 18)) {

@@ -1,7 +1,9 @@
 view_enabled=false;
-som_previa=noone;
+som_previa=noone; sons_combate=[];
+combatentes=[criar_dados_lobo(),criar_dados_urso(),criar_dados_mimic(),criar_dados_slime(),criar_dados_esqueleto()];
+atacante_previa=0; alvo_previa=3; bloqueio_previa=false; critico_previa=false; magia_previa=false;
 modo=0; tempo=0; som_contato=false; pausado=false; repetir=false;
-rotulos=["Impacto", "Magia", "Criaturas", "Contra-ataque", "Final", "Equipamento", "Habilidade", "Sons"];
+rotulos=["Combate", "Magia", "Criaturas", "Contra-ataque", "Final", "Equipamento", "Habilidade", "Sons"];
 grupos=variable_struct_get_names(catalogo_sons_jogo());
 variacao_som=0;
 grupo=0; habilidade=0; magia=0;

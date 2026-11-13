@@ -29,3 +29,10 @@ if (!variable_global_exists("deck_contagens")
 }
 
 audio_opcoes_anterior=false;
+
+menu_hover=array_create(4,0);
+menu_hover_anterior=-1;
+
+painel_menu_abertura=0;
+painel_menu_anterior="";
+deck_backup_menu=[];

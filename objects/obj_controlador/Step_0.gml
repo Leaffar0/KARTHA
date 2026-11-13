@@ -36,9 +36,9 @@ if (instance_exists(carta_preview)) {
         previa_visual_progresso = 0;
         tocar_som_variado("abrir", 0.20);
     }
-    previa_visual_progresso = min(1, previa_visual_progresso + 1 / 12);
+    previa_visual_progresso = min(1, previa_visual_progresso + 1 / 28);
 } else {
-    previa_visual_progresso = max(0, previa_visual_progresso - 1 / 8);
+    previa_visual_progresso = max(0, previa_visual_progresso - 1 / 18);
     if (previa_visual_progresso == 0) previa_visual_carta = noone;
 }
 if (modo_partida == "online" && colyseus_is_ready()) colyseus_process();
