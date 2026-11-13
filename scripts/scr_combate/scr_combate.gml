@@ -160,6 +160,7 @@ function atualizar_animacao_ataque(_carta) {
 function apresentar_impacto_tropa(_atacante, _alvo, _dano, _defesa = 0, _texto = "", _cor = c_red, _critico = false, _magica = false) {
     var _atraso = iniciar_animacao_ataque(_atacante, _alvo, _critico ? 21 : 18, 18, _critico);
     var _impacto = evento_partida_criar("impacto_tropa", { atacante: _atacante, alvo: _alvo,
+        nome_atacante: nome_tropa_sonora(_atacante), nome_alvo: nome_tropa_sonora(_alvo),
         dano: _dano, defesa: _defesa, texto: _texto, cor: _cor, critico: _critico, magica: _magica, x: _alvo.x, y: _alvo.y });
     if (_atraso > 0 && instance_exists(obj_controlador)) apresentacao_enfileirar(_impacto, _atraso);
     else evento_partida_aplicar(_impacto);

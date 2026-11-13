@@ -18,7 +18,10 @@ if(modo==4) {
     if(_t>=55) { draw_set_alpha(clamp((_t-55)/28,0,1)); draw_set_color(c_yellow); draw_text_transformed(_cx,_cy,"VITÓRIA",1.4,1.4,0); draw_set_alpha(1); }
 } else if(modo==7) {
     draw_set_color(c_aqua); draw_text_transformed(_cx,_cy,"SOM: "+string_upper(grupos[grupo]),0.9,0.9,0);
-    draw_set_color(c_white); draw_text_transformed(_cx,_cy+40,"Setas: categoria | Espaço: próxima variação",0.52,0.52,0);
+    draw_set_color(c_white); var _sons=variable_struct_get(catalogo_sons_jogo(),grupos[grupo]);
+    draw_text_transformed(_cx,_cy+32,string(variacao_som+1)+"/"+string(array_length(_sons))+"  "+audio_get_name(_sons[variacao_som]),0.52,0.52,0);
+    draw_text_transformed(_cx,_cy+60,"Esquerda/direita: categoria | Cima/baixo: arquivo",0.48,0.48,0);
+    draw_text_transformed(_cx,_cy+84,"Espaço: ouvir este som novamente",0.48,0.48,0);
 } else {
     var _qtd=modo==2?3:((modo==3 || modo==1)?2:1);
     for(var i=0;i<_qtd;i++) {

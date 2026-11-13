@@ -213,6 +213,7 @@ function executar_opcao_menu(_carta, _opcao) {
         mostrar_aviso_regra(string_delete(_opcao, 1, string_pos("[", _opcao) - 1), _carta.x, _carta.y);
         return;
     }
+    tocar_som_variado("clique",0.20);
     if (obj_controlador.modo_partida == "online") {
         if (_opcao == "Avançar" || _opcao == "Recuar") {
             online_enviar_acao("move_troop", { cardId: _carta.online_instance_id, direction: (_opcao == "Avançar") ? "advance" : "retreat" });
@@ -462,6 +463,7 @@ function carregar_configuracoes() {
 }
 
 function salvar_configuracoes() {
+    tocar_som_variado("ajuste",0.20);
     ini_open("kartha_config.ini");
     ini_write_real("video", "intensidade_visual", global.intensidade_visual);
     ini_write_real("audio", "musica", global.volume_musica);
@@ -513,6 +515,11 @@ function aplicar_config_audio() {
     audio_sound_gain(snd_menu, _musica, 0);
     audio_sound_gain(snd_jogo, _musica, 0);
     var _sons_efeito = [snd_bencao, snd_maldicao, snd_bola_fogo_fogo, snd_bola_fogo_impacto, snd_bola_fogo_voo, snd_colocar, snd_moeda_arremesso, snd_moeda_impacto, snd_shuffle, snd_corte_ferida, snd_dado_mesa, snd_dado_mesa_2, snd_dado_mesa_3, snd_madeira_mimic, snd_metal_defesa, snd_metal_defesa_2, snd_metal_golpe, snd_metal_golpe_2, snd_metal_golpe_3, snd_papel_abrir, snd_papel_abrir_2, snd_papel_deslize, snd_papel_deslize_2, snd_papel_deslize_3, snd_papel_digestao, snd_papel_empurrao, snd_papel_empurrao_2, snd_papel_encaixe, snd_papel_encaixe_2, snd_papel_encaixe_3, snd_recurso_toque, snd_recurso_toque_2, snd_sussurro_sombra];
+    var _catalogo=catalogo_sons_jogo(), _categorias=variable_struct_get_names(_catalogo);
+    for(var _g=0;_g<array_length(_categorias);_g++) {
+        var _lista=variable_struct_get(_catalogo,_categorias[_g]);
+        for(var _s=0;_s<array_length(_lista);_s++) if(array_get_index(_sons_efeito,_lista[_s])<0) array_push(_sons_efeito,_lista[_s]);
+    }
     for (var i = 0; i < array_length(_sons_efeito); i++) {
         audio_sound_gain(_sons_efeito[i], _efeitos, 0);
     }

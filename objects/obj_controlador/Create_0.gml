@@ -258,3 +258,7 @@ marcas_mesa = [];
 dano_castelo_pausa_final = 0;
 
 ligacoes_visuais = [];
+
+audio_painel_anterior="";
+audio_submenu_anterior="";
+audio_historico_pagina=0;

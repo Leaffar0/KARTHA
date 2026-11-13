@@ -59,21 +59,20 @@ function evento_partida_aplicar(_evento) {
     switch (_evento.tipo) {
         case "feedback":
             if (variable_struct_exists(_dados, "som_critico") && _dados.som_critico)
-                tocar_som_variado("metal", 0.40, 0.90);
+                tocar_som_variado("critico", 0.40, 0.90);
             mostrar_feedback(_dados.texto, _dados.x, _dados.y, _dados.cor, _dados.duracao);
             return true;
 
         case "impacto_tropa":
             registrar_marca_mesa(_dados.x, _dados.y + 32, variable_struct_exists(_dados, "magica") && _dados.magica);
-            if (_dados.dano > 0 && !_dados.critico && _dados.defesa <= 0)
-                tocar_som_variado("empurrao", 0.26, 0.92);
+            tocar_som_impacto_criatura(_dados);
             if (_dados.critico && _dados.dano > 0)
-                tocar_som_variado("metal", 0.40, 0.90);
+                tocar_som_variado("critico", 0.40, 0.90);
             if (instance_exists(_dados.alvo)) {
                 aplicar_flash_dano(_dados.alvo, 18, _dados.atacante, _dados.defesa, _dados.critico);
                 if (_dados.defesa > 0) {
                     if (!_dados.critico || _dados.dano <= 0)
-                        tocar_som_variado("metal", 0.25, 1.08);
+                        tocar_som_variado((variable_struct_exists(_dados,"magica") && _dados.magica)?"magia_escudo":"defesa_escudo", 0.25, 1);
                     if (_dados.dano <= 0) {
                         _dados.alvo.dano_flash_timer = 0;
                         _dados.alvo.recuo_dano_x *= 0.2;

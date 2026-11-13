@@ -1761,6 +1761,8 @@ function other_custo_tipo(_custo) {
 
 // Feedback visual reutilizável para ações negadas por regra ou recurso insuficiente.
 function mostrar_aviso_regra(_texto, _x = mouse_x, _y = mouse_y) {
+    static _ultimo_som=-1000;
+    if(current_time-_ultimo_som>350) { tocar_som_variado("aviso",0.18); _ultimo_som=current_time; }
     debug_combate("Ação recusada: " + _texto);
     var _aviso = instance_create_layer(_x, _y - 24, "Instances", obj_texto_flutuante);
     _aviso.texto = _texto;
@@ -2348,6 +2350,7 @@ function usar_grimorio_iniciante(_tropa, _magia) {
 
     pagar_custo(_custo, _tropa.dono, "magica");
     _tropa.grimorio_usado_este_turno = true;
+    tocar_som_magia(_magia);
     if (_magia == "curazinha") {
         _tropa.vida = min(_tropa.vida_maxima, _tropa.vida + 1);
         mostrar_feedback("+1 VIDA", _tropa.x, _tropa.y - 40, c_lime, 45);

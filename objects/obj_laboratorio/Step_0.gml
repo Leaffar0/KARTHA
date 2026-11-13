@@ -16,6 +16,7 @@ if(keyboard_check_pressed(ord("P"))) pausado=!pausado;
 if(keyboard_check_pressed(ord("R"))) repetir=!repetir;
 if(modo==7 && (keyboard_check_pressed(vk_left)||keyboard_check_pressed(vk_right))) {
     grupo=(grupo+array_length(grupos)+(keyboard_check_pressed(vk_right)?1:-1)) mod array_length(grupos);
+    variacao_som=0;
     laboratorio_reiniciar(id);
 }
 if(modo==6 && (keyboard_check_pressed(vk_left)||keyboard_check_pressed(vk_right))) {
@@ -24,6 +25,11 @@ if(modo==6 && (keyboard_check_pressed(vk_left)||keyboard_check_pressed(vk_right)
 }
 if(modo==1 && (keyboard_check_pressed(vk_left)||keyboard_check_pressed(vk_right))) {
     magia=(magia+array_length(magias)+(keyboard_check_pressed(vk_right)?1:-1)) mod array_length(magias);
+    laboratorio_reiniciar(id);
+}
+if(modo==7 && (keyboard_check_pressed(vk_up)||keyboard_check_pressed(vk_down))) {
+    var _sons=variable_struct_get(catalogo_sons_jogo(),grupos[grupo]);
+    variacao_som=(variacao_som+array_length(_sons)+(keyboard_check_pressed(vk_down)?1:-1)) mod array_length(_sons);
     laboratorio_reiniciar(id);
 }
 if(!pausado) tempo++;
@@ -37,4 +43,5 @@ if(!som_contato && tempo>=((modo==4)?12:((modo==1 && magia==1)?70:32))) {
     if(modo==4) tocar_som_variado("metal",0.48,0.8);
     if(modo==5) tocar_som_variado("encaixe",0.40);
 }
-if(repetir && tempo>180) laboratorio_reiniciar(id);
+// Sons longos terminam antes da próxima repetição automática.
+if(repetir && tempo>180 && (som_previa==noone || !audio_is_playing(som_previa))) laboratorio_reiniciar(id);

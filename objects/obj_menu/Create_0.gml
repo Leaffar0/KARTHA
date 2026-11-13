@@ -27,3 +27,5 @@ if (!variable_global_exists("deck_contagens")
             global.deck_contagens[_di] = _base_deck + (_di < _resto_deck ? 1 : 0);
     }
 }
+
+audio_opcoes_anterior=false;

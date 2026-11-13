@@ -281,22 +281,17 @@ function apresentar_ativacao_habilidade(_carta, _chave) {
     if (!instance_exists(_carta)) return;
     _carta.visual_habilidade_chave = _chave;
     _carta.visual_habilidade_timer = 84;
-    if (_chave == "golpe_duplo" || _chave == "carnica_frenetica") {
-        tocar_som_variado("golpe", _chave == "golpe_duplo" ? 0.32 : 0.26);
-        return;
+    var _grupo="magia_arcana";
+    switch(_chave) {
+        case "golpe_duplo": _grupo="ataque_lamina"; break;
+        case "carnica_frenetica": _grupo="ataque_corpo"; break;
+        case "imitacao": _grupo="imitacao"; break;
+        case "digestao": _grupo="digestao"; break;
+        case "ferida_exposta": _grupo="ferida"; break;
+        case "sombra_translucida": _grupo="sombra"; break;
+        case "visao_do_veu": _grupo="magia_veu"; break;
     }
-    var _som = snd_bencao, _volume = 0.22;
-    switch (_chave) {
-        case "golpe_duplo": _som = snd_metal_golpe; _volume = 0.32; break;
-        case "imitacao": _som = snd_madeira_mimic; _volume = 0.30; break;
-        case "digestao": _som = snd_papel_digestao; _volume = 0.34; break;
-        case "ferida_exposta": _som = snd_corte_ferida; _volume = 0.28; break;
-        case "sombra_translucida": _som = snd_sussurro_sombra; _volume = 0.22; break;
-        case "visao_do_veu": _som = snd_sussurro_sombra; _volume = 0.18; break;
-        case "carnica_frenetica": _som = snd_metal_golpe; _volume = 0.26; break;
-    }
-    // Evita acumular vozes iguais quando várias tropas ativam na mesma atualização.
-    if (!audio_is_playing(_som)) audio_play_sound(_som, 1, false, _volume, 0, 1);
+    return tocar_som_variado(_grupo,volume_grupo_som(_grupo));
 }
 
 // Um único desenho para a partida e o laboratório; coordenadas já estão na GUI.
@@ -340,16 +335,7 @@ function desenhar_ativacoes_habilidade() {
 
 // Som cosmético: alterna arquivos sem interferir nas rolagens da partida.
 function tocar_som_variado(_grupo, _volume = 0.3, _pitch = 1) {
-    static _grupos = {
-        deslize: [snd_papel_deslize, snd_papel_deslize_2, snd_papel_deslize_3],
-        encaixe: [snd_papel_encaixe, snd_papel_encaixe_2, snd_papel_encaixe_3],
-        dado: [snd_dado_mesa, snd_dado_mesa_2, snd_dado_mesa_3],
-        metal: [snd_metal_defesa, snd_metal_defesa_2],
-        golpe: [snd_metal_golpe, snd_metal_golpe_2, snd_metal_golpe_3],
-        abrir: [snd_papel_abrir, snd_papel_abrir_2],
-        empurrao: [snd_papel_empurrao, snd_papel_empurrao_2],
-        recurso: [snd_recurso_toque, snd_recurso_toque_2]
-    };
+    var _grupos=catalogo_sons_jogo();
     static _indices = {};
     static _instantes = {};
     static _vozes = {};
@@ -455,11 +441,16 @@ function laboratorio_reiniciar(_lab) {
     _lab.tempo=0; _lab.som_contato=false;
     switch (_lab.modo) {
         case 0: tocar_som_variado("empurrao",0.26); break;
-        case 1: if(_lab.magia==1) _lab.som_previa=audio_play_sound(snd_bola_fogo_voo,1,false,0.5); break;
+        case 1: if(_lab.magia==1) _lab.som_previa=audio_play_sound(snd_bola_fogo_voo,1,false,0.5);
+            else _lab.som_previa=tocar_som_magia(["arcana","bola_fogo","veneno","gelo","choque"][_lab.magia]); break;
         case 3: tocar_som_variado("empurrao",0.23); break;
         case 5: tocar_som_variado("deslize",0.38); break;
-        case 6: apresentar_ativacao_habilidade(_lab,_lab.habilidades[_lab.habilidade]); break;
-        case 7: tocar_som_variado(_lab.grupos[_lab.grupo],0.32); break;
+        case 6: _lab.som_previa=apresentar_ativacao_habilidade(_lab,_lab.habilidades[_lab.habilidade]); break;
+        case 7:
+            var _sons=variable_struct_get(catalogo_sons_jogo(),_lab.grupos[_lab.grupo]);
+            _lab.variacao_som=clamp(_lab.variacao_som,0,array_length(_sons)-1);
+            _lab.som_previa=audio_play_sound(_sons[_lab.variacao_som],1,false,volume_grupo_som(_lab.grupos[_lab.grupo]));
+            break;
     }
 }
 
@@ -609,4 +600,105 @@ function posicao_encaixe_equipamento(_ox,_oy,_fx,_fy,_altura,_rotacao,_p) {
     var _ax=_fx+lengthdir_x(_altura*0.65,270+_rotacao);
     var _ay=_fy+lengthdir_y(_altura*0.65,270+_rotacao);
     return {x:lerp(lerp(_ox,_ax,_entrada),_fx,_encaixe),y:lerp(lerp(_oy,_ay,_entrada),_fy,_encaixe)};
+}
+
+function catalogo_sons_jogo() {
+    static _grupos = {
+        clique: [snd_ui_clique_1,snd_ui_clique_2],
+        ajuste: [snd_ui_ajuste],
+        aviso: [snd_ui_aviso],
+        painel_abrir: [snd_foley_livro_abrir],
+        painel_fechar: [snd_foley_livro_fechar],
+        pagina: [snd_foley_pagina_1,snd_foley_pagina_2],
+        ataque_corpo: [snd_impacto_corpo_1,snd_impacto_corpo_2],
+        ataque_lamina: [snd_foley_lamina_1,snd_foley_lamina_2],
+        defesa_escudo: [snd_impacto_escudo_1,snd_impacto_escudo_2],
+        critico: [snd_impacto_pesado_1,snd_impacto_pesado_2],
+        gelo: [snd_magia_gelo_1,snd_magia_gelo_2],
+        gelo_estilhacos: [snd_impacto_gelo_1,snd_impacto_gelo_2],
+        imitacao: [snd_mimic_bau_1,snd_mimic_bau_2],
+        madeira_rangido: [snd_foley_mimic_1,snd_foley_mimic_2,snd_madeira_mimic],
+        slime_ataque: [snd_slime_ataque],
+        slime_dano: [snd_slime_dano],
+        esqueleto: [snd_esqueleto_osso_1,snd_esqueleto_osso_2],
+        mordida: [snd_monstro_mordida],
+        sombra: [snd_foley_tecido,snd_sussurro_sombra],
+        ferida: [snd_foley_corte_seco,snd_corte_ferida],
+        digestao: [snd_papel_digestao],
+        magia_arcana: [snd_magia_sombria],
+        magia_antiga: [snd_arcano_1,snd_arcano_2,snd_arcano_3,snd_arcano_4,snd_arcano_5,snd_arcano_6,snd_arcano_7],
+        magia_veneno: [snd_magia_sombria],
+        magia_choque: [snd_magia_raio_2,snd_magia_raio_1],
+        magia_cura: [snd_arcano_2],
+        magia_escudo: [snd_arcano_5],
+        magia_veu: [snd_magia_sombria],
+        bola_fogo: [snd_bola_fogo_voo,snd_bola_fogo_impacto,snd_bola_fogo_fogo],
+        ritual: [snd_bencao,snd_maldicao],
+        moeda: [snd_moeda_arremesso,snd_moeda_impacto],
+        baralho: [snd_shuffle],
+
+        deslize: [snd_papel_deslize, snd_papel_deslize_2, snd_papel_deslize_3],
+        encaixe: [snd_papel_encaixe, snd_papel_encaixe_2, snd_papel_encaixe_3],
+        dado: [snd_dado_mesa, snd_dado_mesa_2, snd_dado_mesa_3],
+        metal: [snd_metal_defesa, snd_metal_defesa_2],
+        golpe: [snd_metal_golpe, snd_metal_golpe_2, snd_metal_golpe_3],
+        abrir: [snd_papel_abrir, snd_papel_abrir_2],
+        empurrao: [snd_papel_empurrao, snd_papel_empurrao_2],
+        recurso: [snd_recurso_toque, snd_recurso_toque_2]
+    };
+    return _grupos;
+}
+function volume_grupo_som(_grupo) {
+    switch(_grupo) {
+        case "clique": return 0.20; case "ajuste": return 0.20; case "aviso": return 0.18;
+        case "painel_abrir": case "painel_fechar": case "pagina": return 0.22;
+        case "magia_arcana": case "magia_veneno": case "magia_choque": case "magia_cura": case "magia_escudo": case "magia_veu": return 0.24;
+        case "sombra": return 0.22;
+    }
+    return 0.32;
+}
+function grupo_som_magia(_efeito) {
+    switch(_efeito) {
+        case "bola_fogo": return "";
+        case "veneno": case "envenenado": return "magia_veneno";
+        case "gelo": case "congelado": return "gelo";
+        case "choque": case "raio": case "eletrocutado": return "magia_choque";
+        case "curazinha": case "cura": return "magia_cura";
+        case "escudo": return "magia_escudo";
+    }
+    return "magia_arcana";
+}
+function tocar_som_magia(_efeito) {
+    var _grupo=grupo_som_magia(_efeito);
+    if(_grupo=="") return noone;
+    return tocar_som_variado(_grupo,volume_grupo_som(_grupo));
+}
+
+// Apenas apresentação: o nome identifica a família sem modificar regras da tropa.
+function grupo_som_criatura(_nome, _recebendo = false) {
+    _nome = string_lower(_nome);
+    if (string_pos("slime", _nome) > 0) return _recebendo ? "slime_dano" : "slime_ataque";
+    if (string_pos("esqueleto", _nome) > 0) return "esqueleto";
+    if (!_recebendo && (string_pos("lobo", _nome) > 0 || string_pos("urso", _nome) > 0
+        || string_pos("mimic", _nome) > 0 || string_pos("mímic", _nome) > 0)) return "mordida";
+    return "";
+}
+
+function nome_tropa_sonora(_carta) {
+    if (!instance_exists(_carta) || !variable_instance_exists(_carta, "nome_carta")) return "";
+    return _carta.nome_carta;
+}
+
+function tocar_som_impacto_criatura(_dados) {
+    if (_dados.dano <= 0) return;
+    var _magica = variable_struct_exists(_dados, "magica") && _dados.magica;
+    // O alvo pode já ter morrido quando o impacto agendado é apresentado.
+    var _origem = variable_struct_exists(_dados, "nome_atacante") ? _dados.nome_atacante : nome_tropa_sonora(_dados.atacante);
+    var _destino = variable_struct_exists(_dados, "nome_alvo") ? _dados.nome_alvo : nome_tropa_sonora(_dados.alvo);
+    var _ataque = _magica ? "" : grupo_som_criatura(_origem);
+    var _dano = grupo_som_criatura(_destino, true);
+    if (_ataque != "") tocar_som_variado(_ataque, 0.30);
+    if (_dano != "" && _dano != _ataque) tocar_som_variado(_dano, 0.26);
+    if (_ataque == "" && _dano == "" && !_dados.critico && _dados.defesa <= 0)
+        tocar_som_variado(_magica ? "magia_arcana" : "ataque_corpo", 0.26, 0.98);
 }

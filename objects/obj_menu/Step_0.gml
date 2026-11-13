@@ -1,3 +1,7 @@
+if(opcoes_abertas!=audio_opcoes_anterior) {
+    tocar_som_variado(opcoes_abertas?"painel_abrir":"painel_fechar",0.22);
+    audio_opcoes_anterior=opcoes_abertas;
+}
 // O SDK usa uma fila de eventos; ela precisa ser processada a cada frame.
 if (colyseus_is_ready()) colyseus_process();
 if (online_copiado_timer > 0) online_copiado_timer--;

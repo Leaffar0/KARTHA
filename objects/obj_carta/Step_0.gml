@@ -381,6 +381,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         }
 
         if (_executou_magia) {
+            tocar_som_magia(efeito_tipo);
             if (array_length(efeitos_declarativos)==0 && efeito_tipo!="bola_fogo")
                 ligar_efeito_alvo(id,instance_exists(_alvo_magia)?_alvo_magia:id,c_aqua);
             pagar_custo(custo, _lado_acao, categoria);

@@ -1548,6 +1548,7 @@ function online_animar_confirmacao(_mensagem) {
     if (_mensagem.kind == "play_spell" || _mensagem.kind == "play_item"
         || _mensagem.kind == "play_trap" || _mensagem.kind == "activate_trap"
         || _mensagem.kind == "play_effect") {
+        if(_mensagem.kind=="play_spell") tocar_som_magia(variable_struct_exists(_dados,"effect")?_dados.effect:"arcana");
         var _alvo_especial = noone;
         if (variable_struct_exists(_dados, "targetId")) {
             _alvo_especial = online_encontrar_carta_campo(_dados.targetId);
@@ -1750,6 +1751,7 @@ function online_animar_confirmacao(_mensagem) {
     }
 
     if (_mensagem.kind == "use_item_ability") {
+        tocar_som_magia(_dados.spell);
         var _grimorio_origem = online_encontrar_carta_campo(_dados.cardId);
         var _grimorio_alvo = variable_struct_exists(_dados, "targetId")
             ? online_encontrar_carta_campo(_dados.targetId) : noone;

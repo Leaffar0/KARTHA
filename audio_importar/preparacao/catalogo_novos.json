@@ -1,0 +1,205 @@
+[
+  {
+    "name": "snd_arcano_1",
+    "source": "audio_importar/magia_opengameart/magical_1.ogg",
+    "use": "Conjuração: candidato disponível no F7",
+    "duration": 1.596780045351474,
+    "gain": 1.5313554459952285
+  },
+  {
+    "name": "snd_arcano_2",
+    "source": "audio_importar/magia_opengameart/magical_2.ogg",
+    "use": "Conjuração: candidato disponível no F7",
+    "duration": 1.3799546485260772,
+    "gain": 2.2036635120892574
+  },
+  {
+    "name": "snd_arcano_3",
+    "source": "audio_importar/magia_opengameart/magical_3.ogg",
+    "use": "Conjuração: candidato disponível no F7",
+    "duration": 1.8205895691609977,
+    "gain": 0.6963496237204442
+  },
+  {
+    "name": "snd_arcano_4",
+    "source": "audio_importar/magia_opengameart/magical_4.ogg",
+    "use": "Conjuração: candidato disponível no F7",
+    "duration": 1.769047619047619,
+    "gain": 2.3161762053064083
+  },
+  {
+    "name": "snd_arcano_5",
+    "source": "audio_importar/magia_opengameart/magical_5.ogg",
+    "use": "Conjuração: candidato disponível no F7",
+    "duration": 1.4382539682539683,
+    "gain": 3.2028163795323543
+  },
+  {
+    "name": "snd_arcano_6",
+    "source": "audio_importar/magia_opengameart/magical_6.ogg",
+    "use": "Conjuração: candidato disponível no F7",
+    "duration": 1.1103854875283448,
+    "gain": 4
+  },
+  {
+    "name": "snd_arcano_7",
+    "source": "audio_importar/magia_opengameart/magical_7.ogg",
+    "use": "Conjuração: candidato disponível no F7",
+    "duration": 1.540498866213152,
+    "gain": 4
+  },
+  {
+    "name": "snd_ui_clique_1",
+    "source": "audio_importar/Interface_kenney/Audio/click_001.ogg",
+    "use": "Clique de ação",
+    "duration": 0.1,
+    "originalOgg": true
+  },
+  {
+    "name": "snd_ui_clique_2",
+    "source": "audio_importar/Interface_kenney/Audio/click_002.ogg",
+    "use": "Clique de ação",
+    "duration": 0.01,
+    "originalOgg": true
+  },
+  {
+    "name": "snd_ui_ajuste",
+    "source": "audio_importar/Interface_kenney/Audio/switch_002.ogg",
+    "use": "Ajuste de opções",
+    "duration": 0.2795011337868481,
+    "gain": 0.33991467041891676
+  },
+  {
+    "name": "snd_ui_aviso",
+    "source": "audio_importar/Interface_kenney/Audio/back_001.ogg",
+    "use": "Ação recusada",
+    "duration": 0.06,
+    "originalOgg": true
+  },
+  {
+    "name": "snd_foley_livro_abrir",
+    "source": "audio_importar/rpg_kenney/Audio/bookOpen.ogg",
+    "use": "Abrir painel",
+    "duration": 0.1510657596371882,
+    "gain": 2.55196747007118
+  },
+  {
+    "name": "snd_foley_livro_fechar",
+    "source": "audio_importar/rpg_kenney/Audio/bookClose.ogg",
+    "use": "Fechar painel",
+    "duration": 0.19,
+    "gain": 0.4703534032868761
+  },
+  {
+    "name": "snd_foley_pagina_1",
+    "source": "audio_importar/rpg_kenney/Audio/bookFlip1.ogg",
+    "use": "Trocar página",
+    "duration": 0.702108843537415,
+    "gain": 0.6855455396439574
+  },
+  {
+    "name": "snd_foley_pagina_2",
+    "source": "audio_importar/rpg_kenney/Audio/bookFlip2.ogg",
+    "use": "Trocar página",
+    "duration": 0.43045351473922905,
+    "gain": 2.2135485081628823
+  },
+  {
+    "name": "snd_foley_lamina_1",
+    "source": "audio_importar/rpg_kenney/Audio/knifeSlice.ogg",
+    "use": "Golpe de lâmina",
+    "duration": 0.4804081632653061,
+    "gain": 0.6197712949918499
+  },
+  {
+    "name": "snd_foley_lamina_2",
+    "source": "audio_importar/rpg_kenney/Audio/knifeSlice2.ogg",
+    "use": "Golpe de lâmina",
+    "duration": 0.5472108843537415,
+    "gain": 0.47382603681170377
+  },
+  {
+    "name": "snd_foley_corte_seco",
+    "source": "audio_importar/rpg_kenney/Audio/chop.ogg",
+    "use": "Ferida exposta",
+    "duration": 0.22519274376417234,
+    "gain": 0.39974349709297813
+  },
+  {
+    "name": "snd_foley_mimic_1",
+    "source": "audio_importar/rpg_kenney/Audio/creak1.ogg",
+    "use": "Imitação",
+    "duration": 0.6075963718820862,
+    "gain": 1.0821866876787698
+  },
+  {
+    "name": "snd_foley_mimic_2",
+    "source": "audio_importar/rpg_kenney/Audio/creak2.ogg",
+    "use": "Imitação",
+    "duration": 0.827936507936508,
+    "gain": 1.0779645123013737
+  },
+  {
+    "name": "snd_foley_tecido",
+    "source": "audio_importar/rpg_kenney/Audio/cloth3.ogg",
+    "use": "Sombra / deslocamento suave",
+    "duration": 0.4689795918367347,
+    "gain": 2.095083602008449
+  },
+  {
+    "name": "snd_impacto_corpo_1",
+    "source": "audio_importar/impactos_kenney/Audio/impactPunch_medium_000.ogg",
+    "use": "Ataque físico",
+    "duration": 0.3618140589569161,
+    "gain": 0.3388600968930858
+  },
+  {
+    "name": "snd_impacto_corpo_2",
+    "source": "audio_importar/impactos_kenney/Audio/impactPunch_medium_001.ogg",
+    "use": "Ataque físico",
+    "duration": 0.349297052154195,
+    "gain": 0.328436807518112
+  },
+  {
+    "name": "snd_impacto_escudo_1",
+    "source": "audio_importar/impactos_kenney/Audio/impactPlate_medium_000.ogg",
+    "use": "Defesa",
+    "duration": 0.44895691609977323,
+    "gain": 0.6799049357686892
+  },
+  {
+    "name": "snd_impacto_escudo_2",
+    "source": "audio_importar/impactos_kenney/Audio/impactPlate_medium_001.ogg",
+    "use": "Defesa",
+    "duration": 0.4340816326530612,
+    "gain": 0.5953120042851269
+  },
+  {
+    "name": "snd_impacto_gelo_1",
+    "source": "audio_importar/impactos_kenney/Audio/impactGlass_light_000.ogg",
+    "use": "Gelo",
+    "duration": 0.2307482993197279,
+    "gain": 0.4940794402465761
+  },
+  {
+    "name": "snd_impacto_gelo_2",
+    "source": "audio_importar/impactos_kenney/Audio/impactGlass_light_001.ogg",
+    "use": "Gelo",
+    "duration": 0.20668934240362813,
+    "gain": 0.4849914389402201
+  },
+  {
+    "name": "snd_impacto_pesado_1",
+    "source": "audio_importar/impactos_kenney/Audio/impactWood_heavy_000.ogg",
+    "use": "Golpe crítico",
+    "duration": 0.3078004535147392,
+    "gain": 0.36681347099206313
+  },
+  {
+    "name": "snd_impacto_pesado_2",
+    "source": "audio_importar/impactos_kenney/Audio/impactWood_heavy_001.ogg",
+    "use": "Golpe crítico",
+    "duration": 0.30387755102040814,
+    "gain": 0.37258655757869946
+  }
+]

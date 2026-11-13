@@ -21,6 +21,14 @@ for(var _lv=array_length(ligacoes_visuais)-1;_lv>=0;_lv--) {
     ligacoes_visuais[_lv].t++;
     if(ligacoes_visuais[_lv].t>=54) array_delete(ligacoes_visuais,_lv,1);
 }
+var _painel_som=controlador_modal_atual(id);
+if(_painel_som=="") _painel_som=ui_modal.historico_aberto?"historico":(instance_exists(carta_menu_aberto)?"acoes":"");
+if(_painel_som!=audio_painel_anterior) {
+    if(_painel_som!="fim_partida") tocar_som_variado(_painel_som==""?"painel_fechar":"painel_abrir",0.22);
+    audio_painel_anterior=_painel_som;
+}
+if(menu_submenu!=audio_submenu_anterior) { if(instance_exists(carta_menu_aberto)) tocar_som_variado("clique",0.20); audio_submenu_anterior=menu_submenu; }
+if(historico_pagina!=audio_historico_pagina) { tocar_som_variado("pagina",0.20);audio_historico_pagina=historico_pagina; }
 atualizar_escala_hud(id);
 if (instance_exists(carta_preview)) {
     if (previa_visual_carta != carta_preview) {
