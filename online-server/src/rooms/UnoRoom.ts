@@ -26,6 +26,7 @@ interface ActiveEffectCard {
 }
 
 interface PrivatePlayer {
+  itemSwapUsed?: boolean;
   traps: ActiveTrap[];
   resources: ActiveResource[];
   abyss: PrivateCard[];
@@ -56,6 +57,7 @@ interface AbilityState {
   shadowTurns?: number;
   shadowCooldown?: number;
   illusion?: boolean;
+  illusionSourceId?: string;
   gazeTested?: boolean;
   veilUsed?: boolean;
   trapImmunity?: number;
@@ -451,6 +453,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     let result: ActionResult;
     try {
       result = this.applyAction(pending.seat, pending.kind, pending.payload);
+      if (result.ok) this.checkGazeEncounters();
     } catch (error) {
       const roll = error as { manipulatedRoll?: boolean; seat?: number; natural?: number; fixed?: number; sides?: number };
       this.restoreMatchSnapshot(pending.snapshot);
@@ -654,32 +657,79 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
   private effectiveAttackDie(card: PublicCardState, base: number): number {
     return this.equipmentIds(card).reduce((die, id) => CARD_DEFINITIONS[id]?.overrideAttackDie ?? die, base);
   }
+  private tryBreakIllusion(card: PublicCardState, test?: Record<string, unknown>): boolean {
+    const state = this.abilityState(card);
+    if (!state.illusion) return true;
+    const source = state.illusionSourceId ? this.state.cards.get(state.illusionSourceId) : undefined;
+    const enemyRoll = source ? this.rollForSeat(card.owner, 20) + card.intelligence : 0;
+    const sourceRoll = source ? this.rollForSeat(source.owner, 20) + source.intelligence : 0;
+    if (source && test) Object.assign(test, { illusionSourceId: source.instanceId,
+      illusionEnemyRoll: enemyRoll, illusionSourceRoll: sourceRoll });
+    const released = !source || enemyRoll >= sourceRoll;
+    state.illusion = !released;
+    this.setAbilityState(card, state);
+    return released;
+  }
+
+  private checkGazeEncounters() {
+    this.state.cards.forEach((card: PublicCardState) => {
+      if (card.category !== "tropa") return;
+      const state = this.abilityState(card);
+      if (state.gazeTested) return;
+      const direction = card.owner === 0 ? -1 : 1;
+      const source = this.findPublic(other => other.category === "tropa" && other.owner !== card.owner
+        && other.lane === card.lane && other.position === card.position + direction
+        && this.hasAbility(other, "olhar_vazio"));
+      if (!source) return;
+      state.gazeTested = true;
+      this.setAbilityState(card, state);
+      if (this.rollForSeat(card.owner, 20) <= 10) this.applyCondition(card, "paralisado", 2, 0);
+    });
+  }
+
+  private conditions(card: PublicCardState): { type: string; turns: number; power: number }[] {
+    if (card.conditionsJson) return JSON.parse(card.conditionsJson);
+    return card.condition ? [{ type: card.condition, turns: card.conditionTurns, power: card.conditionPower }] : [];
+  }
+
+  private setConditions(card: PublicCardState, conditions: { type: string; turns: number; power: number }[]) {
+    card.conditionsJson = JSON.stringify(conditions);
+    card.condition = conditions[0]?.type ?? "";
+    card.conditionTurns = conditions[0]?.turns ?? 0;
+    card.conditionPower = conditions[0]?.power ?? 0;
+  }
+
+  private hasCondition(card: PublicCardState, type: string): boolean {
+    return this.conditions(card).some(condition => condition.type === type);
+  }
+
+  private removeCondition(card: PublicCardState, type: string) {
+    this.setConditions(card, this.conditions(card).filter(condition => condition.type !== type));
+  }
+
   private applyCondition(card: PublicCardState, condition: string, turns: number, power: number, sourceSeat?: number, sourceCardId = ""): boolean {
+    if (card.category !== "tropa") return false;
     const state = this.abilityState(card);
     if (condition === "queimado" && (state.burnImmunity ?? 0) > 0) return false;
+    if (condition === "paralisado") turns = 2;
+    const conditions = this.conditions(card);
+    const existing = conditions.find(item => item.type === condition);
     if (condition === "sangrando") {
-      if (card.condition && card.condition !== condition) return false;
-      if (card.condition === condition) {
-        if (state.bleedingWindow || state.bleedingHitThisCycle) card.conditionTurns += Math.max(1, turns);
-        else card.conditionTurns = Math.max(1, card.conditionTurns);
-        card.conditionPower = Math.max(card.conditionPower, power);
-      } else {
-        card.condition = condition;
-        card.conditionTurns = state.bleedingWindow ? 2 : Math.max(1, turns);
-        card.conditionPower = power;
-      }
+      if (existing) {
+        existing.turns = state.bleedingWindow || state.bleedingHitThisCycle
+          ? existing.turns + Math.max(1, turns) : Math.max(1, existing.turns);
+        existing.power = Math.max(existing.power, power);
+      } else conditions.push({ type: condition, turns: state.bleedingWindow ? 2 : Math.max(1, turns), power });
       state.bleedingWindow = true;
       state.bleedingHitThisCycle = true;
       this.setAbilityState(card, state);
-      return true;
-    }
-    if (card.condition && card.condition !== condition) return false;
-    card.condition = condition;
-    card.conditionTurns = turns;
-    card.conditionPower = power;
+    } else if (existing) {
+      existing.turns = existing.turns < 0 || turns < 0 ? -1 : Math.max(existing.turns, turns);
+      existing.power = Math.max(existing.power, power);
+    } else conditions.push({ type: condition, turns, power });
+    this.setConditions(card, conditions);
     if (condition === "loucura" && sourceSeat !== undefined && sourceSeat !== card.owner) {
-      const mutualTrap = this.privatePlayers[card.owner]?.traps.find((trap) =>
-        trap.definitionId === "loucura_mutua" && !trap.ready);
+      const mutualTrap = this.privatePlayers[card.owner]?.traps.find(trap => trap.definitionId === "loucura_mutua" && !trap.ready);
       if (mutualTrap) { mutualTrap.ready = true; mutualTrap.targetId = sourceCardId; }
     }
     return true;
@@ -880,7 +930,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
         targetState.electrocutedThisCycle = true;
         let madness = false;
         if (target.life > 0 && targetState.electrocutions >= 6) {
-          target.condition = ""; target.conditionTurns = 0; target.conditionPower = 0;
+          // O sexto choque acrescenta Loucura sem apagar outras condições.
           madness = this.applyCondition(target, "loucura", -1, 0, seat, found.card.instanceId);
           targetState.electrocutions = 0;
         } else if (target.life > 0) {
@@ -916,7 +966,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       if (!target || target.category !== "tropa" || target.owner !== seat) return { ok: false, reason: "alvo_item_invalido" };
       const equipment = this.equipmentIds(target);
       const targetState = this.abilityState(target);
-      if (["adormecido", "loucura"].includes(target.condition)) return { ok: false, reason: "tropa_incapacitada" };
+      if (["adormecido", "loucura"].some(type => this.hasCondition(target, type))) return { ok: false, reason: "tropa_incapacitada" };
       if (targetState.itemActionUsed) return { ok: false, reason: "acao_item_ja_usada" };
       const targetDefinition = CARD_DEFINITIONS[target.definitionId];
       if (equipment.length >= (targetDefinition.itemSlots ?? 0)) return { ok: false, reason: "mochila_cheia" };
@@ -995,7 +1045,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     const trap = data.traps[index];
     if (!trap.ready) return { ok: false, reason: "armadilha_nao_pronta" };
     const target = trap.targetId ? this.state.cards.get(trap.targetId) : undefined;
-    let details: Record<string, unknown> = { trapId, definitionId: trap.definitionId, targetId: trap.targetId };
+    let details: Record<string, unknown> = { trapId, definitionId: trap.definitionId, targetId: trap.targetId, lane: trap.lane, position: trap.position };
 
     if (target) {
       const targetState = this.abilityState(target);
@@ -1090,18 +1140,20 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
 
 
   private removeItem(seat: number, payload: Record<string, unknown>): ActionResult {
+    if (this.privatePlayers[seat].itemSwapUsed) return { ok: false, reason: "limite_trocas_turno" };
     const cardId = typeof payload.cardId === "string" ? payload.cardId : "";
     const card = this.state.cards.get(cardId);
     if (!card || card.owner !== seat || card.category !== "tropa")
       return { ok: false, reason: "tropa_invalida" };
     const state = this.abilityState(card);
-    if (["adormecido", "loucura"].includes(card.condition)) return { ok: false, reason: "tropa_incapacitada" };
+    if (["adormecido", "loucura"].some(type => this.hasCondition(card, type))) return { ok: false, reason: "tropa_incapacitada" };
     if (state.itemActionUsed) return { ok: false, reason: "acao_item_ja_usada" };
     const equipment = this.equipmentIds(card);
     if (equipment.length <= 0) return { ok: false, reason: "tropa_sem_item" };
     const itemDefinitionId = equipment.pop()!;
     this.setEquipment(card, equipment);
     this.privatePlayers[seat].hand.push(this.makePrivateCard(seat, itemDefinitionId));
+    this.privatePlayers[seat].itemSwapUsed = true;
     state.itemActionUsed = true;
     this.setAbilityState(card, state);
     this.updateCounts(seat);
@@ -1109,6 +1161,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
   }
 
   private transferItem(seat: number, payload: Record<string, unknown>): ActionResult {
+    if (this.privatePlayers[seat].itemSwapUsed) return { ok: false, reason: "limite_trocas_turno" };
     const fromId = typeof payload.cardId === "string" ? payload.cardId : "";
     const toId = typeof payload.targetId === "string" ? payload.targetId : "";
     const from = this.state.cards.get(fromId);
@@ -1118,7 +1171,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       return { ok: false, reason: "transferencia_invalida" };
     const fromState = this.abilityState(from);
     const toState = this.abilityState(to);
-    if (["adormecido", "loucura"].includes(from.condition) || ["adormecido", "loucura"].includes(to.condition))
+    if (["adormecido", "loucura"].some(type => this.hasCondition(from, type)) || ["adormecido", "loucura"].some(type => this.hasCondition(to, type)))
       return { ok: false, reason: "tropa_incapacitada" };
     if (fromState.itemActionUsed || toState.itemActionUsed)
       return { ok: false, reason: "acao_item_ja_usada" };
@@ -1131,6 +1184,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     destinationEquipment.push(itemDefinitionId);
     this.setEquipment(from, sourceEquipment);
     this.setEquipment(to, destinationEquipment);
+    this.privatePlayers[seat].itemSwapUsed = true;
     fromState.itemActionUsed = true;
     toState.itemActionUsed = true;
     this.setAbilityState(from, fromState);
@@ -1149,7 +1203,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       return { ok: false, reason: "tropa_invalida" };
     if (!this.equipmentIds(card).includes("grimorio_iniciante"))
       return { ok: false, reason: "grimorio_nao_equipado" };
-    if (["paralisado", "adormecido", "loucura"].includes(card.condition))
+    if (["paralisado", "adormecido", "loucura"].some(type => this.hasCondition(card, type)))
       return { ok: false, reason: "tropa_incapacitada" };
     const state = this.abilityState(card);
     if (state.grimoireUsed) return { ok: false, reason: "grimorio_ja_usado" };
@@ -1196,7 +1250,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     const card = this.state.cards.get(cardId);
     if (!card || card.owner !== seat || card.category !== "tropa")
       return { ok: false, reason: "tropa_invalida" };
-    if (["paralisado", "adormecido", "loucura"].includes(card.condition))
+    if (["paralisado", "adormecido", "loucura"].some(type => this.hasCondition(card, type)))
       return { ok: false, reason: "tropa_incapacitada" };
     const definition = CARD_DEFINITIONS[card.definitionId];
     const ability = typeof payload.ability === "string" && definition.abilities?.includes(payload.ability)
@@ -1210,8 +1264,9 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       if (card.attacked) return { ok: false, reason: "tropa_ja_atacou" };
       const first = this.attack(seat, { cardId, attackType: definition.magicDie && !definition.attackDie ? "magica" : "fisica" });
       if (!first.ok) return first;
-      state.used = true;
-      this.setAbilityState(card, state);
+      const afterFirst = this.abilityState(card);
+      afterFirst.used = true;
+      this.setAbilityState(card, afterFirst);
       if (this.pendingCritical) {
         this.pendingCritical.repeatAfter = 1;
         return { ok: true, details: { ability, cardId, attacks: [first.details], criticalChoice: true } };
@@ -1240,12 +1295,21 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       && other.lane === card.lane && other.position === card.position + direction);
 
     if (ability === "ferida_exposta") {
+      if (card.attacked) return { ok: false, reason: "tropa_ja_atacou" };
+      if (!this.playerBySeat(seat)!.hasTakenTurn) return { ok: false, reason: "primeiro_turno_bloqueado" };
+      if (this.hasCondition(card, "congelado")) return { ok: false, reason: "tropa_incapacitada" };
       if (!front) return { ok: false, reason: "habilidade_sem_alvo" };
+      if ((this.abilityState(front).shadowTurns ?? 0) > 0 || (this.hasAbility(front, "voar")
+        && !["voar", "alcance", "alcance_magico"].some(a => this.hasAbility(card, a))))
+        return { ok: false, reason: "alvo_invalido" };
+      card.attacked = true;
       state.used = true; this.setAbilityState(card, state);
+      if (!this.tryBreakIllusion(card)) return { ok: true, details: { ability, cardId, illusion: true, damage: 0 } };
       const coin = this.rollForSeat(seat, 2);
       let damage = 0;
       if (coin === 1) {
-        damage = this.rollForSeat(seat, Math.max(1, definition.attackDie ?? 1));
+        damage = Array.from({ length: Math.max(1, definition.attackDice ?? 1) },
+          () => this.rollForSeat(seat, Math.max(1, definition.attackDie ?? 1))).reduce((sum, roll) => sum + roll, 0);
         front.life -= damage;
         if (front.life > 0) this.applyCondition(front, "sangrando", 1, 3);
         else this.destroyPublicCard(front);
@@ -1255,21 +1319,20 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
 
     if (ability === "imitacao") {
       if (!front) return { ok: false, reason: "habilidade_sem_alvo" };
-      if (front.intelligence > 0) state.used = true;
+      if (card.attacked) return { ok: false, reason: "tropa_ja_atacou" };
+      state.used = true;
       const attackerRoll = this.rollForSeat(seat, 20) + card.intelligence;
       const defenderRoll = this.rollForSeat(1 - seat, 20) + front.intelligence;
-      let counter: ActionResult | undefined;
+      this.setAbilityState(card, state);
+
       if (attackerRoll > defenderRoll) {
         const targetState = this.abilityState(front);
         targetState.illusion = true;
+        targetState.illusionSourceId = card.instanceId;
         this.setAbilityState(front, targetState);
-        const previous = card.attacked;
-        card.attacked = false;
-        counter = this.attack(seat, { cardId, attackType: definition.magicDie && !definition.attackDie ? "magica" : "fisica" });
-        card.attacked = previous;
+
       }
-      this.setAbilityState(card, state);
-      return { ok: true, details: { ability, cardId, targetId: front.instanceId, attackerRoll, defenderRoll, success: attackerRoll > defenderRoll, counter: counter?.details, criticalChoice: Boolean(counter?.details?.criticalChoice) } };
+      return { ok: true, details: { ability, cardId, targetId: front.instanceId, attackerRoll, defenderRoll, success: attackerRoll > defenderRoll } };
     }
 
     if (ability === "digestao") {
@@ -1279,10 +1342,10 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       if (!state.corpseAvailable) {
         const targetId = typeof payload.targetId === "string" ? payload.targetId : "";
         consumed = this.state.cards.get(targetId);
-        if (!consumed || consumed.owner === seat || consumed.category !== "tropa" || consumed.life >= 4
+        if (!consumed || consumed.category !== "tropa" || consumed.life <= 0 || consumed.life >= 4
           || Math.abs(consumed.lane - card.lane) + Math.abs(consumed.position - card.position) !== 1)
           return { ok: false, reason: "digestao_alvo_invalido" };
-        this.destroyPublicCard(consumed);
+        this.destroyPublicCard(consumed, consumed.owner !== card.owner);
       }
       state.digestionUses = (state.digestionUses ?? 0) + 1;
       state.corpseAvailable = false;
@@ -1389,7 +1452,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       return { ok: false, reason: "tropa_invalida" };
     if (card.moved) return { ok: false, reason: "tropa_ja_moveu" };
     if (card.turnsInPlay < 1) return { ok: false, reason: "tropa_recem_colocada" };
-    if (["paralisado", "congelado", "adormecido", "loucura"].includes(card.condition)) return { ok: false, reason: "tropa_incapacitada" };
+    if (["paralisado", "congelado", "adormecido", "loucura"].some(type => this.hasCondition(card, type))) return { ok: false, reason: "tropa_incapacitada" };
     const rootTrap = this.privatePlayers[1 - seat].traps.find((trap) => trap.definitionId === "raizes_espinhosas"
       && !trap.ready && trap.lane === card.lane && trap.position === card.position);
     if (rootTrap && card.life < 10 && !this.hasAbility(card, "voar")) {
@@ -1397,6 +1460,8 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       return { ok: true, details: { cardId, trapReady: true, movementPrevented: true } };
     }
 
+    if (direction === "advance" && card.position === (seat === 0 ? 1 : 3))
+      return { ok: false, reason: "movimento_fora_tabuleiro" };
     const advanceDelta = seat === 0 ? -1 : 1;
     const movementDelta = direction === "advance" ? advanceDelta : -advanceDelta;
     let destination = card.position + movementDelta;
@@ -1404,7 +1469,8 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     const occupant = this.findPublic((other) => other.category === "tropa"
       && other.lane === card.lane && other.position === destination);
     if (occupant) {
-      if (occupant.owner === seat) return { ok: false, reason: "casa_ocupada" };
+      if (occupant.owner === seat && !(this.hasAbility(card, "voar") && !this.hasAbility(occupant, "voar")))
+        return { ok: false, reason: "casa_ocupada" };
       if (!this.hasAbility(card, "voar") || this.hasAbility(occupant, "voar"))
         return { ok: false, reason: "casa_ocupada" };
       const landing = destination + movementDelta;
@@ -1429,7 +1495,17 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
         state.gazeTested = true;
         gazeRoll = this.rollForSeat(seat, 20);
         this.setAbilityState(card, state);
-        if (gazeRoll <= 10) this.applyCondition(card, "paralisado", 1, 0);
+        if (gazeRoll <= 10) this.applyCondition(card, "paralisado", 2, 0);
+      }
+    }
+    const facing = this.findPublic(other => other.category === "tropa" && other.owner !== seat
+      && other.lane === card.lane && other.position === card.position + advanceDelta);
+    if (facing && this.hasAbility(card, "olhar_vazio")) {
+      const facingState = this.abilityState(facing);
+      if (!facingState.gazeTested) {
+        facingState.gazeTested = true;
+        this.setAbilityState(facing, facingState);
+        if (this.rollForSeat(facing.owner, 20) <= 10) this.applyCondition(facing, "paralisado", 2, 0);
       }
     }
     this.updateTrapReadiness();
@@ -1449,7 +1525,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     const defending = payload.defending === true;
     const card = this.state.cards.get(cardId);
     if (!card || card.owner !== seat || card.category !== "tropa") return { ok: false, reason: "tropa_invalida" };
-    if (["adormecido", "loucura"].includes(card.condition)) return { ok: false, reason: "tropa_incapacitada" };
+    if (["adormecido", "loucura"].some(type => this.hasCondition(card, type))) return { ok: false, reason: "tropa_incapacitada" };
     const entry = seat === 0 ? 4 : 0;
     if (defending && card.position !== entry) return { ok: false, reason: "defesa_fora_da_base" };
     card.defendingCastle = defending;
@@ -1463,7 +1539,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     const current = CARD_DEFINITIONS[card.definitionId];
     const evolved = current.evolvesTo ? CARD_DEFINITIONS[current.evolvesTo] : undefined;
     if (!evolved) return { ok: false, reason: "evolucao_indisponivel" };
-    if (["adormecido", "loucura"].includes(card.condition)) return { ok: false, reason: "tropa_incapacitada" };
+    if (["adormecido", "loucura"].some(type => this.hasCondition(card, type))) return { ok: false, reason: "tropa_incapacitada" };
     if (card.turnsInPlay < 1) return { ok: false, reason: "evolucao_muito_cedo" };
     const player = this.playerBySeat(seat)!;
     if (player.evolutionsUsed >= 1) return { ok: false, reason: "limite_evolucoes_turno" };
@@ -1511,8 +1587,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     if (!pending || lane === undefined || position === undefined
       || !pending.candidates.some(([candidateLane, candidatePosition]) => candidateLane === lane && candidatePosition === position))
       return { ok: false, reason: "escolha_mitose_invalida" };
-    if (this.findPublic((card) => card.category === "tropa" && (card.lane === lane && card.position === position
-      || card.owner === seat && card.lane === lane))) return { ok: false, reason: "coluna_ocupada" };
+    if (this.findPublic((card) => card.category === "tropa" && card.lane === lane && card.position === position)) return { ok: false, reason: "coluna_ocupada" };
     const childDefinition = CARD_DEFINITIONS[pending.source.definitionId];
     if (!childDefinition) return { ok: false, reason: "escolha_mitose_invalida" };
     const child = this.createPublicCard(pending.source, childDefinition, seat, lane, position);
@@ -1523,14 +1598,16 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
   }
 
   private counterAttack(defender: PublicCardState, attacker: PublicCardState): Record<string, unknown> {
+    if (["paralisado", "congelado", "adormecido", "loucura"].some(type => this.hasCondition(defender, type))
+      || !this.tryBreakIllusion(defender)) return { blocked: true, damage: 0 };
     const definition = CARD_DEFINITIONS[defender.definitionId];
     if (!definition.attackDie || definition.attackDie <= 0) return { cardId: defender.instanceId, targetId: attacker.instanceId, counterAttack: true, unavailable: true, damage: 0 };
-    const damageMultiplier = defender.condition === "berserker" ? 2 : 1;
+    const damageMultiplier = this.hasCondition(defender, "berserker") ? 2 : 1;
     const die = this.effectiveAttackDie(defender, Math.max(1, definition.attackDie ?? 1));
     const dice = Math.max(1, definition.attackDice ?? 1);
     const damageRolls = Array.from({ length: dice }, () => this.rollForSeat(defender.owner, die));
     const modifier = (definition.attackModifier ?? 0) + this.equipmentAttackBonus(defender) + this.cemeteryBonus(defender);
-    const defense = (CARD_DEFINITIONS[attacker.definitionId]?.physicalDefense ?? 0) + this.equipmentDefenseBonus(attacker) + this.terrainDefenseModifier(attacker) + (attacker.condition === "berserker" ? 4 : 0);
+    const defense = (CARD_DEFINITIONS[attacker.definitionId]?.physicalDefense ?? 0) + this.equipmentDefenseBonus(attacker) + this.terrainDefenseModifier(attacker) + (this.hasCondition(attacker, "berserker") ? 4 : 0);
     const damage = Math.max(0, damageRolls.reduce((sum, value) => sum + value, 0) * damageMultiplier + modifier - defense);
     attacker.life -= damage;
     const destroyed = attacker.life <= 0;
@@ -1540,19 +1617,16 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
 
   private attack(seat: number, payload: Record<string, unknown>): ActionResult {
     const cardId = typeof payload.cardId === "string" ? payload.cardId : "";
+    if (!this.playerBySeat(seat)!.hasTakenTurn) return { ok: false, reason: "primeiro_turno_bloqueado" };
     const attackType = payload.attackType === "magica" ? "magica" : "fisica";
     const attacker = this.state.cards.get(cardId);
     if (!attacker || attacker.category !== "tropa" || attacker.owner !== seat)
       return { ok: false, reason: "tropa_invalida" };
     if (attacker.attacked) return { ok: false, reason: "tropa_ja_atacou" };
-    const attackerState = this.abilityState(attacker);
-    if (attackerState.illusion) {
-      attackerState.illusion = false;
-      this.setAbilityState(attacker, attackerState);
-      attacker.attacked = true;
-      return { ok: true, details: { cardId, attackType, illusion: true, hit: false, damageRolls: [] } };
-    }
-    if (["paralisado", "congelado", "adormecido", "loucura"].includes(attacker.condition)) return { ok: false, reason: "tropa_incapacitada" };
+    let attackerState = this.abilityState(attacker);
+    const illusionTest: Record<string, unknown> = {};
+    if (["paralisado", "congelado", "adormecido", "loucura"].some(type => this.hasCondition(attacker, type))) return { ok: false, reason: "tropa_incapacitada" };
+
     const definition = CARD_DEFINITIONS[attacker.definitionId];
     const itemDefinitionId = typeof payload.itemDefinitionId === "string" ? payload.itemDefinitionId : "";
     const equipped = this.equipmentIds(attacker);
@@ -1586,7 +1660,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
         attacker.attacked = true;
         attacker.life -= selfDamage;
         if (attacker.life <= 0) this.destroyPublicCard(attacker, false);
-        return { ok: true, details: { cardId, targetId: cardId, attackType, frenzySelf: true,
+        return { ok: true, details: { ...illusionTest, cardId, targetId: cardId, attackType, frenzySelf: true,
           die: Math.max(1, definition.attackDie ?? 1), dice: selfRolls.length,
           damageRolls: selfRolls, damage: selfDamage, destroyed: attacker.life <= 0 } };
       }
@@ -1599,12 +1673,20 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     }
     if (die <= 0) return { ok: false, reason: "ataque_indisponivel" };
     const direction = seat === 0 ? -1 : 1;
-    const range = definition.abilities?.some((ability) => ability === "alcance" || ability === "alcance_magico") ? 2 : 1;
+    const range = !usingWeapon && definition.abilities?.includes(attackType === "magica" ? "alcance_magico" : "alcance") ? 2 : 1;
     let target = this.firstEnemyAhead(attacker, direction, range);
-    if (!target && range > 1) target = this.findPublic((other) =>
+    if (!target && range > 1 && attacker.position === (seat === 0 ? 1 : 3)) target = this.findPublic((other) =>
       other.category === "construcao" && other.owner !== seat && other.lane === attacker.lane);
     const assaultPosition = seat === 0 ? 1 : 3;
     if (!target && attacker.position !== assaultPosition) return { ok: false, reason: "avance_para_assalto" };
+    if (!this.tryBreakIllusion(attacker, illusionTest)) {
+      attacker.attacked = true;
+      const counter = target?.instanceId === attackerState.illusionSourceId
+        ? this.counterAttack(target, attacker) : undefined;
+      return { ok: true, details: { ...illusionTest, cardId, targetId: target?.instanceId ?? "", attackType,
+        illusion: true, hit: false, damageRolls: [], counter } };
+    }
+    attackerState = this.abilityState(attacker);
     let stealRoll = 0;
     let stolenItem = "";
     if (target?.category === "tropa" && usingWeapon && this.hasAbility(target, "roubo")) {
@@ -1627,13 +1709,13 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     }
     if (!target) {
       attacker.attacked = true;
-      const damageMultiplier = attacker.condition === "berserker" ? 2 : 1;
+      const damageMultiplier = this.hasCondition(attacker, "berserker") ? 2 : 1;
       const damageRolls = Array.from({ length: dice }, () => this.rollForSeat(seat, die));
       const damage = Math.max(0, damageRolls.reduce((sum, value) => sum + value, 0) * damageMultiplier + modifier);
       const defender = this.playerBySeat(1 - seat)!;
       defender.life = Math.max(0, defender.life - damage);
       if (defender.life <= 0) { this.state.winner = seat; this.state.phase = "finished"; }
-      return { ok: true, details: { cardId, target: "castle", attackType, direct: true, hit: true,
+      return { ok: true, details: { ...illusionTest, cardId, target: "castle", attackType, direct: true, hit: true,
         die, dice, damageRolls, modifier, damage, defenderLife: defender.life, itemDefinitionId, frenzyBonus } };
     }
 
@@ -1643,12 +1725,14 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       madnessState.madnessNoDefense = false;
       this.setAbilityState(target!, madnessState);
     }
-    const accuracyRolls = madnessNoDefense ? [] : (attacker.condition === "berserker" || attacker.condition === "confusao")
+    const advantage = this.hasCondition(attacker, "berserker") && !this.hasCondition(attacker, "confusao");
+    const disadvantage = this.hasCondition(attacker, "confusao") && !this.hasCondition(attacker, "berserker");
+    const accuracyRolls = madnessNoDefense ? [] : (advantage || disadvantage)
       ? [this.rollForSeat(seat, 20), this.rollForSeat(seat, 20)] : [this.rollForSeat(seat, 20)];
-    const accuracyRoll = madnessNoDefense ? 11 : attacker.condition === "berserker"
-      ? Math.max(...accuracyRolls) : attacker.condition === "confusao"
+    const accuracyRoll = madnessNoDefense ? 11 : advantage
+      ? Math.max(...accuracyRolls) : disadvantage
         ? Math.min(...accuracyRolls) : accuracyRolls[0];
-    const damageMultiplier = attacker.condition === "berserker" ? 2 : 1;
+    const damageMultiplier = this.hasCondition(attacker, "berserker") ? 2 : 1;
     const accuracy = accuracyRoll + this.cemeteryBonus(attacker);
     attacker.attacked = true;
     if (accuracyRoll === 20 && this.hasAbility(attacker, "tiro_burro")) {
@@ -1660,9 +1744,9 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     }
     if (target) {
       if (accuracy <= 10) {
-        const counter = (accuracyRoll === 1 || attacker.condition === "confusao") && target.category === "tropa"
+        const counter = (accuracyRoll === 1 || this.hasCondition(attacker, "confusao")) && target.category === "tropa"
           ? this.counterAttack(target, attacker) : undefined;
-        return { ok: true, details: { cardId, targetId: target.instanceId, attackType,
+        return { ok: true, details: { ...illusionTest, cardId, targetId: target.instanceId, attackType,
           accuracy, accuracyRoll, accuracyRolls, hit: false, die, dice,
           damageRolls: [], itemDefinitionId, stealRoll, stolenItem, counter } };
       }
@@ -1670,10 +1754,10 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       const targetState = this.abilityState(target);
       const defense = (ignoreDefense || madnessNoDefense) ? 0 : (attackType === "magica"
         ? (targetDefinition.magicDefense ?? 0) + (targetState.grimoireShield ? 2 : 0) + this.terrainDefenseModifier(target)
-        : (targetDefinition.physicalDefense ?? 0) + this.equipmentDefenseBonus(target) + this.terrainDefenseModifier(target) + (target.condition === "berserker" ? 4 : 0));
+        : (targetDefinition.physicalDefense ?? 0) + this.equipmentDefenseBonus(target) + this.terrainDefenseModifier(target) + (this.hasCondition(target, "berserker") ? 4 : 0));
       if (accuracyRoll === 20) {
         this.pendingCritical = { seat, cardId, targetId: target.instanceId, targetType: "card", attackType, die, dice, modifier, defense, itemDefinitionId, damageMultiplier };
-        return { ok: true, details: { cardId, targetId: target.instanceId, attackType, accuracy, accuracyRoll, accuracyRolls, hit: true, critical: true, criticalChoice: true, die, dice, itemDefinitionId, stealRoll, stolenItem } };
+        return { ok: true, details: { ...illusionTest, cardId, targetId: target.instanceId, attackType, accuracy, accuracyRoll, accuracyRolls, hit: true, critical: true, criticalChoice: true, die, dice, itemDefinitionId, stealRoll, stolenItem } };
       }
       const damageRolls = Array.from({ length: dice }, () => this.rollForSeat(seat, die));
       const damage = Math.max(0, damageRolls.reduce((sum, value) => sum + value, 0) * damageMultiplier + modifier - defense);
@@ -1686,7 +1770,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
         }
         this.destroyPublicCard(target);
       }
-      return { ok: true, details: { cardId, targetId: target.instanceId, attackType,
+      return { ok: true, details: { ...illusionTest, cardId, targetId: target.instanceId, attackType,
         accuracy, accuracyRoll, accuracyRolls, hit: true, critical: false, die, dice,
         damageRolls, modifier, defense, damage, destroyed, frenzyBonus,
         itemDefinitionId, stealRoll, stolenItem, madnessNoDefense } };
@@ -1748,7 +1832,8 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     const events: Record<string, unknown>[] = [];
     const cards: PublicCardState[] = [];
     this.state.cards.forEach((card: PublicCardState) => {
-      if (card.owner === seat && card.category === "tropa" && card.condition === "loucura") cards.push(card);
+      if (card.owner === seat && card.category === "tropa" && this.hasCondition(card, "loucura")
+        && !["paralisado", "congelado", "adormecido"].some(type => this.hasCondition(card, type))) cards.push(card);
     });
     for (const card of cards) {
       if (!this.state.cards.has(card.instanceId)) continue;
@@ -1782,7 +1867,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
           const targetState = this.abilityState(target);
           const defense = useMagic
             ? (targetDefinition.magicDefense ?? 0) + (targetState.grimoireShield ? 2 : 0) + this.terrainDefenseModifier(target)
-            : (targetDefinition.physicalDefense ?? 0) + this.equipmentDefenseBonus(target) + this.terrainDefenseModifier(target) + (target.condition === "berserker" ? 4 : 0);
+            : (targetDefinition.physicalDefense ?? 0) + this.equipmentDefenseBonus(target) + this.terrainDefenseModifier(target) + (this.hasCondition(target, "berserker") ? 4 : 0);
           const damageRolls = Array.from({ length: dice }, () => this.rollForSeat(seat, die));
           const damage = Math.max(0, damageRolls.reduce((sum, value) => sum + value, 0) + modifier - defense);
           target.life -= damage;
@@ -1818,13 +1903,11 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
   private processSleep(seat: number): Record<string, unknown>[] {
     const events: Record<string, unknown>[] = [];
     this.state.cards.forEach((card: PublicCardState) => {
-      if (card.owner !== seat || card.category !== "tropa" || card.condition !== "adormecido") return;
+      if (card.owner !== seat || card.category !== "tropa" || !this.hasCondition(card, "adormecido")) return;
       const coin = this.rollForSeat(seat, 2);
       const woke = coin === 1;
       if (woke) {
-        card.condition = "";
-        card.conditionTurns = 0;
-        card.conditionPower = 0;
+        this.removeCondition(card, "adormecido");
       }
       events.push({ cardId: card.instanceId, coin, woke });
     });
@@ -1845,23 +1928,19 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     this.state.cards.forEach((card: PublicCardState) => {
       if (card.owner !== seat || card.category !== "tropa") return;
       const ability = this.abilityState(card);
-      if ((ability.shadowCooldown ?? 0) > 0) {
-        ability.shadowCooldown = Math.max(0, (ability.shadowCooldown ?? 0) - 1);
-        if (ability.shadowCooldown === 1) ability.shadowTurns = 0;
-      }
       if (!ability.electrocutedThisCycle) ability.electrocutions = 0;
       ability.electrocutedThisCycle = false;
       if ((ability.burnImmunity ?? 0) > 0) ability.burnImmunity = Math.max(0, (ability.burnImmunity ?? 0) - 1);
       ability.bleedingWindow = Boolean(ability.bleedingHitThisCycle);
       ability.bleedingHitThisCycle = false;
-      if (card.conditionTurns > 0) {
-        card.conditionTurns -= 1;
-        if (card.conditionTurns <= 0) {
-          if (card.condition === "queimado") ability.burnImmunity = 1;
-          card.condition = "";
-          card.conditionPower = 0;
+      const conditions = this.conditions(card).filter(condition => {
+        if (condition.turns > 0 && --condition.turns === 0) {
+          if (condition.type === "queimado") ability.burnImmunity = 1;
+          return false;
         }
-      }
+        return true;
+      });
+      this.setConditions(card, conditions);
       this.setAbilityState(card, ability);
     });
 
@@ -1869,18 +1948,30 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     const defeated: PublicCardState[] = [];
     const conditionEvents: Record<string, unknown>[] = [];
     this.state.cards.forEach((card: PublicCardState) => {
-      if (card.owner !== nextSeat || card.category !== "tropa") return;
-      if (["queimado", "envenenado", "corrosao", "sangrando", "apodrecer"].includes(card.condition)) {
-        const amount = Math.max(0, card.conditionPower);
-        card.life -= amount;
-        if (amount > 0) conditionEvents.push({ cardId: card.instanceId, condition: card.condition, kind: "damage", amount });
-        if (card.condition === "corrosao" && card.conditionPower > 1) card.conditionPower -= 1;
-      } else if (card.condition === "regeneracao") {
-        const lifeBefore = card.life;
-        card.life = Math.min(card.maxLife, card.life + Math.max(0, card.conditionPower));
-        const amount = Math.max(0, card.life - lifeBefore);
-        if (amount > 0) conditionEvents.push({ cardId: card.instanceId, condition: card.condition, kind: "heal", amount });
+      if (card.owner === nextSeat && card.category === "tropa") {
+        const shadow = this.abilityState(card);
+        if ((shadow.shadowCooldown ?? 0) > 0) {
+          shadow.shadowCooldown = Math.max(0, (shadow.shadowCooldown ?? 0) - 1);
+          if (shadow.shadowCooldown === 1) shadow.shadowTurns = 0;
+          this.setAbilityState(card, shadow);
+        }
       }
+      if (card.owner !== nextSeat || card.category !== "tropa") return;
+      const conditions = this.conditions(card);
+      let damage = 0, healing = 0;
+      for (const condition of conditions) {
+        if (["queimado", "envenenado", "corrosao", "sangrando", "apodrecer"].includes(condition.type)) {
+          const amount = Math.max(0, condition.power);
+          damage += amount;
+          if (amount > 0) conditionEvents.push({ cardId: card.instanceId, condition: condition.type, kind: "damage", amount });
+          if (condition.type === "corrosao") condition.power = Math.max(1, condition.power - 1);
+        } else if (condition.type === "regeneracao") healing += Math.max(0, condition.power);
+      }
+      const lifeAfterDamage = card.life - damage;
+      card.life = Math.min(card.maxLife, lifeAfterDamage + healing);
+      const healed = Math.max(0, card.life - lifeAfterDamage);
+      if (healed > 0) conditionEvents.push({ cardId: card.instanceId, condition: "regeneracao", kind: "heal", amount: healed });
+      this.setConditions(card, conditions);
       if (card.life <= 0) defeated.push(card);
     });
     for (const card of defeated) this.destroyPublicCard(card, false);
@@ -2033,6 +2124,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     result.attacked = false;
     result.defendingCastle = false;
     result.turnsInPlay = 0;
+    result.conditionsJson = "[]";
     result.condition = "";
     result.conditionTurns = 0;
     result.conditionPower = 0;
@@ -2129,8 +2221,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       [parent.lane, parent.position - 1], [parent.lane, parent.position + 1],
       [parent.lane - 1, parent.position], [parent.lane + 1, parent.position],
     ] as Array<[number, number]>).filter(([lane, position]) => lane >= 0 && lane <= 2 && position >= 0 && position <= 4
-      && !this.findPublic((other) => other.category === "tropa" && other.lane === lane && other.position === position)
-      && !this.findPublic((other) => other.category === "tropa" && other.owner === parent.owner && other.lane === lane));
+      && !this.findPublic((other) => other.category === "tropa" && other.lane === lane && other.position === position));
     if (candidates.length <= 0) return;
     const second = this.takeDefinitionFromHandOrDeck(parent.owner, childDefinitionId);
     if (!second) return;
@@ -2202,6 +2293,13 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     const players: Record<string, unknown>[] = [];
     this.state.players.forEach((player: PlayerState) => players.push({
       seat: player.seatIndex, name: player.name, connected: player.connected,
+      itemSwapUsed: this.privatePlayers[player.seatIndex]?.itemSwapUsed ?? false,
+      turnUsage: {
+        troops: player.troopsPlayed, items: player.itemsUsed, spells: player.spellsUsed,
+        constructions: player.constructionsPlayed, terrain: Number(player.terrainPlayed),
+        resourcePlaced: Number(player.resourcePlaced), resourceRemoved: Number(player.resourceRemoved),
+        evolutions: player.evolutionsUsed,
+      },
       life: player.life, handCount: player.handCount, deckCount: player.deckCount,
       mana: player.mana, sangue: player.sangue, ossos: player.ossos, sucata: player.sucata,
       manaUsed: player.manaUsed, sangueUsed: player.sangueUsed,
@@ -2217,7 +2315,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     const cards: Record<string, unknown>[] = [];
     this.state.cards.forEach((card: PublicCardState) => cards.push({
       ...this.publicCardPayload(card), moved: card.moved,
-      attacked: card.attacked, condition: card.condition, conditionTurns: card.conditionTurns,
+      attacked: card.attacked, conditions: this.conditions(card), condition: card.condition, conditionTurns: card.conditionTurns,
       conditionPower: card.conditionPower, intelligence: card.intelligence,
       equipment: this.equipmentIds(card), abilityState: this.abilityState(card),
     }));
@@ -2261,6 +2359,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
   }
 
   private resetPlayerTurn(player: PlayerState) {
+    if (this.privatePlayers[player.seatIndex]) this.privatePlayers[player.seatIndex].itemSwapUsed = false;
     const data = this.privatePlayers[player.seatIndex];
     if (data?.resources) {
       for (const resource of data.resources) resource.used = false;

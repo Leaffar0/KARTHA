@@ -8,7 +8,7 @@ if (instance_exists(obj_controlador)) {
         // Uma ou mais cartas saíram do monte: dispara o "solavanco" de compra.
         pulso_timer = pulso_duracao;
         criar_poeira(x, y - sprite_height / 4, sprite_width * 0.6);
-        audio_play_sound(snd_shuffle, 1, 0, .4, 0, random_range(.7, 1.3));
+        tocar_som_variado("deslize", 0.32, 1.08);
     }
 
     quantidade_cartas = _quantidade_real;

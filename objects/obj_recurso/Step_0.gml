@@ -20,17 +20,24 @@ if (entrando_no_campo) {
     }
 }
 
-// Detecta tanto o pagamento de custo quanto o desvirar do início do turno.
+// O estado de pagamento é imediato. O atraso pertence só ao desenho.
 if (virado != virado_anterior) {
     virado_anterior = virado;
-    pulso_virada_timer = pulso_virada_duracao;
+    toque_virada_pendente = virado;
+    if (!virado) atraso_virada_visual = 0;
 }
-
-var _rotacao_alvo = virado ? 90 : 0;
-rotacao_atual += (_rotacao_alvo - rotacao_atual) * 0.14;
-
-if (pulso_virada_timer > 0) {
-    var _pulso = pulso_virada_timer / pulso_virada_duracao;
-    escala_animacao = max(escala_animacao, 1 + sin(_pulso * pi) * 0.08);
-    pulso_virada_timer--;
+if (atraso_virada_visual > 0) {
+    atraso_virada_visual--;
+} else {
+    var _rotacao_alvo = virado ? 90 : 0;
+    rotacao_atual = lerp(rotacao_atual, _rotacao_alvo, 0.29);
+    if (abs(_rotacao_alvo - rotacao_atual) < 2) {
+        rotacao_atual = _rotacao_alvo;
+        if (toque_virada_pendente) {
+            toque_virada_pendente = false;
+            pulso_virada_timer = pulso_virada_duracao;
+            tocar_som_variado("recurso", 0.24);
+        }
+    }
 }
+if (pulso_virada_timer > 0) pulso_virada_timer--;

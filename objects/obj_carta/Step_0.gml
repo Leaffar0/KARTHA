@@ -1,14 +1,26 @@
+if (travada && categoria == "tropa" && !morrendo && obj_controlador.modo_partida != "online")
+    verificar_olhar_vazio(id);
+atualizar_efeitos_identidade(id);
 var _lado_acao = dono;
 var _lado_oposto = lado_oposto(_lado_acao);
+
+if (efeito_timer > 0) efeito_timer--;
 
 #region Morte visual
 // A regra já foi resolvida e o slot está livre; aqui só termina a animação.
 if (morrendo) {
+    // Deixa o recuo e a cor do último golpe se dissiparem durante a derrota.
+    if (dano_flash_timer > 0) dano_flash_timer--;
+    if (defesa_impacto_timer > 0) defesa_impacto_timer--;
+    recuo_dano_x *= 0.72;
+    recuo_dano_y *= 0.72;
     morte_timer -= 1;
     if (morte_timer <= 0) instance_destroy();
     exit;
 }
 #endregion
+
+atualizar_animacao_ataque(id);
 
 #region Armadilha vigiando: detecta gatilho e faz a carta balançar na mão
 if ((armadilha_estado == "vigiando" || armadilha_estado == "pronta")
@@ -132,7 +144,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
             _slot_mais_perto.ocupado = true;
             _slot_mais_perto.carta_atual = id;
             slot_atual = _slot_mais_perto;
-            audio_play_sound(snd_colocar,1,0,.5,0,random_range(.5,2))
+
             lane_atual = _slot_mais_perto.lane;
             posicao_atual = _slot_mais_perto.posicao;
             dono = _lado_acao;
@@ -383,11 +395,19 @@ if (arrastando && mouse_check_button_released(mb_left)) {
 	} else if (categoria == "item_equipavel") {
     var _alvo = noone;
     var _menor_distancia = 9999;
+    var _motivo_recusa_item = "Solte o item sobre uma tropa aliada";
+    var _distancia_recusa_item = 60;
     with (obj_carta) {
-        if (id == other.id || !travada || dono != _lado_acao || mochila <= 0 || troca_item_usada_este_turno
-            || condicao == "adormecido" || condicao == "loucura") continue;
-        if (nivel_inteligencia < other.requisito_inteligencia_item) continue;
+        if (id == other.id || !travada || dono != _lado_acao) continue;
         var _dist = point_distance(x, y, other.x, other.y);
+        var _motivo = motivo_recusa_equipamento(id, other.requisito_inteligencia_item);
+        if (_motivo != "") {
+            if (_dist < _distancia_recusa_item) {
+                _distancia_recusa_item = _dist;
+                _motivo_recusa_item = _motivo;
+            }
+            continue;
+        }
         if (_dist < 60 && _dist < _menor_distancia) { _menor_distancia = _dist; _alvo = id; }
     }
     if (_alvo != noone && pode_pagar_custo(custo, _lado_acao, categoria)) {
@@ -397,7 +417,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
             bonus_mod_dano_item, bonus_defesa_item, sobrescreve_dado_dano_item,
             sobrescreve_mod_dano_item, efeito_item, sinergias);
         equipar_item_dados(_alvo, _dados_item);
-        criar_animacao_item(sprite_index, x, y, _alvo.x, _alvo.y, c_aqua);
+        criar_animacao_item(sprite_index, x, y, _alvo.x, _alvo.y, c_aqua, _alvo, _dados_item);
         _alvo.troca_item_usada_este_turno = true;
         var _index = array_get_index(obj_controlador.mao, id);
         if (_index != -1) { array_delete(obj_controlador.mao, _index, 1); organizar_mao(); }
@@ -405,7 +425,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         mostrar_feedback("EQUIPADO", _alvo.x, _alvo.y - 40, c_aqua, 35);
         instance_destroy(id);
     } else {
-        if (_alvo == noone) mostrar_aviso_regra("Solte o item sobre uma tropa que possa equipá-lo", x, y);
+        if (_alvo == noone) mostrar_aviso_regra(_motivo_recusa_item, x, y);
         iniciar_retorno_carta(id); esta_na_mao = true;
     }
 
@@ -589,6 +609,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
             } else {
                 var _cura_real = min(cura_item, _alvo.vida_maxima - _alvo.vida);
                 _alvo.vida += _cura_real;
+                debug_combate(_alvo.nome_carta + " recuperou " + string(_cura_real) + " de vida com " + nome_carta + ".");
                 if (_cura_real > 0) mostrar_feedback("+" + string(_cura_real), _alvo.x, _alvo.y - _alvo.sprite_height * 0.45, c_lime, 45);
             }
 
@@ -646,8 +667,8 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         // Efeito visual de "esconder a armadilha" no slot -- reaproveita o objeto de terreno
         // ativo só pelo visual de "cair e assentar no chão", sem afetar regras.
      var _visual_armadilha = instance_create_layer(x, y, "Instances", obj_terreno_ativo);
-		_visual_armadilha.sprite_index = sprite_index;
-		_visual_armadilha.escala_base = (global.CARTA_LARGURA * 0.6) / sprite_get_width(sprite_index);
+		_visual_armadilha.sprite_index = spr_deck;
+		_visual_armadilha.escala_base = (global.CARTA_LARGURA * 0.6) / sprite_get_width(spr_deck);
 		_visual_armadilha.destino_x = _slot_armadilha.x;
 		_visual_armadilha.destino_y = _slot_armadilha.y;
 		_visual_armadilha.origem_x = x;
@@ -800,12 +821,12 @@ if (pulando) {
     x = lerp(pulo_origem_x, pulo_destino_x, _progresso_suave);
     var _y_base = lerp(pulo_origem_y, pulo_destino_y, _progresso_suave);
     
-    var _arco = sin(_progresso_suave * pi) * pulo_altura;
-    y = _y_base - _arco;
+    pulo_elevacao = sin(pulo_progresso * pi) * pulo_altura * (1 - pulo_progresso * 0.35);
+    y = _y_base - pulo_elevacao;
 
     // Um pequeno aumento e inclinação deixam a carta mais viva durante o voo.
-    escala_animacao = lerp(pulo_escala_origem, 1, _progresso_suave) * (1 + sin(_progresso_suave * pi) * 0.07);
-    rotacao_animacao = sin(_progresso_suave * pi) * 5 * sign(pulo_destino_x - pulo_origem_x);
+    escala_animacao = lerp(pulo_escala_origem, 1, _progresso_suave) * (1 + sin(pulo_progresso * pi) * 0.035);
+    rotacao_animacao = sin(pulo_progresso * pi) * clamp((pulo_destino_x - pulo_origem_x) * 0.045, -8, 8);
     
     destino_x = pulo_destino_x;
     destino_y = pulo_destino_y;
@@ -815,8 +836,12 @@ if (pulando) {
         rotacao_animacao = 0;
         pulso_pouso_timer = pulso_pouso_duracao;
         impacto_colocacao_timer = impacto_colocacao_duracao;
+        if (pulo_som_ao_pousar) {
+            tocar_som_variado("encaixe", 0.40, 0.96);
+            pulo_som_ao_pousar = false;
+        }
         if (pulo_poeira_ao_pousar) {
-            criar_poeira(x, y + sprite_height / 2, sprite_width);
+            criar_poeira(x, y + global.CARTA_ALTURA * escala_no_campo * 0.45, global.CARTA_LARGURA * escala_no_campo);
             pulo_poeira_ao_pousar = false;
         }
     }
@@ -828,8 +853,8 @@ if (pulando) {
 
     // Pulso curto no pouso para dar sensação de impacto, sem alterar o estado da carta.
     if (pulso_pouso_timer > 0) {
-        var _pulso = pulso_pouso_timer / pulso_pouso_duracao;
-        escala_animacao = 1 + sin(_pulso * pi) * 0.06;
+        var _pouso = 1 - pulso_pouso_timer / pulso_pouso_duracao;
+        escala_animacao = 1 - sin(_pouso * 2 * pi) * (1 - _pouso) * 0.07;
         pulso_pouso_timer--;
     } else {
         escala_animacao = lerp(escala_animacao, 1, 0.2);
@@ -861,21 +886,23 @@ if (esta_na_mao && !arrastando && !travada) {
             y = compra_origem_y;
             depth = -5000 - compra_atraso;
         } else {
-        compra_progresso += 1 / compra_duracao;
-        var _p_compra = clamp(compra_progresso, 0, 1);
-        var _s_compra = 1 - power(1 - _p_compra, 3);
-        x = lerp(compra_origem_x, destino_x, _s_compra);
-        y = lerp(compra_origem_y, destino_y, _s_compra) - sin(_p_compra * pi) * 75;
-        rotacao_animacao = sin(_p_compra * pi) * 18 + (1 - _s_compra) * -12;
-        escala_animacao = lerp(0.70, 1, _s_compra) * (1 + sin(_p_compra * pi) * 0.12);
-        depth = -5000;
-        if (_p_compra >= 1) {
-            compra_animando = false;
-            x = destino_x; y = destino_y;
-            rotacao_animacao = 0;
-            escala_animacao = 1;
-            pulso_pouso_timer = pulso_pouso_duracao;
-        }
+            compra_progresso = min(1, compra_progresso + 1 / compra_duracao);
+            var _p_compra = compra_progresso;
+            var _deslize = 1 - power(1 - _p_compra, 2.4);
+            var _altura_compra = sin(_p_compra * pi) * 32;
+            x = lerp(compra_origem_x, destino_x, _deslize);
+            y = lerp(compra_origem_y, destino_y, _deslize) - _altura_compra;
+            rotacao_animacao = sin(_p_compra * pi) * 9 * sign(destino_x - compra_origem_x);
+            escala_animacao = lerp(0.76, 1, _deslize);
+            depth = -5000;
+            if (_p_compra >= 1) {
+                compra_animando = false;
+                x = destino_x;
+                y = destino_y;
+                rotacao_animacao = 0;
+                escala_animacao = 1;
+                pulso_pouso_timer = pulso_pouso_duracao;
+            }
         }
     } else {
         var _velocidade_retorno = (retorno_invalido_timer > 0) ? 0.28 : velocidade_movimento;
@@ -915,7 +942,7 @@ if (esta_na_mao && !arrastando && !travada) {
 #region Arrasto ativo
 if (arrastando) {
     // Reforça a camada superior durante todo o arrasto, inclusive enquanto outras cartas animam.
-    depth = -100000;
+    depth = -12000;
     // A posição real fica no cursor; só o desenho ganha atraso, mantendo o drop preciso.
     var _delta_mouse_x = mouse_x - arrasto_mouse_anterior_x;
     var _delta_mouse_y = mouse_y - arrasto_mouse_anterior_y;
@@ -954,8 +981,8 @@ if (evoluindo) {
     var _suave_evo = _progresso_evo * _progresso_evo * (3 - (2 * _progresso_evo));
     var _energia_evo = sin(_progresso_evo * pi);
 
-    // Um giro fechado em 720° termina visualmente alinhado, sem salto na última imagem.
-    rotacao_evolucao = 720 * _suave_evo;
+    // Pequena inclinação acompanha a virada e termina alinhada à mesa.
+    rotacao_evolucao = sin(_progresso_evo * pi * 2) * 4;
     escala_evolucao = 1 + (_energia_evo * 0.28);
     cor_evolucao = merge_color(c_white, c_aqua, _energia_evo * 0.55);
 
@@ -965,6 +992,8 @@ if (evoluindo) {
         escala_evolucao = 1;
         cor_evolucao = c_white;
         pulso_pouso_timer = pulso_pouso_duracao;
+        criar_poeira(x, y, global.CARTA_LARGURA * 0.45);
+        tocar_som_variado("encaixe", 0.36, 0.92);
     }
 }
 #endregion

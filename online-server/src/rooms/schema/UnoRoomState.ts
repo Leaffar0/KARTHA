@@ -46,6 +46,7 @@ export const PublicCardSchema = schema({
   attacked: t.boolean(),
   defendingCastle: t.boolean(),
   turnsInPlay: t.number(),
+  conditionsJson: t.string(),
   condition: t.string(),
   conditionTurns: t.number(),
   conditionPower: t.number(),

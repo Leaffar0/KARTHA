@@ -74,6 +74,13 @@ dano_castelo_impacto_timer = 0;
 cartas_jogadas_no_turno = 0;
 max_cartas_por_turno = 1;
 itens_usados_este_turno = 0;
+troca_item_usada_por_lado = { jogador: false, inimigo: false };
+resumos_turno_online = { jogador: noone, inimigo: noone };
+detalhes_carta = noone;
+detalhes_pagina = 0;
+detalhes_total_paginas = 1;
+painel_regras_aberto = false;
+painel_regras_animacao = 0;
 magias_usadas_este_turno = 0;
 construcoes_jogadas_este_turno = 0;
 terrenos_jogados_este_turno = 0;
@@ -160,6 +167,9 @@ tropa_selecionada = noone;
 recurso_retirado_no_turno = false;
 recurso_retirado_no_turno_inimigo = false;
 carregar_configuracoes();
+hud_escala_aplicada = 0;
+hud_superficie_w = 0;
+hud_superficie_h = 0;
 hud_deslocamento_esquerda = 160;
 hud_deslocamento_direita = 180;
 #endregion
@@ -187,7 +197,10 @@ cemiterio_inimigo = [];
 descarte_jogador = []; // magias e itens consumidos; a pilha visual será ligada a este array
 descarte_inimigo = [];
 historico_combate = [];
-max_historico_combate = 15;
+max_historico_combate = 80;
+historico_pagina = 0;
+historico_total_paginas = 1;
+debug_montes_guardados = { jogador: noone, inimigo: noone };
 #endregion	
 
 #region Tutorial opcional
@@ -203,7 +216,7 @@ tutorial_paginas = [
     { titulo: "MITOSE", texto: "Ao morrer, a tropa com Mitose procura até 2 Slimets na mão ou no baralho. O primeiro ocupa a casa da morte; escolha uma casa adjacente destacada para o segundo. Pressione Esc para devolver o segundo à mão." },
     { titulo: "EFEITOS ATIVOS", texto: "Cada lado pode manter até 2 bênçãos e 2 maldições. Elas aparecem em quatro espaços próprios do tabuleiro: dourado para bênção e vermelho para maldição. Passe o mouse sobre uma carta ativa para ler seu efeito." },
     { titulo: "CONDIÇÕES", texto: "Uma tropa só mantém uma condição por vez. Confusão dá desvantagem e permite contra-ataque em qualquer erro; Adormecer joga uma moeda no início do turno; Berserker dobra apenas o dano original, dá vantagem e +4 DEF. Apodrecer e Regeneração jogam um único D4, que define duração e valor por turno." },
-    { titulo: "ITENS E RECURSOS", texto: "No menu de uma tropa equipada, você pode devolver o último item à mão ou transferi-lo para uma tropa aliada com espaço. Cada tropa envolvida troca no máximo uma vez por turno. Clique com o botão direito em um recurso para devolvê-lo à mão; só 1 recurso pode ser retirado por turno." },
+    { titulo: "ITENS E RECURSOS", texto: "No menu de uma tropa equipada, você pode devolver o último item à mão ou transferi-lo para uma tropa aliada com espaço. Cada jogador pode fazer 1 troca por turno, e cada tropa envolvida consome sua ação de item. Clique com o botão direito em um recurso para devolvê-lo à mão; só 1 recurso pode ser retirado por turno." },
     { titulo: "HABILIDADES ESPECIAIS", texto: "Digestão escolhe uma tropa adjacente com menos de 4 de vida ou usa a vítima recém-abatida. Roubo joga D10 quando a tropa é atacada por uma arma: no 10, toma o item se houver espaço. Carniça Frenética paga 2 Sangues e prepara o próximo ataque. Visão do Véu revela a mão inimiga e oferece duas escolhas." },
     { titulo: "COMO USAR MAGIAS", texto: "No seu turno, arraste uma magia da mão até o alvo indicado pela carta. O alvo pode ser uma tropa, construção, recurso ou castelo, dependendo do efeito. Você pode usar até 2 magias por turno e precisa pagar o custo. Se o alvo não for válido, a carta volta para a mão e nenhum recurso é gasto. Magias usadas normalmente vão para o descarte." },
     { titulo: "COMO USAR ARMADILHAS E ITENS", texto: "Arraste uma armadilha para uma casa válida do campo; cada casa aceita apenas 1 armadilha. Quando o gatilho dela acontecer, clique na armadilha pronta para ativá-la. Para usar um item, arraste-o sobre uma tropa aliada que tenha inteligência e espaço suficientes. Você pode usar até 3 itens por turno, e itens equipados podem liberar ataques ou efeitos no menu da tropa." },
@@ -235,3 +248,6 @@ ritual_fade_final_iniciado = false;
 // Componentes independentes do controlador. Novos sistemas devem guardar seu
 // estado dentro dessas estruturas em vez de acrescentar mais flags soltas aqui.
 apresentacao_inicializar(id);
+
+previa_visual_carta = noone;
+previa_visual_progresso = 0;

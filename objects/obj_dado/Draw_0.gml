@@ -3,11 +3,18 @@ gpu_set_texfilter(false);
 draw_set_alpha(1);
 draw_set_color(c_white);
 
+if (image_alpha > 0) {
+    desenhar_sombra_mesa(x, y + altura_voo + sprite_get_height(sprite_index) * escala_base_dado * 0.34,
+        sprite_get_width(sprite_index) * escala_base_dado, altura_voo / max(1, altura_maxima_dado), image_alpha);
+}
 draw_self();
 
 // Não entrega nenhuma informação durante o voo: o resultado surge só após o impacto.
 if (!girando && progresso_revelacao > 0 && !ocultar_resultado_ate_rolar) {
-    draw_set_alpha(progresso_revelacao);
+    var _resto_revelacao = 1 - progresso_revelacao;
+    var _entrada_revelacao = 1 - sqr(_resto_revelacao);
+    var _escala_revelacao = escala_texto_resultado * (0.92 + _entrada_revelacao * 0.08);
+    draw_set_alpha(_entrada_revelacao);
     draw_set_halign(fa_center);
     draw_set_valign(fa_top);
 
@@ -19,22 +26,22 @@ if (!girando && progresso_revelacao > 0 && !ocultar_resultado_ate_rolar) {
     }
 
     var _texto_x = x;
-    var _texto_y = y + (sprite_height * image_yscale / 2) + offset_texto_resultado;
+    var _texto_y = y + (sprite_height * image_yscale / 2) + offset_texto_resultado + 5 * sqr(_resto_revelacao);
 
     // Borda preta: desenha o texto deslocado em 8 direções ao redor
     draw_set_color(c_black);
-    draw_text_transformed(_texto_x - 1, _texto_y - 1, _texto_resultado, escala_texto_resultado, escala_texto_resultado, 0);
-    draw_text_transformed(_texto_x, _texto_y - 1, _texto_resultado, escala_texto_resultado, escala_texto_resultado, 0);
-    draw_text_transformed(_texto_x + 1, _texto_y - 1, _texto_resultado, escala_texto_resultado, escala_texto_resultado, 0);
-    draw_text_transformed(_texto_x - 1, _texto_y, _texto_resultado, escala_texto_resultado, escala_texto_resultado, 0);
-    draw_text_transformed(_texto_x + 1, _texto_y, _texto_resultado, escala_texto_resultado, escala_texto_resultado, 0);
-    draw_text_transformed(_texto_x - 1, _texto_y + 1, _texto_resultado, escala_texto_resultado, escala_texto_resultado, 0);
-    draw_text_transformed(_texto_x, _texto_y + 1, _texto_resultado, escala_texto_resultado, escala_texto_resultado, 0);
-    draw_text_transformed(_texto_x + 1, _texto_y + 1, _texto_resultado, escala_texto_resultado, escala_texto_resultado, 0);
+    draw_text_transformed(_texto_x - 1, _texto_y - 1, _texto_resultado, _escala_revelacao, _escala_revelacao, 0);
+    draw_text_transformed(_texto_x, _texto_y - 1, _texto_resultado, _escala_revelacao, _escala_revelacao, 0);
+    draw_text_transformed(_texto_x + 1, _texto_y - 1, _texto_resultado, _escala_revelacao, _escala_revelacao, 0);
+    draw_text_transformed(_texto_x - 1, _texto_y, _texto_resultado, _escala_revelacao, _escala_revelacao, 0);
+    draw_text_transformed(_texto_x + 1, _texto_y, _texto_resultado, _escala_revelacao, _escala_revelacao, 0);
+    draw_text_transformed(_texto_x - 1, _texto_y + 1, _texto_resultado, _escala_revelacao, _escala_revelacao, 0);
+    draw_text_transformed(_texto_x, _texto_y + 1, _texto_resultado, _escala_revelacao, _escala_revelacao, 0);
+    draw_text_transformed(_texto_x + 1, _texto_y + 1, _texto_resultado, _escala_revelacao, _escala_revelacao, 0);
 
     // Resultado por cima, usando a apresentação configurada para este dado.
     draw_set_color(cor_resultado);
-    draw_text_transformed(_texto_x, _texto_y, _texto_resultado, escala_texto_resultado, escala_texto_resultado, 0);
+    draw_text_transformed(_texto_x, _texto_y, _texto_resultado, _escala_revelacao, _escala_revelacao, 0);
 
     draw_set_alpha(1);
     draw_set_color(c_white); // reseta pro padrão, pra não vazar cor pra outros desenhos

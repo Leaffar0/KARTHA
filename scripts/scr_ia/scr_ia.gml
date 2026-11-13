@@ -78,13 +78,13 @@ function ia_pontuacao_alvo_magia(_dados, _alvo) {
         break;
         case "Veneno Mortal":
             _pontuacao += _alvo.vida_maxima * 2;
-            if (_alvo.condicao == "envenenado") _pontuacao -= 1000;
+            if (tem_condicao(_alvo, "envenenado")) _pontuacao -= 1000;
         break;
         case "Congelante":
-            if (_alvo.condicao == "congelado" || _alvo.condicao == "paralisado") _pontuacao -= 1000;
+            if (tem_condicao(_alvo, "congelado") || tem_condicao(_alvo, "paralisado")) _pontuacao -= 1000;
         break;
         case "Choque Elétrico":
-            if (_alvo.condicao == "paralisado") _pontuacao -= 1000;
+            if (tem_condicao(_alvo, "paralisado")) _pontuacao -= 1000;
         break;
     }
     return _pontuacao;
@@ -134,7 +134,7 @@ function ia_escolher_alvo_magia(_dados) {
         if (!travada || dono != "jogador" || sombra_ativa) continue;
         if (_dados.nome == "Eutanásia" && vida > 5) continue;
         if ((_dados.nome == "Veneno Mortal" || _dados.nome == "Congelante")
-            && condicao != noone) continue;
+            && tem_condicao(id, _dados.nome == "Veneno Mortal" ? "envenenado" : "congelado")) continue;
         var _pontuacao = ia_pontuacao_alvo_magia(_dados, id);
         if (_dados.nome == "Eutanásia") _pontuacao += 500;
         if (_pontuacao > _escolha.pontuacao) {
@@ -326,11 +326,14 @@ function ia_usar_habilidades_tropas() {
     with (obj_carta) {
         if (!travada || dono != "inimigo" || habilidade_usada_este_turno) continue;
 
-        var _habilidade = tem_habilidade_ativa(id);
+        var _ativas_ia = habilidades_ativas(id);
+        for (var _ha_ia = 0; _ha_ia < array_length(_ativas_ia); _ha_ia++) {
+        if (habilidade_usada_este_turno) break;
+        var _habilidade = _ativas_ia[_ha_ia];
         switch (_habilidade) {
             case "golpe_duplo":
                 if (!atacou_este_turno && (ia_alvo_atingivel(id) != noone || posicao_atual == posicao_assalto("inimigo"))) {
-                    usar_habilidade(id);
+                    usar_habilidade(id, _habilidade);
                 }
             break;
             case "ferida_exposta":
@@ -338,33 +341,34 @@ function ia_usar_habilidades_tropas() {
                 // Essas duas habilidades exigem uma tropa imediatamente à frente.
                 var _slot_frente = buscar_slot(lane_atual, posicao_atual + direcao_avanco("inimigo"));
                 if (_slot_frente != noone && _slot_frente.ocupado && _slot_frente.carta_atual.dono == "jogador") {
-                    usar_habilidade(id);
+                    usar_habilidade(id, _habilidade);
                 }
             break;
             case "sombra_translucida":
                 var _custo_sombra = { tipo: "mana", quantidade: 2 };
                 if (sombra_cooldown <= 0 && ia_tropa_ameacada(id) && pode_pagar_custo(_custo_sombra, "inimigo")) {
-                    usar_habilidade(id);
+                    usar_habilidade(id, _habilidade);
                 }
             break;
             case "visao_do_veu":
-                if (!visao_do_veu_usada) usar_habilidade(id);
+                if (!visao_do_veu_usada) usar_habilidade(id, _habilidade);
             break;
             case "digestao":
                 if (digestao_usos < usos_maximos_digestao(id)) {
-                    if (digestao_cadaver_disponivel) usar_habilidade(id);
+                    if (digestao_cadaver_disponivel) usar_habilidade(id, _habilidade);
                     else {
                         var _pode_digerir = false;
                         with (obj_carta) if (alvo_valido_digestao(other.id, id)) { _pode_digerir = true; break; }
-                        if (_pode_digerir) usar_habilidade(id);
+                        if (_pode_digerir) usar_habilidade(id, _habilidade);
                     }
                 }
             break;
             case "carnica_frenetica":
-                if (carnica_estado_proximo_ataque == "" && pode_pagar_custo({ tipo: "sangue", quantidade: 2 }, "inimigo")) usar_habilidade(id);
+                if (carnica_estado_proximo_ataque == "" && pode_pagar_custo({ tipo: "sangue", quantidade: 2 }, "inimigo")) usar_habilidade(id, _habilidade);
             break;
         }
     }
+}
 }
 
 function ia_consumir_carta_da_mao(_indice, _dados, _funcao) {
@@ -436,7 +440,7 @@ function ia_melhor_tropa_propria(_exigir_mochila = false, _inteligencia_minima =
     var _melhor = noone;
     var _valor = -999999;
     with (obj_carta) {
-        if (!travada || dono != "inimigo" || condicao == "adormecido" || condicao == "loucura") continue;
+        if (!travada || dono != "inimigo" || tem_condicao(id, "adormecido") || tem_condicao(id, "loucura")) continue;
         if (_exigir_mochila && (mochila <= 0 || troca_item_usada_este_turno)) continue;
         if (nivel_inteligencia < _inteligencia_minima) continue;
         var _pontuacao = ia_valor_tropa_campo(id);
@@ -466,7 +470,7 @@ function ia_melhor_alvo_corrosao() {
     var _melhor = noone;
     var _valor = -999999;
     with (obj_carta) {
-        if (!travada || dono != "jogador" || condicao != noone) continue;
+        if (!travada || dono != "jogador" || tem_condicao(id, "corrosao")) continue;
         var _pontuacao = ia_valor_tropa_campo(id);
         if (_pontuacao > _valor) {
             _valor = _pontuacao;
@@ -752,7 +756,6 @@ function ia_jogar_cartas() {
 
                 _cartas_jogadas += 1;
 				
-				audio_play_sound(snd_colocar,1,0,.5,0,random_range(.5,2))
             }
         }
 			

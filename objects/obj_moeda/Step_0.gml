@@ -39,20 +39,21 @@ if (girando) {
 
         audio_play_sound(snd_moeda_impacto, 1, 0, .3, 0, random_range(.9, 1.1));
 
-        // Impacto elástico: achata (squash) rápido e depois estica de volta (stretch),
-        // quicando levemente até assentar -- efeito de moeda batendo na mesa.
+        // Comprime no contato e assenta rapidamente, como uma peça rígida.
         moeda_escala_x = 1;
         moeda_escala_y = 1;
 
-        tween(id, "moeda_escala_y", 0.6, tween_animation.quad_out, 4, method(id, function() {
+        tween(id, "moeda_escala_y", 0.82, tween_animation.quad_out, 3, method(id, function() {
             if (!instance_exists(self)) return;
-            tween(self, "moeda_escala_y", 1, tween_animation.elastic_out, 22);
+            tween(self, "moeda_escala_y", 1, tween_animation.quad_out, 10);
         }));
-        tween(id, "moeda_escala_x", 1.35, tween_animation.quad_out, 4, method(id, function() {
+        tween(id, "moeda_escala_x", 1.15, tween_animation.quad_out, 3, method(id, function() {
             if (!instance_exists(self)) return;
-            tween(self, "moeda_escala_x", 1, tween_animation.elastic_out, 22);
+            tween(self, "moeda_escala_x", 1, tween_animation.quad_out, 10);
         }));
 
         alarm[0] = 120;
     }
+} else if (alarm[0] > 0) {
+    progresso_revelacao_moeda = min(1, progresso_revelacao_moeda + 0.16);
 }

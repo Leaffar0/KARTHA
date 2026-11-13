@@ -1,3 +1,4 @@
+if (mouse_sobre_painel_regras() || mouse_sobre_historico()) exit;
 // obj_recurso não usa sprite/máscara no editor, então o evento de mouse pode
 // ser recebido fora da imagem. Confere manualmente a área realmente desenhada.
 if (!lado_controlado_localmente(dono)) exit;

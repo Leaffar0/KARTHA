@@ -773,6 +773,7 @@ function ativar_armadilha(_carta_armadilha) {
         return;
     }
 
+    revelar_armadilha_posicionada(_carta_armadilha);
     _carta_armadilha.armadilha_estado = "resolvendo";
     _carta_armadilha.visible = false;
     var _index_mao = array_get_index(obj_controlador.mao, _carta_armadilha.id);
@@ -780,8 +781,6 @@ function ativar_armadilha(_carta_armadilha) {
         array_delete(obj_controlador.mao, _index_mao, 1);
         organizar_mao();
     }
-
-    criar_flash(_alvo.x, _alvo.y, 45);
 
     var _qtd_dados = max(1, _carta_armadilha.qtd_dados_efeito);
     var _dados_rolagem = {
@@ -802,6 +801,7 @@ function ativar_armadilha(_carta_armadilha) {
             return;
         }
 
+        criar_flash(alvo.x, alvo.y, 32);
         alvo.vida -= dano_total;
         aplicar_flash_dano(alvo);
         mostrar_dano_tropa(alvo, dano_total);
@@ -834,7 +834,7 @@ function ativar_armadilha(_carta_armadilha) {
     for (var i = 0; i < _qtd_dados; i++) {
         var _resultado_dado = irandom_range(1, _carta_armadilha.dado_efeito);
         var _offset_dado = (i - ((_qtd_dados - 1) / 2)) * 110;
-        var _atraso_dado = (i == 0) ? 0 : i * irandom_range(26, 42);
+        var _atraso_dado = 8 + ((i == 0) ? 0 : i * irandom_range(26, 42));
         var _duracao_dado = 78 + irandom_range(-8, 18);
         rolar_dado_visual(
             _carta_armadilha.x + _offset_dado * 0.22,
@@ -868,8 +868,10 @@ function ativar_raizes_espinhosas_ao_mover(_tropa) {
     var _dono_armadilha = (_tropa.dono == "jogador") ? "inimigo" : "jogador";
     var _armadilha = buscar_armadilha_de_gatilho(_dono_armadilha, _tropa.lane_atual, "raizes_espinhosas");
     if (_armadilha == noone) return false;
-    mostrar_feedback("RAÍZES: MOVIMENTO CANCELADO", _tropa.x, _tropa.y - 42, c_lime, 70);
-    aplicar_envenenado(_tropa);
+    revelar_armadilha_posicionada(_armadilha);
+    apresentacao_enfileirar(evento_feedback_criar("RAÍZES: MOVIMENTO CANCELADO",
+        _tropa.x, _tropa.y - 42, c_lime, 70), 8);
+    aplicar_condicao(_tropa, "envenenado", -1, 1, true, 8);
     _tropa.moveu_este_turno = true;
     consumir_armadilha_ativada(_armadilha);
     return true;
@@ -886,8 +888,9 @@ function ativar_loucura_mutua(_tropa_afetada) {
         if (vida > _valor) { _valor = vida; _alvo = id; }
     }
     if (_alvo == noone) return false;
-    aplicar_condicao(_alvo, "loucura", -1, 0, false);
-    mostrar_feedback("LOUCURA MÚTUA", _alvo.x, _alvo.y - 42, c_purple, 70);
+    revelar_armadilha_posicionada(_armadilha);
+    aplicar_condicao(_alvo, "loucura", -1, 0, false, 8);
+    apresentacao_enfileirar(evento_feedback_criar("LOUCURA MÚTUA", _alvo.x, _alvo.y - 42, c_purple, 70), 8);
     consumir_armadilha_ativada(_armadilha);
     return true;
 }
@@ -899,6 +902,7 @@ function ativar_destrocos_construcao(_dono, _lane, _origem_x, _origem_y) {
     with (obj_carta) {
         if (travada && dono != _dono && lane_atual == _lane) array_push(_alvos, id);
     }
+    revelar_armadilha_posicionada(_armadilha);
     consumir_armadilha_ativada(_armadilha);
     for (var i = 0; i < array_length(_alvos); i++) {
         var _alvo = _alvos[i];
@@ -1058,7 +1062,7 @@ function calcular_mod_dano_total(_carta) {
 
 // Mesma ideia, só que pra defesa física.
 function calcular_defesa_fisica_total(_carta) {
-    var _bonus_berserker = (_carta.condicao == "berserker") ? 4 : 0;
+    var _bonus_berserker = (tem_condicao(_carta, "berserker")) ? 4 : 0;
     return _carta.defesa_fisica + bonus_cemiterio_defesa(_carta) + _bonus_berserker;
 }
 
@@ -1240,7 +1244,9 @@ function executar_efeitos_declarativos(_efeitos, _alvo, _dono) {
                 break;
             case "cura":
                 if (instance_exists(_alvo) && variable_struct_exists(_efeito, "valor")) {
+                    var _vida_antes_cura = _alvo.vida;
                     _alvo.vida = min(_alvo.vida_maxima, _alvo.vida + _efeito.valor); _executou = true;
+                    debug_combate(_alvo.nome_carta + " recuperou " + string(_alvo.vida - _vida_antes_cura) + " de vida.");
                 }
                 break;
             case "comprar":
@@ -1583,7 +1589,7 @@ function organizar_mao() {
     obj_controlador.mao = _mao_limpa;
     var _mao = obj_controlador.mao;
     var _total = array_length(_mao);
-    var _espaco = obj_controlador.espaco_entre_cartas;
+    var _espaco = obj_controlador.espaco_entre_cartas * global.escala_interface;
     var _centro_x = obj_controlador.mao_x_centro;
     var _y = obj_controlador.mao_y;
 
@@ -1591,7 +1597,7 @@ function organizar_mao() {
     var _x_inicial = _centro_x - (_largura_total / 2);
 
     var _angulo_maximo = 10;
-    var _altura_arco = 20;
+    var _altura_arco = 20 * global.escala_interface;
 
     for (var i = 0; i < _total; i++) {
         var _carta = _mao[i];
@@ -1616,10 +1622,11 @@ function organizar_mao() {
     // calcula quanto dá pra rolar (só rola se a mão for mais larga que o espaço visível)
     obj_controlador.mao_scroll_max = max(0, (_largura_total - obj_controlador.mao_largura_visivel) / 2);
     obj_controlador.mao_scroll_offset_alvo = clamp(obj_controlador.mao_scroll_offset_alvo, -obj_controlador.mao_scroll_max, obj_controlador.mao_scroll_max);
+    obj_controlador.mao_scroll_offset = clamp(obj_controlador.mao_scroll_offset, -obj_controlador.mao_scroll_max, obj_controlador.mao_scroll_max);
 }
 
 function mouse_na_faixa_da_mao(_mouse_y) {
-    return _mouse_y >= obj_controlador.mao_y - global.CARTA_ALTURA * 0.55;
+    return _mouse_y >= obj_controlador.mao_y - global.CARTA_ALTURA * 0.55 * global.escala_interface;
 }
 
 // Reorganiza a mão pela posição horizontal do cursor. A carta continua no
@@ -1643,7 +1650,7 @@ function reordenar_carta_na_mao(_carta, _mouse_x) {
     if (_novo_indice != _indice_antigo) organizar_mao();
     if (_carta.arrastando) {
         _carta.esta_na_mao = false;
-        _carta.depth = -100000;
+        _carta.depth = -12000;
     }
     return _novo_indice != _indice_antigo;
 }
@@ -1753,6 +1760,7 @@ function other_custo_tipo(_custo) {
 
 // Feedback visual reutilizável para ações negadas por regra ou recurso insuficiente.
 function mostrar_aviso_regra(_texto, _x = mouse_x, _y = mouse_y) {
+    debug_combate("Ação recusada: " + _texto);
     var _aviso = instance_create_layer(_x, _y - 24, "Instances", obj_texto_flutuante);
     _aviso.texto = _texto;
     _aviso.cor_texto = make_color_rgb(255, 210, 70);
@@ -1769,11 +1777,42 @@ function iniciar_retorno_carta(_carta) {
     _carta.arrasto_velocidade_y *= -0.28;
 }
 
-function criar_animacao_item(_sprite, _origem_x, _origem_y, _destino_x, _destino_y, _cor = c_aqua) {
+function criar_animacao_item(_sprite, _origem_x, _origem_y, _destino_x, _destino_y, _cor = c_aqua,
+    _tropa = noone, _equipamento = noone, _indice_online = -1, _definicao_online = "") {
     var _controle = instance_find(obj_controlador, 0);
-    if (_controle == noone || _sprite == noone || _sprite < 0) return;
-    array_push(_controle.animacoes_item, { sprite: _sprite, origem_x: _origem_x, origem_y: _origem_y,
-        destino_x: _destino_x, destino_y: _destino_y, timer: 0, duracao: 34, cor: _cor });
+    if (_controle == noone) return;
+    if (!sprite_exists(_sprite)) _sprite = spr_carta_placeholder;
+    if (is_struct(_equipamento)) _equipamento.visual_em_voo = true;
+    if (instance_exists(_tropa)) tocar_som_variado("deslize", 0.38, 1);
+    array_push(_controle.animacoes_item, { tipo: "item", sprite: _sprite,
+        origem_x: _origem_x, origem_y: _origem_y, destino_x: _destino_x, destino_y: _destino_y,
+        timer: 0, duracao: 32, cor: _cor, tropa: _tropa, equipamento: _equipamento,
+        indice_online: _indice_online, definicao_online: _definicao_online });
+}
+
+function equipamento_online_em_voo(_tropa, _item, _indice) {
+    if (!variable_struct_exists(_item, "online_definition_id")) return false;
+    var _animacoes = obj_controlador.animacoes_item;
+    for (var i = 0; i < array_length(_animacoes); i++) {
+        var _anim = _animacoes[i];
+        if (_anim.tipo == "item" && _anim.tropa == _tropa && _anim.indice_online == _indice
+            && _anim.definicao_online == _item.online_definition_id) return true;
+    }
+    return false;
+}
+
+function revelar_armadilha_visual(_sprite, _x, _y) {
+    if (!instance_exists(obj_controlador)) return;
+    if (!sprite_exists(_sprite)) _sprite = spr_carta_placeholder;
+    array_push(obj_controlador.animacoes_item, { tipo: "armadilha", sprite: _sprite,
+        destino_x: _x, destino_y: _y, timer: 0, duracao: 17, tropa: noone, equipamento: noone });
+}
+
+function revelar_armadilha_posicionada(_armadilha) {
+    var _slot = buscar_slot(_armadilha.armadilha_lane, _armadilha.armadilha_posicao);
+    if (_slot == noone) return;
+    if (instance_exists(_armadilha.armadilha_visual_id)) _armadilha.armadilha_visual_id.visible = false;
+    revelar_armadilha_visual(_armadilha.sprite_index, _slot.x, _slot.y);
 }
 
 function mostrar_feedback(_texto, _x, _y, _cor = c_white, _duracao = 55) {
@@ -1869,15 +1908,20 @@ function pagar_custo(_custo, _dono, _categoria = "") {
     var _selecao = selecionar_recursos_para_custo(_custo, _dono, _categoria);
     if (!_selecao.sucesso) return false;
     for (var i = 0; i < array_length(_selecao.recursos); i++) {
-        if (instance_exists(_selecao.recursos[i])) _selecao.recursos[i].virado = true;
+        var _recurso = _selecao.recursos[i];
+        if (!instance_exists(_recurso)) continue;
+        _recurso.atraso_virada_visual = min(i * 3, 15);
+        _recurso.virado = true;
     }
     return true;
 }
 
 // desvira todos os recursos de um lado (chamado no início do turno dele)
 function desvirar_recursos(_dono) {
+    var _desvirou = false;
     with (obj_recurso) {
         if (dono == _dono) {
+            _desvirou = _desvirou || virado;
             virado = false;
             if (bloqueado_turnos > 0) {
                 if (bloqueio_acabou_de_aplicar) bloqueio_acabou_de_aplicar = false;
@@ -1885,6 +1929,7 @@ function desvirar_recursos(_dono) {
             }
         }
     }
+    if (_desvirou) audio_play_sound(snd_shuffle, 1, false, 0.15, 0, 1.18);
     if (_dono == "jogador") {
         obj_controlador.recurso_colocado_no_turno = false;
         obj_controlador.recurso_retirado_no_turno = false;
@@ -2026,7 +2071,7 @@ function lancar_bola_de_fogo(_alvo, _dado_efeito, _chance_queimar, _tipo_alvo = 
 
 function evoluir_tropa(_carta) {
     if (_carta.funcao_evolucao == noone) return;
-    if (_carta.condicao == "adormecido" || _carta.condicao == "loucura") {
+    if (tem_condicao(_carta, "adormecido") || tem_condicao(_carta, "loucura")) {
         if (_carta.dono == "jogador") mostrar_aviso_regra("Esta condição impede evoluir", _carta.x, _carta.y);
         return;
     }
@@ -2052,6 +2097,7 @@ function evoluir_tropa(_carta) {
     // transfere o dano já sofrido, não reseta a vida
     var _dano_sofrido = _carta.vida_maxima - _carta.vida;
     
+    _carta.evolucao_sprite_anterior = _carta.sprite_index;
     _carta.nome_carta = _dados_evo.nome;
     _carta.tags = variable_struct_exists(_dados_evo, "tags") ? _dados_evo.tags : [];
     _carta.sprite_index = (_dados_evo.sprite_carta != noone) ? _dados_evo.sprite_carta : spr_carta_placeholder;
@@ -2204,27 +2250,52 @@ function equipar_item_dados(_tropa, _item) {
     return true;
 }
 
+// Retorna o motivo que já bloqueia a colocação de equipamentos da mão.
+function motivo_recusa_equipamento(_tropa, _inteligencia_necessaria) {
+    if (tem_condicao(_tropa, "adormecido") || tem_condicao(_tropa, "loucura"))
+        return "Esta condição impede equipar itens";
+    if (_tropa.troca_item_usada_este_turno)
+        return "Esta tropa já usou sua ação de item neste turno";
+    if (_tropa.mochila <= 0) return "A mochila desta tropa está cheia";
+    if (_tropa.nivel_inteligencia < _inteligencia_necessaria)
+        return "Este item exige inteligência " + string(_inteligencia_necessaria)
+            + "; a tropa possui " + string(_tropa.nivel_inteligencia);
+    return "";
+}
+
 function remover_item_equipado(_tropa, _indice, _voltar_mao = true) {
     if (!instance_exists(_tropa) || _indice < 0 || _indice >= array_length(_tropa.itens_equipados)) return noone;
+    if (_voltar_mao && (_tropa.troca_item_usada_este_turno || troca_item_do_lado_usada(_tropa.dono))) return noone;
     var _item = _tropa.itens_equipados[_indice];
+    if (_voltar_mao && _item.funcao == noone) return noone;
     array_delete(_tropa.itens_equipados, _indice, 1);
     recalcular_itens_tropa(_tropa);
-    if (_voltar_mao && _tropa.dono == "jogador" && _item.funcao != noone) {
-        comprar_carta_do_deck_por_funcao(_item.funcao, _tropa.x, _tropa.y);
+    if (_voltar_mao) {
+        comprar_carta_do_deck_por_funcao(_item.funcao, _tropa.x, _tropa.y, _tropa.dono);
+        _tropa.troca_item_usada_este_turno = true;
+        variable_struct_set(obj_controlador.troca_item_usada_por_lado, _tropa.dono, true);
     }
     return _item;
 }
 
 function transferir_item_equipado(_origem, _destino, _indice) {
     if (!instance_exists(_origem) || !instance_exists(_destino) || _destino.mochila <= 0) return false;
+    if (_origem == _destino || _origem.dono != _destino.dono
+        || _origem.troca_item_usada_este_turno || _destino.troca_item_usada_este_turno
+        || troca_item_do_lado_usada(_origem.dono)) return false;
     var _item = remover_item_equipado(_origem, _indice, false);
     if (!is_struct(_item)) return false;
     equipar_item_dados(_destino, _item);
-    criar_animacao_item(_item.sprite, _origem.x, _origem.y, _destino.x, _destino.y, c_aqua);
+    criar_animacao_item(_item.sprite, _origem.x, _origem.y, _destino.x, _destino.y, c_aqua, _destino, _item);
     _origem.troca_item_usada_este_turno = true;
     _destino.troca_item_usada_este_turno = true;
+    variable_struct_set(obj_controlador.troca_item_usada_por_lado, _origem.dono, true);
     mostrar_feedback("ITEM TRANSFERIDO", _destino.x, _destino.y - 45, c_aqua, 45);
     return true;
+}
+
+function troca_item_do_lado_usada(_dono) {
+    return variable_struct_get(obj_controlador.troca_item_usada_por_lado, _dono);
 }
 
 function tentar_roubo_item(_ladrao, _vitima, _item_atacante) {
@@ -2239,7 +2310,7 @@ function tentar_roubo_item(_ladrao, _vitima, _item_atacante) {
         if (_pos < 0) return;
         var _roubado = remover_item_equipado(vitima, _pos, false);
         equipar_item_dados(ladrao, _roubado);
-        criar_animacao_item(_roubado.sprite, vitima.x, vitima.y, ladrao.x, ladrao.y, c_yellow);
+        criar_animacao_item(_roubado.sprite, vitima.x, vitima.y, ladrao.x, ladrao.y, c_yellow, ladrao, _roubado);
         mostrar_feedback("ROUBOU: " + _roubado.nome, ladrao.x, ladrao.y - 45, c_yellow, 60);
     }), 0, 0, -1, _ladrao.dono);
 }
@@ -2310,3 +2381,16 @@ function ia_usar_grimorios() {
     }
 }
 
+
+// A animação pertence à carta equipada e usa a mesma posição final da pilha.
+function animacao_equipamento_ativo(_tropa, _item, _indice) {
+    var _animacoes = obj_controlador.animacoes_item;
+    for (var i = 0; i < array_length(_animacoes); i++) {
+        var _anim = _animacoes[i];
+        if (_anim.tipo != "item" || _anim.tropa != _tropa) continue;
+        if (is_struct(_anim.equipamento) && _anim.equipamento == _item) return _anim;
+        if (variable_struct_exists(_item, "online_definition_id")
+            && _anim.indice_online == _indice && _anim.definicao_online == _item.online_definition_id) return _anim;
+    }
+    return noone;
+}

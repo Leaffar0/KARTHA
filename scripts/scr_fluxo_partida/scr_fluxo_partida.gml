@@ -370,6 +370,15 @@ if (ui_modal.descarte_aberto) {
     return true;
 }
 
+// A prévia recebe a entrada antes dos controles do HUD que ela cobre.
+if (carta_preview != noone) {
+    if (!instance_exists(carta_preview) || mouse_check_button_pressed(mb_right) || keyboard_check_pressed(vk_escape)) {
+        carta_preview = noone;
+    }
+    if (turno == "inimigo" && ia_ativa) processar_turno_ia();
+    return true;
+}
+
 var _botoes_direita_x1 = _tutorial_largura_gui - 205 + hud_deslocamento_direita;
 var _botoes_direita_x2 = _tutorial_largura_gui - 15 + hud_deslocamento_direita;
 if (!ui_modal.pausa_ativa && (keyboard_check_pressed(vk_f1) || (mouse_check_button_pressed(mb_left)
@@ -393,7 +402,8 @@ if (ui_modal.pausa_ativa) {
         var _musica_y = _pausa_cy - 35;
         var _efeitos_y = _pausa_cy + 10;
         var _tela_y = _pausa_cy + 55;
-        var _voltar_y = _pausa_cy + 110;
+        var _interface_y = _pausa_cy + 98;
+        var _voltar_y = _pausa_cy + 147;
         if (keyboard_check_pressed(vk_escape)) {
             ui_modal.opcoes_pausa_ativa = false;
         } else if (mouse_check_button_pressed(mb_left) && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _pausa_cx - 160, _musica_y - 18, _pausa_cx - 90, _musica_y + 18)) {
@@ -415,6 +425,8 @@ if (ui_modal.pausa_ativa) {
         } else if (mouse_check_button_pressed(mb_left) && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _pausa_cx - 160, _tela_y - 18, _pausa_cx + 160, _tela_y + 18)) {
             window_set_fullscreen(!window_get_fullscreen());
             salvar_configuracoes();
+        } else if (mouse_check_button_pressed(mb_left) && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _pausa_cx - 150, _interface_y - 18, _pausa_cx + 150, _interface_y + 18)) {
+            alternar_tamanho_interface();
         } else if (mouse_check_button_pressed(mb_left) && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _pausa_cx - 150, _voltar_y - 22, _pausa_cx + 150, _voltar_y + 22)) {
             ui_modal.opcoes_pausa_ativa = false;
         }
@@ -497,35 +509,22 @@ function controlador_processar_interacao(_controle) {
     var _processar = method(_controle, function() {
 #region Atalhos de teclado (debug/teste)
 if (keyboard_check_pressed(vk_escape)) {
-    var _fechou_algum_preview = false;
-
-    // Preview de carta ampliada (botão direito numa carta)
-    if (carta_preview != noone) {
-        carta_preview = noone;
-        _fechou_algum_preview = true;
-    }
-
-    // Preview do livro de regras
     if (instance_exists(obj_livro) && obj_livro.preview_ativo) {
         obj_livro.preview_ativo = false;
-        _fechou_algum_preview = true;
-    }
-
-    // Sem preview, ESC abre a pausa em vez de encerrar a partida por acidente.
-    if (!_fechou_algum_preview) {
+    } else {
         ui_modal.pausa_ativa = true;
     }
 }
-if (keyboard_check_pressed(ord("R")) && global.DEBUG_COMBATE) {
+if (keyboard_check_pressed(ord("R")) && global.DEBUG_COMBATE && modo_partida != "online") {
     room_restart();
 }
 
-if (keyboard_check_pressed(ord("K")) && global.DEBUG_COMBATE) {
+if (keyboard_check_pressed(ord("K")) && global.DEBUG_COMBATE && modo_partida != "online") {
     vida_inimigo = 0;
 }
 
 // NOVO: pede o nome de uma carta e coloca ela direto na mão (sem gastar do monte).
-if (keyboard_check_pressed(ord("V")) && global.DEBUG_COMBATE) {
+if (keyboard_check_pressed(ord("V")) && global.DEBUG_COMBATE && modo_partida != "online") {
     var _estava_fullscreen = window_get_fullscreen();
     if (_estava_fullscreen) {
         window_set_fullscreen(false);
@@ -543,11 +542,11 @@ if (keyboard_check_pressed(ord("V")) && global.DEBUG_COMBATE) {
 }
 
 // NOVO: enche os recursos do jogador instantaneamente.
-if (keyboard_check_pressed(ord("F")) && global.DEBUG_COMBATE) {
+if (keyboard_check_pressed(ord("F")) && global.DEBUG_COMBATE && modo_partida != "online") {
     debug_encher_recursos("jogador");
 }
 
-if (keyboard_check_pressed(ord("C")) && global.DEBUG_COMBATE) {
+if (keyboard_check_pressed(ord("C")) && global.DEBUG_COMBATE && modo_partida != "online") {
     var _quantidade_debug = 10;
     for (var i = 0; i < _quantidade_debug; i++) {
         if (array_length(monte) == 0) break;
@@ -556,7 +555,7 @@ if (keyboard_check_pressed(ord("C")) && global.DEBUG_COMBATE) {
     debug_combate("DEBUG: comprou " + string(_quantidade_debug) + " cartas pro jogador.");
 }
 
-if (keyboard_check_pressed(ord("M"))&& global.DEBUG_COMBATE) {
+if (keyboard_check_pressed(ord("M"))&& global.DEBUG_COMBATE && modo_partida != "online") {
     jogar_moeda_visual(mao_x_centro, mao_y, room_width / 2, room_height / 2, noone);
 }
 #endregion
@@ -588,23 +587,12 @@ with (obj_construcao) {
 }
 
 if (mouse_check_button_pressed(mb_right)) {
-    if (carta_preview == noone) {
-        var _alvo_preview = (hover_atual != noone) ? hover_atual
-            : ((_hover_campo != noone) ? _hover_campo : _hover_construcao);
-        if (_alvo_preview != noone) {
-            carta_preview = _alvo_preview;
-        }
-    } else {
-        carta_preview = noone;
+    var _alvo_preview = (hover_atual != noone) ? hover_atual
+        : ((_hover_campo != noone) ? _hover_campo : _hover_construcao);
+    if (_alvo_preview != noone) {
+        carta_preview = _alvo_preview;
+        return true;
     }
-}
-
-// enquanto o preview está ativo, ignora todo o resto do Step (hover, clique, arrasto, menu)
-if (carta_preview != noone) {
-    if (!instance_exists(carta_preview)) {
-        carta_preview = noone;
-    }
-    return true;
 }
 #endregion
 
@@ -689,16 +677,17 @@ var _menor_distancia = 999999;
 for (var i = 0; i < _total; i++) {
     var _carta = mao[i];
     if (!instance_exists(_carta)) continue;
-    if (_carta.arrastando) continue;
+    if (_carta.arrastando || _carta.compra_animando) continue;
     if (!_carta.esta_na_mao) continue;
     if (_carta.travada) continue;
 
-    var _dentro_y = (mouse_y >= _carta.y - global.CARTA_ALTURA/2 - 40)
-                  && (mouse_y <= _carta.y + global.CARTA_ALTURA/2);
+    var _meia_altura_mao = global.CARTA_ALTURA * 0.5 * global.escala_interface;
+    var _dentro_y = (mouse_y >= _carta.y - _meia_altura_mao - 40 * global.escala_interface)
+                  && (mouse_y <= _carta.y + _meia_altura_mao);
 
     if (_dentro_y) {
         var _dist_x = abs(mouse_x - _carta.x);
-        if (_dist_x < global.CARTA_LARGURA/2 && _dist_x < _menor_distancia) {
+        if (_dist_x < global.CARTA_LARGURA * 0.5 * global.escala_interface && _dist_x < _menor_distancia) {
             _menor_distancia = _dist_x;
             _melhor_carta = _carta;
         }
@@ -725,7 +714,7 @@ if (mouse_check_button_pressed(mb_left)) {
             arrastando = true;
             esta_na_mao = false;
             // Profundidade exclusiva: nenhuma carta da mão ou em animação passa na frente.
-            depth = -100000;
+            depth = -12000;
             rotacao_atual = 0;
             escala_atual = 1;
             y_offset_atual = 0;
@@ -769,8 +758,8 @@ if (mao_scroll_max > 0) {
     var _velocidade_scroll_h = 15;
 
     // só ativa se o mouse estiver na altura da mão (não em qualquer lugar da tela)
-    var _dentro_faixa_mao = (mouse_y >= mao_y - global.CARTA_ALTURA/2 - 40) 
-                          && (mouse_y <= mao_y + global.CARTA_ALTURA/2 + 40);
+    var _alcance_mao = (global.CARTA_ALTURA * 0.5 + 40) * global.escala_interface;
+    var _dentro_faixa_mao = abs(mouse_y - mao_y) <= _alcance_mao;
 
     if (_dentro_faixa_mao) {
         if (_mouse_gui_x < _zona_scroll_h) {
@@ -800,13 +789,12 @@ if (carta_menu_aberto != noone && instance_exists(carta_menu_aberto) && menu_esc
     var _opcoes = obter_opcoes_menu(_carta);
     var _n = array_length(_opcoes);
 
-    var _largura_opcao = 170;
-    var _altura_opcao = 23;
-    var _espaco_opcao = 6;
-    var _altura_total = _n * _altura_opcao + (_n - 1) * _espaco_opcao;
-
-    var _base_x = _carta.x + (global.CARTA_LARGURA * 0.5);
-    var _base_y = _carta.y - _altura_total/2;
+    var _layout_menu = layout_menu_tropa(_carta, _n);
+    var _largura_opcao = _layout_menu.largura;
+    var _altura_opcao = _layout_menu.altura;
+    var _espaco_opcao = _layout_menu.espaco;
+    var _base_x = _layout_menu.x;
+    var _base_y = _layout_menu.y;
 
     for (var i = 0; i < _n; i++) {
         var _opt_y = _base_y + i * (_altura_opcao + _espaco_opcao);

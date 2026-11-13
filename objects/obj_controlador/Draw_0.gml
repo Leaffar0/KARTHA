@@ -184,14 +184,13 @@ if (carta_menu_aberto != noone && instance_exists(carta_menu_aberto) && menu_esc
     var _opcoes = obter_opcoes_menu(_carta);
     var _n = array_length(_opcoes);
     
-    var _largura_opcao = 170;
-    var _altura_opcao = 23;
-    var _espaco_opcao = 6;
-    var _altura_total = _n * _altura_opcao + (_n - 1) * _espaco_opcao;
-    
-    var _base_x = _carta.x + (global.CARTA_LARGURA * 0.5);
-	var _base_y = _carta.y - _altura_total/2;
-    
+    var _layout_menu = layout_menu_tropa(_carta, _n);
+    var _largura_opcao = _layout_menu.largura;
+    var _altura_opcao = _layout_menu.altura;
+    var _espaco_opcao = _layout_menu.espaco;
+    var _base_x = _layout_menu.x;
+    var _base_y = _layout_menu.y;
+
     for (var i = 0; i < _n; i++) {
         var _opt_y = _base_y + i * (_altura_opcao + _espaco_opcao);
         var _centro_opt_y = _opt_y + _altura_opcao/2;
@@ -276,6 +275,8 @@ if (carta_menu_aberto != noone && instance_exists(carta_menu_aberto) && menu_esc
                 _texto_opcao += "  >";
             }
             draw_set_color(_cor_borda);
+            _escala_texto_opcao = min(_escala_texto_opcao,
+                max(1, _x2 - _x1 - 12) / max(1, string_width(_texto_opcao)));
 		    draw_text_transformed((_x1 + _x2)/2, (_y1 + _y2)/2,
                 _texto_opcao, _escala_texto_opcao, _escala_texto_opcao, 0);
 		}
@@ -287,3 +288,5 @@ if (carta_menu_aberto != noone && instance_exists(carta_menu_aberto) && menu_esc
     draw_set_font(-1)
 }
 #endregion
+
+desenhar_animacoes_cartas_mesa();

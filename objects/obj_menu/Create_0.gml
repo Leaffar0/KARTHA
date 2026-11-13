@@ -1,4 +1,5 @@
 carregar_configuracoes();
+display_set_gui_size(-1, -1);
 tocar_musica(snd_menu);
 tempo_menu = 0;
 opcoes_abertas = false;

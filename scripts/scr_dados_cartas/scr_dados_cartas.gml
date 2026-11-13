@@ -19,10 +19,12 @@ function debug_combate(_msg) {
         if (!variable_instance_exists(_controle, "historico_combate") || !is_array(_controle.historico_combate)) {
             _controle.historico_combate = [];
         }
-        if (!variable_instance_exists(_controle, "max_historico_combate") || _controle.max_historico_combate < 15) {
-            _controle.max_historico_combate = 15;
+        if (!variable_instance_exists(_controle, "max_historico_combate") || _controle.max_historico_combate < 80) {
+            _controle.max_historico_combate = 80;
         }
-        array_push(_controle.historico_combate, _msg);
+        var _rotulo_turno = variable_instance_exists(_controle, "turno")
+            && (_controle.turno == "jogador" || _controle.turno == "inimigo") ? nome_jogador_lado(_controle.turno) : "Preparação";
+        array_push(_controle.historico_combate, "[" + _rotulo_turno + "] " + _msg);
         while (array_length(_controle.historico_combate) > _controle.max_historico_combate) {
             array_delete(_controle.historico_combate, 0, 1);
         }
@@ -540,6 +542,7 @@ function processar_turno_ia() {
 }
 
 function reiniciar_acoes_tropas(_lado) {
+    variable_struct_set(obj_controlador.troca_item_usada_por_lado, _lado, false);
     with (obj_carta) {
         if (dono == _lado && travada) {
             moveu_este_turno = false;

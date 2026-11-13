@@ -1,5 +1,6 @@
 #region Informações da partida
 draw_set_font(Fontenil);
+desenhar_resumo_regras_turno();
 
 var _cor_vida_jogador = make_color_rgb(45, 125, 255);
 var _cor_vida_inimigo = make_color_rgb(225, 55, 55);
@@ -219,104 +220,6 @@ if (terreno_anuncio_timer > 0) {
 }
 #endregion
 
-#region Prévia ampliada da carta
-if (carta_preview != noone && instance_exists(carta_preview)) {
-    var _carta = carta_preview;
-
-    var _gui_largura_preview = display_get_gui_width();
-    var _tem_painel_lateral = _gui_largura_preview >= 950;
-    var _centro_x = _gui_largura_preview / 2 - (_tem_painel_lateral ? 165 : 0);
-    var _centro_y = display_get_gui_height() / 2;
-
-    draw_set_alpha(0.7);
-    draw_set_color(c_black);
-    draw_rectangle(0, 0, display_get_gui_width(), display_get_gui_height(), false);
-    draw_set_alpha(1);
-
-    var _largura_real = sprite_get_width(_carta.sprite_index);
-    var _altura_real = sprite_get_height(_carta.sprite_index);
-
-    var _largura_preview_alvo = 350;
-    var _escala_preview = _largura_preview_alvo / _largura_real;
-
-    draw_sprite_ext(
-        _carta.sprite_index,
-        _carta.image_index,
-        _centro_x,
-        _centro_y,
-        _escala_preview,
-        _escala_preview,
-        0,
-        c_white,
-        1
-    );
-
-    if (!_carta.tem_arte_propria) {
-	    var _largura_maxima_preview = _largura_real * _escala_preview * 0.85;
-	    var _largura_texto_preview = string_width(_carta.nome_carta);
-	    var _escala_nome_preview = _escala_preview * 0.4;
-
-    if (_largura_texto_preview * _escala_nome_preview > _largura_maxima_preview) {
-        _escala_nome_preview = _largura_maxima_preview / _largura_texto_preview;
-    }
-
-	    draw_set_halign(fa_center);
-	    draw_set_valign(fa_top);
-	    draw_set_color(c_white);
-	    draw_text_transformed(_centro_x, _centro_y - (_altura_real/2 * _escala_preview) + 10, _carta.nome_carta, _escala_nome_preview, _escala_nome_preview, 0);
-	}
-
-    if (_carta.categoria == "tropa") {
-	    var _escala_stats_preview = _carta.tem_arte_propria ? _escala_preview : (_escala_preview * global.ESCALA_TEXTO_CARTA * 0.7);
-
-	    desenhar_stat_preview(_carta, _carta.vida, _carta.vida_pos_x, _carta.vida_pos_y, _centro_x, _centro_y, _largura_real, _altura_real, _escala_preview, _escala_stats_preview);
-	    desenhar_stat_preview(_carta, string(_carta.nivel_inteligencia), _carta.int_pos_x, _carta.int_pos_y, _centro_x, _centro_y, _largura_real, _altura_real, _escala_preview, _escala_stats_preview, true);
-	    desenhar_stat_preview(_carta, string(_carta.mochila), _carta.mochila_pos_x, _carta.mochila_pos_y, _centro_x, _centro_y, _largura_real, _altura_real, _escala_preview, _escala_stats_preview, true);
-	    desenhar_stat_preview(_carta, calcular_defesa_fisica_total(_carta), _carta.def_pos_x, _carta.def_pos_y, _centro_x, _centro_y, _largura_real, _altura_real, _escala_preview, _escala_stats_preview);
-		desenhar_stat_preview(_carta, calcular_defesa_magica_total(_carta), _carta.def_magico_pos_x, _carta.def_magico_pos_y, _centro_x, _centro_y, _largura_real, _altura_real, _escala_preview, _escala_stats_preview);
-
-	    if (_carta.dado_dano != 0) {
-		    var _texto_atk = (_carta.qtd_dados_dano > 1 ? string(_carta.qtd_dados_dano) : "") + "D" + string(_carta.dado_dano) + "+" + string(calcular_mod_dano_total(_carta));
-		    desenhar_stat_preview(_carta, _texto_atk, _carta.atk_pos_x, _carta.atk_pos_y, _centro_x, _centro_y, _largura_real, _altura_real, _escala_preview, _escala_stats_preview * global.ESCALA_TEXTO_ATK, true);
-		}
-		if (_carta.dado_dano_magico != 0) {
-			var _texto_atk_m = (_carta.qtd_dados_dano_magico > 1 ? string(_carta.qtd_dados_dano_magico) : "") + "D" + string(_carta.dado_dano_magico) + "+" + string(calcular_mod_dano_total(_carta));
-		    desenhar_stat_preview(_carta, _texto_atk_m, _carta.atk_magico_pos_x, _carta.atk_magico_pos_y, _centro_x, _centro_y, _largura_real, _altura_real, _escala_preview, _escala_stats_preview * global.ESCALA_TEXTO_ATK, true);
-		}
-	} else if (_carta.categoria == "construcao") {
-        var _escala_vida_construcao = _carta.tem_arte_propria ? _escala_preview : 0.90;
-        desenhar_stat_preview(_carta, _carta.vida, _carta.vida_pos_x, _carta.vida_pos_y,
-            _centro_x, _centro_y, _largura_real, _altura_real, _escala_preview, _escala_vida_construcao);
-    }
-
-    #region Painel de detalhes da carta
-    var _painel_largura = _tem_painel_lateral ? 300 : min(360, display_get_gui_width() - 40);
-    var _painel_x = _tem_painel_lateral ? (_centro_x + 205) : ((display_get_gui_width() - _painel_largura) / 2);
-    var _painel_y = _tem_painel_lateral ? 105 : (display_get_gui_height() - 245);
-    var _painel_altura = _tem_painel_lateral ? 430 : 260;
-    var _texto_detalhes = descricao_carta_preview(_carta);
-
-    draw_set_alpha(0.92);
-    draw_set_color(c_black);
-    draw_roundrect(_painel_x, _painel_y, _painel_x + _painel_largura, _painel_y + _painel_altura, false);
-    draw_set_alpha(1);
-    draw_set_color(c_white);
-    draw_roundrect(_painel_x, _painel_y, _painel_x + _painel_largura, _painel_y + _painel_altura, true);
-    draw_set_font(Fontenil);
-    draw_set_halign(fa_left);
-    draw_set_valign(fa_top);
-    draw_set_color(c_yellow);
-    draw_text(_painel_x + 14, _painel_y + 12, "DETALHES DA CARTA");
-    draw_set_color(c_white);
-    draw_text_ext(_painel_x + 14, _painel_y + 42, _texto_detalhes, 28, _painel_largura - 28);
-    #endregion
-
-    draw_set_halign(fa_left);
-    draw_set_valign(fa_top);
-    draw_set_color(c_white);
-    draw_text(_centro_x - 200, display_get_gui_height() - 40, "Clique com o botão direito pra fechar");
-}
-#endregion
 #region Passagem segura no modo de dois jogadores
 if (partida_local_ativa() && passagem_turno_ativa) {
     var _passagem_largura = display_get_gui_width();
@@ -386,22 +289,7 @@ draw_set_halign(fa_center);
 draw_set_valign(fa_middle);
 draw_text((_historico_x1 + _historico_x2) / 2, 226, "HISTÓRICO  " + string(array_length(historico_combate)));
 draw_set_color(c_white);
-if (ui_modal.historico_aberto) {
-    var _primeiro_evento = max(0, array_length(historico_combate) - 12);
-    var _eventos_visiveis = array_length(historico_combate) - _primeiro_evento;
-    draw_set_alpha(0.88);
-    draw_set_color(c_black);
-    draw_roundrect(_historico_x1, 248, _historico_x1 + 316, 248 + 26 + _eventos_visiveis * 17, false);
-    draw_set_alpha(1);
-    draw_set_halign(fa_left);
-    draw_set_valign(fa_top);
-    draw_set_color(c_yellow);
-    draw_text(_historico_x1 + 10, 254, "ÚLTIMAS AÇÕES");
-    draw_set_color(c_white);
-    for (var i = _primeiro_evento; i < array_length(historico_combate); i++) {
-        draw_text(_historico_x1 + 10, 276 + (i - _primeiro_evento) * 17, "• " + historico_combate[i]);
-    }
-}
+if (ui_modal.historico_aberto) desenhar_historico_legivel();
 
 // Botão e lista das tropas que morreram durante a partida.
 var _cem_x1 = _hud_largura - 205 + hud_deslocamento_direita;
@@ -486,6 +374,136 @@ draw_set_color(c_white);
 draw_set_font(-1);
 #endregion
 
+#region Prévia ampliada da carta
+if (instance_exists(previa_visual_carta) && previa_visual_progresso > 0 && controlador_modal_atual(id) == "") {
+    var _carta = previa_visual_carta;
+
+    var _gui_largura_preview = display_get_gui_width();
+    var _gui_altura_preview = display_get_gui_height();
+    var _largura_real = sprite_get_width(_carta.sprite_index);
+    var _altura_real = sprite_get_height(_carta.sprite_index);
+    var _layout_preview = layout_previa_carta(_gui_largura_preview, _gui_altura_preview,
+        _largura_real, _altura_real, global.escala_interface);
+    var _centro_x = _layout_preview.carta_x;
+    var _centro_y = _layout_preview.carta_y;
+    var _escala_preview = _layout_preview.escala_carta;
+
+    var _abertura = previa_visual_progresso * previa_visual_progresso * (3 - 2 * previa_visual_progresso);
+    var _cam_preview = view_camera[0];
+    var _origem_preview_x = (_carta.x - camera_get_view_x(_cam_preview)) * _gui_largura_preview / camera_get_view_width(_cam_preview);
+    var _origem_preview_y = (_carta.y - camera_get_view_y(_cam_preview)) * _gui_altura_preview / camera_get_view_height(_cam_preview);
+    var _escala_origem_preview = abs(_carta.image_xscale) * _gui_largura_preview / camera_get_view_width(_cam_preview);
+    _centro_x = lerp(_origem_preview_x, _centro_x, _abertura);
+    _centro_y = lerp(_origem_preview_y, _centro_y, _abertura);
+    _escala_preview = lerp(_escala_origem_preview, _escala_preview, _abertura);
+    draw_set_alpha(0.7 * _abertura);
+    draw_set_color(c_black);
+    draw_rectangle(0, 0, _gui_largura_preview, _gui_altura_preview, false);
+    draw_set_alpha(1);
+    draw_set_font(Fontenil);
+
+    draw_sprite_ext(
+        _carta.sprite_index,
+        _carta.image_index,
+        _centro_x + (sprite_get_xoffset(_carta.sprite_index) - _largura_real * 0.5) * _escala_preview,
+        _centro_y + (sprite_get_yoffset(_carta.sprite_index) - _altura_real * 0.5) * _escala_preview,
+        _escala_preview,
+        _escala_preview,
+        0,
+        c_white,
+        1
+    );
+
+    if (!_carta.tem_arte_propria) {
+	    var _largura_maxima_preview = _largura_real * _escala_preview * 0.85;
+	    var _largura_texto_preview = string_width(_carta.nome_carta);
+	    var _escala_nome_preview = _escala_preview * 0.4;
+
+    if (_largura_texto_preview * _escala_nome_preview > _largura_maxima_preview) {
+        _escala_nome_preview = _largura_maxima_preview / _largura_texto_preview;
+    }
+
+	    draw_set_halign(fa_center);
+	    draw_set_valign(fa_top);
+	    draw_set_color(c_white);
+	    draw_text_transformed(_centro_x, _centro_y - (_altura_real/2 * _escala_preview) + 10, _carta.nome_carta, _escala_nome_preview, _escala_nome_preview, 0);
+	}
+
+    if (_carta.categoria == "tropa") {
+	    var _escala_stats_preview = _carta.tem_arte_propria ? _escala_preview : (_escala_preview * global.ESCALA_TEXTO_CARTA * 0.7);
+
+	    desenhar_stat_preview(_carta, _carta.vida, _carta.vida_pos_x, _carta.vida_pos_y, _centro_x, _centro_y, _largura_real, _altura_real, _escala_preview, _escala_stats_preview);
+	    desenhar_stat_preview(_carta, string(_carta.nivel_inteligencia), _carta.int_pos_x, _carta.int_pos_y, _centro_x, _centro_y, _largura_real, _altura_real, _escala_preview, _escala_stats_preview, true);
+	    desenhar_stat_preview(_carta, string(_carta.mochila), _carta.mochila_pos_x, _carta.mochila_pos_y, _centro_x, _centro_y, _largura_real, _altura_real, _escala_preview, _escala_stats_preview, true);
+	    desenhar_stat_preview(_carta, calcular_defesa_fisica_total(_carta), _carta.def_pos_x, _carta.def_pos_y, _centro_x, _centro_y, _largura_real, _altura_real, _escala_preview, _escala_stats_preview);
+		desenhar_stat_preview(_carta, calcular_defesa_magica_total(_carta), _carta.def_magico_pos_x, _carta.def_magico_pos_y, _centro_x, _centro_y, _largura_real, _altura_real, _escala_preview, _escala_stats_preview);
+
+	    if (_carta.dado_dano != 0) {
+		    var _texto_atk = (_carta.qtd_dados_dano > 1 ? string(_carta.qtd_dados_dano) : "") + "D" + string(_carta.dado_dano) + "+" + string(calcular_mod_dano_total(_carta));
+		    desenhar_stat_preview(_carta, _texto_atk, _carta.atk_pos_x, _carta.atk_pos_y, _centro_x, _centro_y, _largura_real, _altura_real, _escala_preview, _escala_stats_preview * global.ESCALA_TEXTO_ATK, true);
+		}
+		if (_carta.dado_dano_magico != 0) {
+			var _texto_atk_m = (_carta.qtd_dados_dano_magico > 1 ? string(_carta.qtd_dados_dano_magico) : "") + "D" + string(_carta.dado_dano_magico) + "+" + string(calcular_mod_dano_total(_carta));
+		    desenhar_stat_preview(_carta, _texto_atk_m, _carta.atk_magico_pos_x, _carta.atk_magico_pos_y, _centro_x, _centro_y, _largura_real, _altura_real, _escala_preview, _escala_stats_preview * global.ESCALA_TEXTO_ATK, true);
+		}
+	} else if (_carta.categoria == "construcao") {
+        var _escala_vida_construcao = _carta.tem_arte_propria ? _escala_preview : 0.90 * _largura_real * _escala_preview / 350;
+        desenhar_stat_preview(_carta, _carta.vida, _carta.vida_pos_x, _carta.vida_pos_y,
+            _centro_x, _centro_y, _largura_real, _altura_real, _escala_preview, _escala_vida_construcao);
+    }
+
+    #region Painel de detalhes da carta
+    var _painel_largura = _layout_preview.painel_largura;
+    var _painel_x = _layout_preview.painel_x + (1 - _abertura) * 24;
+    var _painel_altura = _layout_preview.painel_altura;
+    var _painel_y = _layout_preview.painel_y;
+    var _texto_detalhes = descricao_carta_preview(_carta);
+
+    draw_set_alpha(0.92);
+    draw_set_color(c_black);
+    draw_roundrect(_painel_x, _painel_y, _painel_x + _painel_largura, _painel_y + _painel_altura, false);
+    draw_set_alpha(1);
+    draw_set_color(c_white);
+    draw_roundrect(_painel_x, _painel_y, _painel_x + _painel_largura, _painel_y + _painel_altura, true);
+    draw_set_font(Fontenil);
+    draw_set_halign(fa_left);
+    draw_set_valign(fa_top);
+    draw_set_color(c_yellow);
+    desenhar_texto_ajustado_ui("DETALHES DA CARTA", _painel_x + 14, _painel_y + 12, _painel_largura - 28, 0.75);
+    draw_set_color(c_white);
+    var _faixa_itens = 0;
+    if (_carta.categoria == "tropa" && array_length(_carta.itens_equipados) > 0) {
+        _faixa_itens = 76;
+        var _qtd = array_length(_carta.itens_equipados);
+        var _passo = min(54, (_painel_largura - 28) / _qtd);
+        for (var _eq = 0; _eq < _qtd; _eq++) {
+            var _item = _carta.itens_equipados[_eq];
+            var _spr = sprite_exists(_item.sprite) ? _item.sprite : spr_carta_placeholder;
+            var _es = min((_passo - 4) / sprite_get_width(_spr), 66 / sprite_get_height(_spr));
+            var _ix = _painel_x + 14 + _eq * _passo;
+            var _iy = _painel_y + 42;
+            draw_sprite_ext(_spr, 0, _ix + sprite_get_xoffset(_spr) * _es,
+                _iy + sprite_get_yoffset(_spr) * _es, _es, _es, 0, c_white, 1);
+        }
+    }
+    var _paginas_detalhes = paginar_detalhes_carta(_texto_detalhes, _painel_largura - 28, _painel_altura - 88 - _faixa_itens);
+    detalhes_total_paginas = max(1, array_length(_paginas_detalhes));
+    detalhes_pagina = clamp(detalhes_pagina, 0, detalhes_total_paginas - 1);
+    draw_text_transformed(_painel_x + 14, _painel_y + 42 + _faixa_itens, _paginas_detalhes[detalhes_pagina], 0.64, 0.64, 0);
+    draw_set_color(c_silver);
+    desenhar_texto_ajustado_ui("Página " + string(detalhes_pagina + 1) + "/" + string(detalhes_total_paginas)
+        + (detalhes_total_paginas > 1 ? " — use a roda do mouse" : ""),
+        _painel_x + 14, _painel_y + _painel_altura - 30, _painel_largura - 28, 0.55);
+    #endregion
+
+    draw_set_halign(fa_center);
+    draw_set_color(c_silver);
+    draw_text_transformed(_gui_largura_preview * 0.5, _layout_preview.rodape_y,
+        "Botão direito ou Esc para fechar", 0.65, 0.65, 0);
+    draw_set_halign(fa_left);
+    draw_set_color(c_white);
+}
+#endregion
 #region Confirmação de retirada de recurso
 if (ui_modal.confirmacao_recurso_ativa && instance_exists(ui_modal.recurso_pendente_retirada)) {
     var _recurso_modal_largura = display_get_gui_width();
@@ -777,8 +795,8 @@ if (ui_modal.pausa_ativa) {
         desenhar_texto_interface(_pausa_cx, _pausa_cy + 10, "EFEITOS  " + string(round(global.volume_efeitos * 100)) + "%");
         draw_set_color(c_gray);
         desenhar_texto_interface(_pausa_cx, _pausa_cy + 55, "TELA CHEIA: " + (window_get_fullscreen() ? "SIM" : "NÃO"));
-        draw_set_color(c_white);
-        desenhar_texto_interface(_pausa_cx, _pausa_cy + 110, "VOLTAR");
+        desenhar_opcao_tamanho_interface(_pausa_cx, _pausa_cy + 98);
+        desenhar_texto_interface(_pausa_cx, _pausa_cy + 147, "VOLTAR");
     } else {
         desenhar_texto_interface(_pausa_cx, _pausa_cy - 38, "A partida está aguardando.");
     draw_set_color(c_black);
@@ -803,20 +821,6 @@ if (ui_modal.pausa_ativa) {
     draw_set_halign(fa_left);
     draw_set_valign(fa_top);
 }
-#endregion
-
-#region Itens em movimento
-for (var _i_voo = 0; _i_voo < array_length(animacoes_item); _i_voo++) {
-    var _voo = animacoes_item[_i_voo];
-    var _voo_p = clamp(_voo.timer / _voo.duracao, 0, 1);
-    var _voo_s = _voo_p * _voo_p * (3 - 2 * _voo_p);
-    var _voo_x = lerp(_voo.origem_x, _voo.destino_x, _voo_s);
-    var _voo_y = lerp(_voo.origem_y, _voo.destino_y, _voo_s) - sin(_voo_p * pi) * 55;
-    var _voo_esc = 0.34 + sin(_voo_p * pi) * 0.10;
-    draw_set_alpha(sin(_voo_p * pi) * 0.92);
-    draw_sprite_ext(_voo.sprite, 0, _voo_x, _voo_y, _voo_esc, _voo_esc, _voo_p * 360, _voo.cor, 1);
-}
-draw_set_alpha(1); draw_set_color(c_white);
 #endregion
 
 #region Tela final da partida
@@ -1026,3 +1030,9 @@ if (ui_modal.critico_escolha_ativa && is_struct(ui_modal.critico_contexto) && !u
     draw_set_valign(fa_top);
 }
 #endregion
+
+// O custo acompanha o cursor apenas durante o arrasto.
+desenhar_ajuda_arrasto_gui();
+
+// Names and activation bursts stay readable above the battlefield.
+desenhar_ativacoes_habilidade();

@@ -11,7 +11,7 @@ if (interativo_iniciativa) {
         iniciativa_mouse_anterior_y = mouse_y;
         iniciativa_velocidade_x = 0;
         iniciativa_velocidade_y = 0;
-        depth = -100000;
+        depth = -12000;
     }
 
     if (iniciativa_arrastando) {
@@ -94,6 +94,9 @@ if (girando) {
         // Há sprites de seis faces, inclusive quando a rolagem lógica é D20.
         // O texto mostra o valor exato e esta linha mantém um lado válido no sprite.
         image_index = (valor_final - 1) mod sprite_get_number(sprite_index);
+        // Uma batida por grupo evita empilhar sons quando vários dados chegam juntos.
+        if (!is_struct(grupo_soma) || grupo_soma.pousados == 0)
+            tocar_som_variado("dado", 0.36, 1);
         tempo_pouso = duracao_pouso;
         progresso_revelacao = 0;
         if (is_struct(grupo_soma) && !grupo_soma_pouso_registrado) {

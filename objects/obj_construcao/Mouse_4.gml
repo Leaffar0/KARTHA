@@ -1,3 +1,4 @@
+if (mouse_sobre_painel_regras() || mouse_sobre_historico()) exit;
 if (!lado_controlado_localmente(dono)) exit;
 if (obj_controlador.turno != dono) {
     mostrar_aviso_regra("A construção estará disponível no seu turno", x, y);

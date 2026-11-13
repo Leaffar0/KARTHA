@@ -12,10 +12,20 @@ var _rotacao_total = rotacao_atual + rotacao_animacao + rotacao_evolucao + arras
 
 var _x_desenho = x + ataque_offset_x + arrasto_offset_visual_x + recuo_dano_x;
 var _y_desenho = y + y_offset_atual + ataque_offset_y - ataque_elevacao + arrasto_offset_visual_y + recuo_dano_y;
+if (evoluindo) _y_desenho -= sin(clamp(evolucao_progresso, 0, 1) * pi) * 16;
+if (travada && !morrendo && !evoluindo && vida > 0 && vida <= max(1, vida_maxima * 0.2))
+    _rotacao_total += sin(current_time * 0.002 + xstart * 0.013 + ystart * 0.017) * 0.35;
+var _quique_pouso = 0;
+if (travada && impacto_colocacao_timer > 0 && pulso_pouso_timer > 0) {
+    _quique_pouso = 2 * sin((1 - pulso_pouso_timer / pulso_pouso_duracao) * pi);
+    _y_desenho -= _quique_pouso;
+}
 
 var _escala_final = escala_atual * escala_animacao * escala_evolucao * escala_base * escala_voo * arrasto_escala * (1 + ataque_escala_extra);
 if (travada) {
     _escala_final *= escala_no_campo;
+} else if (esta_na_mao || arrastando) {
+    _escala_final *= global.escala_interface;
 }
 
 image_xscale = _escala_final;
@@ -24,23 +34,76 @@ image_yscale = _escala_final;
 var _alpha_carta = sombra_ativa ? 0.4 : 1;
 draw_set_alpha(_alpha_carta);
 
-// Ondas no chão reforçam a chegada da carta ao campo.
-if (impacto_colocacao_timer > 0) {
-    var _impacto_p = 1 - impacto_colocacao_timer / impacto_colocacao_duracao;
-    draw_set_alpha((1 - _impacto_p) * 0.65);
-    draw_set_color(dono == "jogador" ? c_aqua : c_red);
-    draw_circle(_x_desenho, _y_desenho + sprite_height * escala_no_campo * 0.43, 18 + _impacto_p * 35, true);
-    draw_circle(_x_desenho, _y_desenho + sprite_height * escala_no_campo * 0.43, 9 + _impacto_p * 23, true);
-    draw_set_alpha(1); draw_set_color(c_white);
+if (pulando || impacto_colocacao_timer > 0) {
+    var _altura_pulo = pulando ? pulo_elevacao : 0;
+    desenhar_sombra_mesa(_x_desenho,
+        _y_desenho + _altura_pulo + _quique_pouso + sprite_get_height(sprite_index) * _escala_final * 0.46,
+        sprite_get_width(sprite_index) * _escala_final, _altura_pulo / max(1, pulo_altura), _alpha_carta);
+    draw_set_alpha(_alpha_carta);
 }
 
-// Pisca vermelho quando toma dano (mistura a cor normal com vermelho, oscilando)
+// Durante a virada a largura diminui até a borda e volta a abrir pela face.
+if (compra_animando && esta_na_mao) {
+    var _virada = clamp((compra_progresso - 0.18) / 0.48, 0, 1);
+    var _largura_virada = max(0.055, abs(cos(_virada * pi)));
+    if (_virada < 0.5 || _largura_virada < 0.97) {
+        var _verso = _virada < 0.5;
+        var _sprite_compra = _verso ? spr_deck : sprite_index;
+        var _escala_x_compra = _escala_final * sprite_get_width(sprite_index) / sprite_get_width(_sprite_compra);
+        var _escala_y_compra = _escala_final * sprite_get_height(sprite_index) / sprite_get_height(_sprite_compra);
+        draw_set_alpha(1);
+        draw_sprite_ext(_sprite_compra, _verso ? 0 : image_index, _x_desenho, _y_desenho,
+            _escala_x_compra * _largura_virada, _escala_y_compra, _rotacao_total, c_white, _alpha_carta);
+        draw_set_font(-1);
+        exit;
+    }
+}
+
+// A forma antiga vira para o verso e então revela a evolução.
+if (evoluindo && evolucao_progresso < 0.82) {
+    var _fase = clamp(evolucao_progresso / 0.82, 0, 1);
+    var _face = (_fase < 0.25 && evolucao_sprite_anterior != noone) ? evolucao_sprite_anterior
+        : (_fase < 0.75 ? spr_deck : sprite_index);
+    var _largura_flip = max(0.035, abs(cos(_fase * pi * 2)));
+    draw_sprite_ext(_face, 0, _x_desenho, _y_desenho,
+        _escala_final * sprite_get_width(sprite_index) / sprite_get_width(_face) * _largura_flip,
+        _escala_final * sprite_get_height(sprite_index) / sprite_get_height(_face),
+        _rotacao_total, cor_evolucao, _alpha_carta);
+    draw_set_alpha(1);
+    draw_set_color(c_white);
+    exit;
+}
+
+// Pequenos rastros se espalham pelo chão no momento do pouso.
+if (impacto_colocacao_timer > 0) {
+    var _impacto_p = 1 - impacto_colocacao_timer / impacto_colocacao_duracao;
+    var _resto_pouso = 1 - _impacto_p;
+    var _expansao_pouso = 1 - sqr(_resto_pouso);
+    var _chao_pouso = _y_desenho + _quique_pouso + sprite_get_height(sprite_index) * _escala_final * 0.46;
+    var _borda_pouso = sprite_get_width(sprite_index) * _escala_final * 0.36;
+    var _cor_pouso = dono == "jogador" ? make_color_rgb(153, 230, 219) : make_color_rgb(240, 168, 139);
+    draw_set_alpha(_alpha_carta * sqr(_resto_pouso) * 0.46);
+    draw_set_color(_cor_pouso);
+    for (var _lado_pouso = -1; _lado_pouso <= 1; _lado_pouso += 2) {
+        for (var _rastro = 0; _rastro < 3; _rastro++) {
+            var _rastro_x = _x_desenho + _lado_pouso * (_borda_pouso + _expansao_pouso * (11 + _rastro * 6));
+            var _rastro_y = _chao_pouso + (_rastro - 1) * 4;
+            draw_line(_rastro_x, _rastro_y,
+                _rastro_x + _lado_pouso * (4 + 7 * _resto_pouso), _rastro_y - 1);
+        }
+    }
+    draw_set_alpha(_alpha_carta); draw_set_color(c_white);
+}
+
+// O impacto concentra a cor no primeiro instante e depois se dissipa.
 var _cor_final = cor_evolucao;
 if (dano_flash_timer > 0) {
     var _flash_progresso = dano_flash_timer / dano_flash_duracao;
-    var _piscar = (sin(dano_flash_timer * 1.4) + 1) / 2; // 0 a 1, oscila rápido
-    _cor_final = merge_color(cor_evolucao, c_red, _piscar * _flash_progresso);
+    _cor_final = merge_color(cor_evolucao, make_color_rgb(255, 84, 67), 0.76 * sqr(_flash_progresso));
 }
+
+if (efeito_timer > 0 && efeito_timer <= 18 && efeito_visual_tipo == "envenenado")
+    _cor_final = merge_color(_cor_final, make_color_rgb(66, 105, 67), 0.40 * sqr(efeito_timer / 18));
 
 // A derrota consome a carta de fora para dentro: ela escurece, queima e encolhe.
 if (morrendo) {
@@ -63,17 +126,20 @@ draw_set_alpha(_alpha_carta);
 gpu_set_texfilter(true);
 
 // Equipamentos ficam empilhados atrás da tropa como cartas físicas.
-// Cada carta sobe apenas a altura do cabeçalho, deixando o título à mostra.
+// Pilha original acima da tropa, com um pequeno ajuste para baixo.
 if (travada && categoria == "tropa" && array_length(itens_equipados) > 0) {
     var _qtd_equipamentos = array_length(itens_equipados);
     var _largura_tropa_visual = sprite_get_width(sprite_index) * _escala_final;
     var _altura_tropa_visual = sprite_get_height(sprite_index) * _escala_final;
     var _passo_equipamento = clamp(_altura_tropa_visual * 0.055, 12, 19);
+    // AJUSTE: aumente para baixar; 0 restaura a posição original (pixels locais).
+    var _ajuste_vertical_equipamento = 4;
 
     for (var _indice_equip = 0; _indice_equip < _qtd_equipamentos; _indice_equip++) {
         var _item_visual = itens_equipados[_indice_equip];
         if (!is_struct(_item_visual) || !variable_struct_exists(_item_visual, "sprite")) continue;
 
+        var _anim_equip = animacao_equipamento_ativo(id, _item_visual, _indice_equip);
         var _sprite_equipamento = _item_visual.sprite;
         if (_sprite_equipamento == noone || !sprite_exists(_sprite_equipamento))
             _sprite_equipamento = spr_carta_placeholder;
@@ -82,11 +148,26 @@ if (travada && categoria == "tropa" && array_length(itens_equipados) > 0) {
             _largura_tropa_visual / sprite_get_width(_sprite_equipamento),
             _altura_tropa_visual / sprite_get_height(_sprite_equipamento)
         );
-        var _recuo_local = -_passo_equipamento * (_qtd_equipamentos - _indice_equip);
+        var _recuo_local = -_passo_equipamento * (_qtd_equipamentos - _indice_equip)
+            + _ajuste_vertical_equipamento;
         var _distancia_equip = abs(_recuo_local);
         var _direcao_equip = point_direction(0, 0, 0, _recuo_local) + _rotacao_total;
         var _equip_x = _x_desenho + lengthdir_x(_distancia_equip, _direcao_equip);
         var _equip_y = _y_desenho + lengthdir_y(_distancia_equip, _direcao_equip);
+
+        if (is_struct(_anim_equip)) {
+            var _p_equip = clamp(_anim_equip.timer / _anim_equip.duracao, 0, 1);
+            // Aproxima por baixo e depois encaixa, sem desaparecer sobre a tropa.
+            var _entrada = clamp(_p_equip / 0.45, 0, 1);
+            _entrada = _entrada * _entrada * (3 - 2 * _entrada);
+            var _encaixe = clamp((_p_equip - 0.45) / 0.55, 0, 1);
+            _encaixe = 1 - power(1 - _encaixe, 3);
+            var _abaixo = _altura_tropa_visual * 0.65;
+            var _apoio_x = _equip_x + lengthdir_x(_abaixo, 270 + _rotacao_total);
+            var _apoio_y = _equip_y + lengthdir_y(_abaixo, 270 + _rotacao_total);
+            _equip_x = lerp(lerp(_anim_equip.origem_x, _apoio_x, _entrada), _equip_x, _encaixe);
+            _equip_y = lerp(lerp(_anim_equip.origem_y, _apoio_y, _entrada), _equip_y, _encaixe);
+        }
 
         draw_sprite_ext(_sprite_equipamento, 0, _equip_x, _equip_y,
             _escala_equipamento, _escala_equipamento, _rotacao_total, _cor_final, _alpha_carta);
@@ -246,77 +327,51 @@ draw_set_halign(fa_left);
 draw_set_valign(fa_top);
 #endregion
 
-// Defesa reage ao golpe com um arco que se fecha e desaparece.
+// O brilho percorre as duas bordas no instante da absorção.
 if (defesa_impacto_timer > 0) {
     var _def_p = defesa_impacto_timer / defesa_impacto_duracao;
-    draw_set_alpha(_def_p * 0.75); draw_set_color(c_aqua);
-    draw_circle(_x_desenho, _y_desenho, 25 + (1 - _def_p) * 14, true);
-    draw_line(_x_desenho - 20, _y_desenho, _x_desenho, _y_desenho - 24);
-    draw_line(_x_desenho, _y_desenho - 24, _x_desenho + 20, _y_desenho);
-    draw_set_alpha(1); draw_set_color(c_white);
-}
-if (evoluindo) {
-    var _anel_evo = sin(clamp(evolucao_progresso, 0, 1) * pi);
-    draw_set_alpha(_anel_evo * 0.8); draw_set_color(c_aqua);
-    draw_circle(_x_desenho, _y_desenho, 28 + _anel_evo * 35, true);
-    draw_circle(_x_desenho, _y_desenho, 20 + _anel_evo * 48, true);
-    draw_set_alpha(1); draw_set_color(c_white);
-}
-
-#region Efeito visual de condição
-if (condicao != noone) {
-    var _config = obter_config_condicao(condicao);
-
-    efeito_timer += 1;
-    if (_config.sprite == -1) {
-        var _orbita = efeito_timer * 4;
-        var _altura_condicao = _y_desenho - sprite_height * _escala_final * 0.50;
-        draw_set_halign(fa_center); draw_set_valign(fa_bottom);
-        draw_set_color(_config.cor);
-        draw_text_transformed(_x_desenho, _altura_condicao + sin(efeito_timer / 8) * 3,
-            string_upper(condicao), 0.30, 0.30, sin(efeito_timer / 12) * 2);
-        draw_set_alpha(0.65);
-        for (var _mote = 0; _mote < 3; _mote++) {
-            var _ang_mote = _orbita + _mote * 120;
-            draw_circle(_x_desenho + lengthdir_x(18, _ang_mote), _altura_condicao - 6 + lengthdir_y(5, _ang_mote), 2, false);
-        }
-        draw_set_alpha(1); draw_set_halign(fa_left); draw_set_valign(fa_top); draw_set_color(c_white);
-    } else {
-        var _num_frames = sprite_get_number(_config.sprite);
-        var _frame = floor(efeito_timer / 4) mod _num_frames;
-        var _cor_efeito = tem_arte_propria ? c_black : c_white;
-        if (_config.modo == "meio") {
-            var _escala_efeito_x = (sprite_width * 0.8) / sprite_get_width(_config.sprite);
-            var _escala_efeito_y = (sprite_height * 0.8) / sprite_get_height(_config.sprite);
-            draw_sprite_ext(_config.sprite, _frame, _x_desenho, _y_desenho, _escala_efeito_x, _escala_efeito_y, 0, _cor_efeito, 0.85);
-        } else if (_config.modo == "envolta") {
-            var _escala_envolta_x = (sprite_width * 1.3) / sprite_get_width(_config.sprite);
-            var _escala_envolta_y = (sprite_height * 1.3) / sprite_get_height(_config.sprite);
-            draw_sprite_ext(_config.sprite, _frame, _x_desenho, _y_desenho, _escala_envolta_x, _escala_envolta_y, 0, _cor_efeito, 0.8);
-        }
-    }
-}
-
-draw_set_alpha(1);
-#endregion
-
-
-#region Alvos da Bola de Fogo
-if (arrastando && categoria == "magica" && efeito_tipo == "bola_fogo") {
-    draw_set_alpha(0.7);
-    draw_set_color(c_red);
-    var _lado_alvo_bola = lado_oposto(dono);
-    with (obj_construcao) {
-        if (dono == _lado_alvo_bola) draw_circle(x, y, 38, true);
-    }
-    var _castelo = obter_posicao_castelo(_lado_alvo_bola);
-    draw_circle(_castelo.x, _castelo.y, 46, true);
-    draw_set_halign(fa_center);
-    draw_set_valign(fa_bottom);
-    draw_text_transformed(_castelo.x, _castelo.y - 48, "CASTELO", 0.55, 0.55, 0);
-    draw_set_halign(fa_left);
-    draw_set_valign(fa_top);
+    var _def_w = sprite_get_width(sprite_index) * _escala_final * 0.48;
+    var _def_h = sprite_get_height(sprite_index) * _escala_final * 0.45;
+    var _def_y = _y_desenho - _def_h + (1 - _def_p) * _def_h * 2;
+    draw_set_alpha(_def_p * 0.8);
+    draw_set_color(make_color_rgb(204, 222, 230));
+    draw_line(_x_desenho - _def_w, _def_y, _x_desenho - _def_w, min(_def_y + 12, _y_desenho + _def_h));
+    draw_line(_x_desenho + _def_w, _def_y, _x_desenho + _def_w, min(_def_y + 12, _y_desenho + _def_h));
     draw_set_alpha(1);
     draw_set_color(c_white);
 }
+desenhar_efeitos_identidade(id, _x_desenho, _y_desenho, _escala_final, _rotacao_total, _alpha_carta);
+
+// A aplicação deixa um vestígio breve na borda da carta.
+if (travada && efeito_timer > 0 && efeito_timer <= 18 && !morrendo) {
+    var _p_condicao = 1 - efeito_timer / 18;
+    var _canto_x = _x_desenho + sprite_get_width(sprite_index) * _escala_final * 0.40;
+    var _canto_y = _y_desenho - sprite_get_height(sprite_index) * _escala_final * 0.39;
+    draw_set_alpha(0.72 * sqr(1 - _p_condicao));
+    if (efeito_visual_tipo == "queimado") {
+        draw_set_color(make_color_rgb(240, 143, 70));
+        for (var _brasa_cond = 0; _brasa_cond < 3; _brasa_cond++) {
+            var _brasa_x = _canto_x - _brasa_cond * 5 + _p_condicao * 5;
+            var _brasa_y = _canto_y + _brasa_cond * 3 - _p_condicao * 12;
+            draw_rectangle(_brasa_x, _brasa_y, _brasa_x + 2, _brasa_y + 2, false);
+        }
+    } else if (efeito_visual_tipo == "congelado") {
+        draw_set_color(make_color_rgb(181, 222, 233));
+        draw_line(_canto_x - 17, _canto_y - 2, _canto_x - 6, _canto_y + 6);
+        draw_line(_canto_x - 6, _canto_y + 6, _canto_x, _canto_y + 15);
+        draw_line(_canto_x - 6, _canto_y + 6, _canto_x - 12, _canto_y + 14);
+    } else if (efeito_visual_tipo != "envenenado") {
+        draw_set_color(obter_config_condicao(efeito_visual_tipo).cor);
+        draw_line(_canto_x - 11, _canto_y, _canto_x, _canto_y);
+        draw_line(_canto_x, _canto_y, _canto_x, _canto_y + 10);
+    }
+    draw_set_alpha(1);
+    draw_set_color(c_white);
+}
+
+#region Indicadores compactos
+if (travada) desenhar_condicoes_compactas(id, _x_desenho, _y_desenho, _escala_final);
 #endregion
+
+
+

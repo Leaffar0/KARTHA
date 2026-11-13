@@ -37,6 +37,7 @@ custo = noone;
 categoria = "tropa";
 tipo_recurso = "";
 valor_recurso = 1; // uma carta pode gerar mais de uma unidade, mas ocupa só um espaço
+condicoes = []; // tipos simultâneos com duração e dano independentes
 condicao = noone;              // "queimado", "envenenado", "paralisado", etc, ou noone
 condicao_turnos_restantes = 0; // -1 = dura pra sempre (até morrer ou ser curada)
 condicao_dano_por_turno = 0;
@@ -57,6 +58,7 @@ armadilha_balanco_timer = 0;
 armadilha_visual_id = noone;
 
 efeito_timer = 0;
+efeito_visual_tipo = "";
 efeito_tipo = ""; // qual magia essa carta é: "bola_fogo", "veneno", "gelo", "choque"
 vezes_eletrocutado_seguidas = 0;
 eletrocutado_neste_ciclo = false;
@@ -119,9 +121,11 @@ pulo_destino_x = 0;
 pulo_destino_y = 0;
 pulo_progresso = 0;
 pulo_duracao = 20; // quantos frames o pulo demora (ajuste a velocidade aqui)
+pulo_elevacao = 0;
 pulo_altura = 25;  // altura máxima do arco do pulo
 pulo_escala_origem = 1;
 pulo_poeira_ao_pousar = false;
+pulo_som_ao_pousar = false;
 escala_animacao = 1;
 rotacao_animacao = 0;
 pulso_pouso_timer = 0;
@@ -154,6 +158,7 @@ mao_base_y = 0;
 atacou_este_turno = false;
 habilidades = [];
 iludido_por_imitacao = false;
+imitacao_origem = noone;
 testado_olhar_vazio = false;
 visao_do_veu_usada = false;
 imune_armadilha = false;
@@ -184,12 +189,7 @@ ataque_offset_y = 0;
 ataque_elevacao = 0;
 ataque_escala_extra = 0;
 
-// guarda temporário dos parâmetros do golpe em andamento (evita bug de closure com method())
-ataque_calc_dir_x = 0;
-ataque_calc_dir_y = 0;
-ataque_calc_intensidade = 0;
-ataque_calc_tempo_golpe = 0;
-ataque_calc_tempo_retorno = 0;
+ataque_animacao = noone;
 
 dano_flash_timer = 0;
 dano_flash_duracao = 25;
@@ -207,3 +207,16 @@ morte_duracao = 30;
 voo_timer = irandom_range(0, 1000); // offset aleatório, pra as tropas não flutuarem todas em sincronia
 escala_voo = 1;
 #endregion
+
+// Estado exclusivamente visual, observado também na sincronização online.
+visual_iludida = false;
+visual_olhar_testado = false;
+visual_evoluindo = false;
+ilusao_timer = 0;
+ilusao_rompida = false;
+olhar_timer = 0;
+evolucao_sprite_anterior = noone;
+
+visual_habilidade_chave = "";
+visual_habilidade_usada = false;
+visual_habilidade_timer = 0;

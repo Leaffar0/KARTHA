@@ -1,10 +1,38 @@
 // =============================================================================
 // obj_controlador — Step Event
 // =============================================================================
+atualizar_escala_hud(id);
+if (instance_exists(carta_preview)) {
+    if (previa_visual_carta != carta_preview) {
+        previa_visual_carta = carta_preview;
+        previa_visual_progresso = 0;
+        tocar_som_variado("abrir", 0.20);
+    }
+    previa_visual_progresso = min(1, previa_visual_progresso + 1 / 12);
+} else {
+    previa_visual_progresso = max(0, previa_visual_progresso - 1 / 8);
+    if (previa_visual_progresso == 0) previa_visual_carta = noone;
+}
 if (modo_partida == "online" && colyseus_is_ready()) colyseus_process();
 if (modo_partida == "online") online_atualizar_atraso_visual();
 apresentacao_atualizar(id);
+if (carta_preview != noone && instance_exists(carta_preview)) {
+    if (detalhes_carta != carta_preview) {
+        detalhes_carta = carta_preview;
+        detalhes_pagina = 0;
+        detalhes_total_paginas = 1;
+    }
+    detalhes_pagina = clamp(detalhes_pagina + mouse_wheel_down() - mouse_wheel_up(),
+        0, max(0, detalhes_total_paginas - 1));
+} else {
+    detalhes_carta = noone;
+    detalhes_pagina = 0;
+}
 controlador_atualizar_fluxo(id);
+atualizar_painel_regras();
+if (keyboard_check_pressed(vk_f6) && global.DEBUG_COMBATE && modo_partida != "online"
+    && controlador_modal_atual(id) == "" && carta_preview == noone) debug_abrir_cenarios();
+if (mouse_sobre_historico()) historico_pagina = clamp(historico_pagina + mouse_wheel_down() - mouse_wheel_up(), 0, max(0, historico_total_paginas - 1));
 
 #region Watchdog de segurança
 // Se rolagens_pendentes ficar travado (algum dado/moeda não decrementou por bug),
@@ -27,8 +55,14 @@ atualizar_animacao_dano_castelo();
 if (onda_turno_timer > 0) onda_turno_timer--;
 if (ui_modal.visao_veu_ativa) visao_veu_revelacao_timer++;
 for (var _i_anim_item = array_length(animacoes_item) - 1; _i_anim_item >= 0; _i_anim_item--) {
-    animacoes_item[_i_anim_item].timer++;
-    if (animacoes_item[_i_anim_item].timer >= animacoes_item[_i_anim_item].duracao) {
+    var _anim_carta = animacoes_item[_i_anim_item];
+    _anim_carta.timer++;
+    if (_anim_carta.tipo == "armadilha" && _anim_carta.timer == 6)
+        tocar_som_variado("encaixe", 0.32, 1.10);
+    if (_anim_carta.timer >= _anim_carta.duracao) {
+        if (is_struct(_anim_carta.equipamento)) _anim_carta.equipamento.visual_em_voo = false;
+        if (_anim_carta.tipo == "item" && instance_exists(_anim_carta.tropa))
+            tocar_som_variado("encaixe", 0.40, 1);
         array_delete(animacoes_item, _i_anim_item, 1);
     }
 }
@@ -63,4 +97,5 @@ hud_deslocamento_direita += (_alvo_direita - hud_deslocamento_direita) * 0.22;
 
 // O objeto apenas coordena; cada processador decide se consumiu o frame.
 if (controlador_processar_fluxo_e_modais(id)) exit;
+if (mouse_sobre_painel_regras() || mouse_sobre_historico()) exit;
 controlador_processar_interacao(id);

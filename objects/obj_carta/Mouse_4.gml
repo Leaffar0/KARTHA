@@ -1,3 +1,4 @@
+if (mouse_sobre_painel_regras() || mouse_sobre_historico()) exit;
 if (obj_controlador.ui_modal.visao_veu_ativa || obj_controlador.ui_modal.digestao_selecao_ativa || obj_controlador.ui_modal.troca_item_selecao_ativa) exit;
 if (!travada || !lado_controlado_localmente(dono)) exit;
 
@@ -7,14 +8,12 @@ if (obj_controlador.carta_menu_aberto != noone && obj_controlador.carta_menu_abe
     var _opcoes_menu = obter_opcoes_menu(_carta_menu);
     var _n_menu = array_length(_opcoes_menu);
     
-    var _largura_opcao = 170;
-    var _altura_opcao = 23;
-    var _espaco_opcao = 6;
-    var _altura_total_menu = _n_menu * _altura_opcao + (_n_menu - 1) * _espaco_opcao;
-    
-    var _menu_base_x = _carta_menu.x + (global.CARTA_LARGURA * 0.5);
-    var _menu_base_y = _carta_menu.y - _altura_total_menu/2;
-    
+    var _layout_menu = layout_menu_tropa(_carta_menu, _n_menu);
+    var _largura_opcao = _layout_menu.largura + 20;
+    var _altura_total_menu = _layout_menu.total;
+    var _menu_base_x = _layout_menu.x;
+    var _menu_base_y = _layout_menu.y;
+
     if (mouse_x >= _menu_base_x && mouse_x <= _menu_base_x + _largura_opcao 
         && mouse_y >= _menu_base_y && mouse_y <= _menu_base_y + _altura_total_menu) {
         exit; // o clique foi no menu, não nessa carta -- ignora a seleção

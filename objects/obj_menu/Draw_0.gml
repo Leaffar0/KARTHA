@@ -77,14 +77,15 @@ if (opcoes_abertas) {
     var _musica_y = _opcoes_y - 35;
     var _efeitos_y = _opcoes_y + 10;
     var _tela_y = _opcoes_y + 55;
-    var _voltar_y = _opcoes_y + 110;
+    var _interface_y = _opcoes_y + 98;
+    var _voltar_y = _opcoes_y + 147;
     draw_set_alpha(0.8);
     draw_set_color(c_black);
-    draw_rectangle(_opcoes_x - 210, _opcoes_y - 105, _opcoes_x + 210, _opcoes_y + 150, false);
+    draw_rectangle(_opcoes_x - 210, _opcoes_y - 105, _opcoes_x + 210, _opcoes_y + 181, false);
     draw_set_alpha(1);
 
     draw_set_color(c_white);
-    draw_rectangle(_opcoes_x - 210, _opcoes_y - 105, _opcoes_x + 210, _opcoes_y + 150, true);
+    draw_rectangle(_opcoes_x - 210, _opcoes_y - 105, _opcoes_x + 210, _opcoes_y + 181, true);
     desenhar_texto_interface(_opcoes_x, _opcoes_y - 65, "OPÇÕES");
     desenhar_texto_interface(_opcoes_x - 125, _musica_y, "<");
     desenhar_texto_interface(_opcoes_x + 125, _musica_y, ">");
@@ -94,7 +95,7 @@ if (opcoes_abertas) {
     desenhar_texto_interface(_opcoes_x, _efeitos_y, "EFEITOS  " + string(round(global.volume_efeitos * 100)) + "%");
     draw_set_color(c_gray);
     desenhar_texto_interface(_opcoes_x, _tela_y, "TELA CHEIA: " + (window_get_fullscreen() ? "SIM" : "NÃO"));
-    draw_set_color(c_white);
+    desenhar_opcao_tamanho_interface(_opcoes_x, _interface_y);
     desenhar_texto_interface(_opcoes_x, _voltar_y, "VOLTAR");
 }
 #endregion

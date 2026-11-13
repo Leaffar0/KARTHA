@@ -1,4 +1,5 @@
 girando = false;
+progresso_revelacao_moeda = 0;
 tempo_girando = 0;
 tempo_total_giro = 90; // duração do arremesso
 resultado_final = 0;

@@ -12,9 +12,10 @@ function iniciar_pulo_tropa(_carta, _novo_x, _novo_y, _entrada_no_campo = false)
     _carta.pulo_destino_y = _novo_y;
     _carta.pulo_progresso = 0;
 	// Na entrada, começa no tamanho da mão e encolhe suavemente até a escala do campo
-	_carta.pulo_escala_origem = _entrada_no_campo ? (1 / _carta.escala_no_campo) : 1;
+	_carta.pulo_escala_origem = _entrada_no_campo ? (global.escala_interface / _carta.escala_no_campo) : 1;
 	_carta.escala_animacao = _carta.pulo_escala_origem;
 	_carta.pulo_poeira_ao_pousar = true;
+    _carta.pulo_som_ao_pousar = _entrada_no_campo;
     _carta.impacto_colocacao_timer = 0;
 }
 
@@ -39,7 +40,7 @@ function mover_tropa(_carta, _direcao) {
 
     if (_slot_destino.ocupado) {
         var _ocupante = _slot_destino.carta_atual;
-        if (_ocupante.dono == _carta.dono) {
+        if (_ocupante.dono == _carta.dono && !(tem_habilidade(_carta, "voar") && !tem_habilidade(_ocupante, "voar"))) {
             return "bloqueado";
         } else {
             // Uma tropa voadora atravessa uma tropa terrestre e pousa na próxima casa livre.
@@ -78,7 +79,10 @@ function mover_tropa(_carta, _direcao) {
 
     iniciar_pulo_tropa(_carta, _slot_destino.x, _slot_destino.y);
 
-	verificar_olhar_vazio(_carta);
+    verificar_olhar_vazio(_carta);
+    var _frente_olhar = buscar_slot(_carta.lane_atual, _carta.posicao_atual + direcao_avanco(_carta.dono));
+    if (_frente_olhar != noone && instance_exists(_frente_olhar.carta_atual))
+        verificar_olhar_vazio(_frente_olhar.carta_atual);
 
     debug_combate(_carta.nome_carta + " avançou na fileira " + string(_carta.lane_atual + 1) + ".");
 
@@ -96,80 +100,80 @@ function mover_tropas_automatico(_dono) {
 #endregion
 
 #region Combate — dados, dano e resolução
-function iniciar_animacao_ataque(_carta, _alvo = noone, _intensidade = 10, _duracao = 15) {
-    if (!instance_exists(_carta)) return;
+function iniciar_animacao_ataque(_carta, _alvo = noone, _intensidade = 10, _duracao = 15, _critico = false) {
+    if (!instance_exists(_carta) || _carta.morrendo) return 0;
 
     var _dir_x = 0;
-    var _dir_y = -1;
-
-    if (_alvo != noone && instance_exists(_alvo)) {
-        _dir_x = _alvo.x - _carta.x;
-        _dir_y = _alvo.y - _carta.y;
-        var _dist = point_distance(0, 0, _dir_x, _dir_y);
-        if (_dist > 0) {
-            _dir_x /= _dist;
-            _dir_y /= _dist;
+    var _dir_y = direcao_avanco(_carta.dono);
+    var _alcance = _intensidade * 1.65;
+    if (instance_exists(_alvo)) {
+        var _dx = _alvo.x - _carta.x;
+        var _dy = _alvo.y - _carta.y;
+        var _distancia = point_distance(0, 0, _dx, _dy);
+        if (_distancia > 0) {
+            _dir_x = _dx / _distancia;
+            _dir_y = _dy / _distancia;
+            _alcance = min(_alcance, _distancia * 0.55);
         }
     }
-
-    // reseta pra não ficar "grudado" caso um ataque anterior tenha sido interrompido
-    _carta.ataque_offset_x = 0;
-    _carta.ataque_offset_y = 0;
-    _carta.ataque_elevacao = 0;
-    _carta.ataque_escala_extra = 0;
-
-    var _tempo_impulso  = max(4, round(_duracao * 0.4));
-    var _tempo_golpe    = max(3, round(_duracao * 0.3));
-    var _tempo_retorno  = max(8, round(_duracao * 1.1));
-
-    var _elevacao_impulso = _intensidade * 0.55;
-    var _escala_impulso = clamp(_intensidade * 0.012, 0.05, 0.22);
-
-    // guarda os parâmetros NA CARTA (não em locais/struct), porque o callback
-    // precisa rodar com self = carta (o tween() usa x/y/depth implícitos do self)
-    _carta.ataque_calc_dir_x = _dir_x;
-    _carta.ataque_calc_dir_y = _dir_y;
-    _carta.ataque_calc_intensidade = _intensidade;
-    _carta.ataque_calc_tempo_golpe = _tempo_golpe;
-    _carta.ataque_calc_tempo_retorno = _tempo_retorno;
-
-    // FASE 1 — Impulso: sobe e incha um pouco, se preparando pro golpe
-    tween(_carta, "ataque_elevacao", _elevacao_impulso, tween_animation.quad_out, _tempo_impulso,
-        method(_carta, function() {
-            if (!instance_exists(self)) return;
-
-            // FASE 2 — Golpe: dispara rápido na direção do alvo
-            tween(self, "ataque_offset_x", ataque_calc_dir_x * ataque_calc_intensidade, tween_animation.circ_out, ataque_calc_tempo_golpe);
-            tween(self, "ataque_offset_y", ataque_calc_dir_y * ataque_calc_intensidade, tween_animation.circ_out, ataque_calc_tempo_golpe,
-                method(self, function() {
-                    if (!instance_exists(self)) return;
-
-                    // FASE 3 — Retorno: volta com uma leve quicada
-                    tween(self, "ataque_offset_x", 0, tween_animation.back_out, ataque_calc_tempo_retorno);
-                    tween(self, "ataque_offset_y", 0, tween_animation.back_out, ataque_calc_tempo_retorno);
-                    tween(self, "ataque_elevacao", 0, tween_animation.back_out, ataque_calc_tempo_retorno);
-                })
-            );
-        })
-    );
-
-    tween(_carta, "ataque_escala_extra", _escala_impulso, tween_animation.quad_out, _tempo_impulso,
-        method(_carta, function() {
-            if (!instance_exists(self)) return;
-            tween(self, "ataque_escala_extra", 0, tween_animation.back_out, ataque_calc_tempo_retorno);
-        })
-    );
+    var _preparo = max(3, round(_duracao * 0.23));
+    var _golpe = max(3, round(_duracao * 0.17));
+    _carta.ataque_animacao = { quadro: 0, preparo: _preparo, contato: _preparo + _golpe, pausa_contato: _critico ? 2 : 0,
+        retorno: max(7, _duracao - _preparo - _golpe), dir_x: _dir_x, dir_y: _dir_y,
+        alcance: _alcance, recuo: min(6, _intensidade * 0.32) };
+    return _preparo + _golpe;
 }
 
-// Faz a carta piscar vermelho por um instante (feedback de dano recebido).
-function aplicar_flash_dano(_carta, _duracao = 18, _origem = noone, _defesa = 0) {
+function atualizar_animacao_ataque(_carta) {
+    var _anim = _carta.ataque_animacao;
+    if (_anim == noone) return;
+    if (_anim.quadro == _anim.contato && _anim.pausa_contato > 0) {
+        _anim.pausa_contato--;
+        return;
+    }
+    _anim.quadro += 1;
+    var _distancia;
+    var _altura;
+    if (_anim.quadro <= _anim.preparo) {
+        var _p = _anim.quadro / _anim.preparo;
+        _distancia = -_anim.recuo * _p * _p;
+        _altura = 3 * _p;
+    } else if (_anim.quadro <= _anim.contato) {
+        var _p_golpe = (_anim.quadro - _anim.preparo) / (_anim.contato - _anim.preparo);
+        _distancia = lerp(-_anim.recuo, _anim.alcance, _p_golpe * _p_golpe);
+        _altura = 3 * (1 - _p_golpe);
+    } else {
+        var _resto = max(0, 1 - (_anim.quadro - _anim.contato) / _anim.retorno);
+        _distancia = _anim.alcance * _resto * _resto;
+        _altura = 0;
+        if (_resto == 0) _carta.ataque_animacao = noone;
+    }
+    _carta.ataque_offset_x = _anim.dir_x * _distancia;
+    _carta.ataque_offset_y = _anim.dir_y * _distancia;
+    _carta.ataque_elevacao = _altura;
+    _carta.ataque_escala_extra = _altura * 0.012;
+}
+
+// O impacto visual acompanha o golpe. A resolução da vida continua no evento de combate.
+function apresentar_impacto_tropa(_atacante, _alvo, _dano, _defesa = 0, _texto = "", _cor = c_red, _critico = false) {
+    var _atraso = iniciar_animacao_ataque(_atacante, _alvo, _critico ? 21 : 18, 18, _critico);
+    var _impacto = evento_partida_criar("impacto_tropa", { atacante: _atacante, alvo: _alvo,
+        dano: _dano, defesa: _defesa, texto: _texto, cor: _cor, critico: _critico, x: _alvo.x, y: _alvo.y });
+    if (_atraso > 0 && instance_exists(obj_controlador)) apresentacao_enfileirar(_impacto, _atraso);
+    else evento_partida_aplicar(_impacto);
+}
+
+// Realça o impacto e desloca a carta na direção oposta ao golpe.
+function aplicar_flash_dano(_carta, _duracao = 18, _origem = noone, _defesa = 0, _critico = false) {
     if (!instance_exists(_carta)) return;
-    _carta.dano_flash_timer = _duracao;
-    _carta.defesa_impacto_timer = _carta.defesa_impacto_duracao;
+    _carta.dano_flash_duracao = max(1, _duracao);
+    _carta.dano_flash_timer = _carta.dano_flash_duracao;
+    if (_defesa > 0) _carta.defesa_impacto_timer = _carta.defesa_impacto_duracao;
     if (instance_exists(_origem)) {
         var _direcao = point_direction(_origem.x, _origem.y, _carta.x, _carta.y);
-        _carta.recuo_dano_x = lengthdir_x(9, _direcao);
-        _carta.recuo_dano_y = lengthdir_y(9, _direcao);
+        var _recuo = _critico ? 11 : 7;
+        _carta.recuo_dano_x = lengthdir_x(_recuo, _direcao);
+        _carta.recuo_dano_y = lengthdir_y(_recuo, _direcao);
     }
 }
 
@@ -255,7 +259,7 @@ function ia_dano_esperado(_atacante, _defensor, _tipo_ataque) {
 
     if (_dado <= 0) return 0;
     var _original = _quantidade * ((_dado + 1) / 2);
-    if (_atacante.condicao == "berserker") _original *= 2;
+    if (tem_condicao(_atacante, "berserker")) _original *= 2;
     return max(0, _original + _modificador + bonus_cemiterio_dano(_atacante) - _defesa - obj_controlador.terreno_bonus_defesa);
 }
 
@@ -299,7 +303,7 @@ function rolar_dano_direto(_carta, _tipo_ataque) {
     for (var i = 0; i < _quantidade; i++) {
         _dano_original += irandom_range(1, _dado);
     }
-    if (_carta.condicao == "berserker") _dano_original *= 2;
+    if (tem_condicao(_carta, "berserker")) _dano_original *= 2;
     return max(0, _dano_original + _modificador);
 }
 
@@ -307,6 +311,7 @@ function rolar_dano_direto(_carta, _tipo_ataque) {
 // entrega ao callback o total dos dados já somado ao modificador.
 // Todo ataque direto contra construção ou castelo também exige o D20 de acerto.
 function rolar_ataque_direto_com_acerto(_carta, _tipo_ataque, _callback_final, _indice_ataque = 0, _total_ataques = 1) {
+    if (!tentar_romper_imitacao(_carta)) return;
     var _resultado = irandom_range(1, 20);
     var _offset = (_indice_ataque - ((_total_ataques - 1) / 2)) * 110;
     var _atraso = (_indice_ataque == 0) ? 0 : _indice_ataque * irandom_range(68, 92);
@@ -317,6 +322,7 @@ function rolar_ataque_direto_com_acerto(_carta, _tipo_ataque, _callback_final, _
             if (!instance_exists(carta)) return;
             var _total_acerto = clamp(_d20 + bonus, 1, 20);
             if (_total_acerto <= 10) {
+                if (carta.carnica_estado_proximo_ataque == "bonus") carta.carnica_estado_proximo_ataque = "";
                 mostrar_feedback("ERROU — " + string(_total_acerto), carta.x, carta.y - 48, c_gray, 55);
                 debug_combate(carta.nome_carta + " errou o ataque direto no D20 (" + string(_d20) + ").");
                 return;
@@ -352,7 +358,7 @@ function resolver_critico_direto(_contexto, _modo) {
     if (!is_struct(_contexto) || !instance_exists(_contexto.atacante)) return;
     var _quantidade = _contexto.qtd_usada * ((_modo == "dobrar_dados") ? 2 : 1);
     var _multiplicador = ((_modo == "dobrar_resultado") ? 2 : 1)
-        * ((_contexto.atacante.condicao == "berserker") ? 2 : 1);
+        * ((tem_condicao(_contexto.atacante, "berserker")) ? 2 : 1);
     var _dados_crit_direto = { callback_final: _contexto.callback_final,
         multiplicador: _multiplicador, modificador: _contexto.mod_usado };
     rolar_varios_dados_visuais(_contexto.atacante.x, _contexto.atacante.y,
@@ -360,7 +366,7 @@ function resolver_critico_direto(_contexto, _modo) {
         _quantidade, _contexto.dado_usado,
         method(_dados_crit_direto, function(_total_dados) {
             var _finalizar = callback_final;
-            _finalizar(max(0, _total_dados * multiplicador + modificador));
+            _finalizar(max(0, _total_dados * multiplicador + modificador), true);
         }), _contexto.mod_usado, 0, _contexto.atacante.dono);
 }
 
@@ -378,7 +384,7 @@ function rolar_dano_direto_visual(_carta, _tipo_ataque, _callback_final, _indice
         callback_final: _callback_final,
         carta: _carta,
         modificador: _modificador,
-        multiplicador_original: (_carta.condicao == "berserker") ? 2 : 1,
+        multiplicador_original: (tem_condicao(_carta, "berserker")) ? 2 : 1,
         bonus_carnica: _bonus_carnica
     };
     var _callback_dados = method(_dados_diretos, function(_total_dados) {
@@ -472,7 +478,7 @@ function atualizar_animacao_dano_castelo() {
 }
 
 function ia_poder_ataque(_carta) {
-    var _multiplicador = (_carta.condicao == "berserker") ? 2 : 1;
+    var _multiplicador = (tem_condicao(_carta, "berserker")) ? 2 : 1;
     var _fisico = max(0, _carta.qtd_dados_dano * ((_carta.dado_dano + 1) / 2) * _multiplicador + _carta.mod_dano);
     var _magico = max(0, _carta.qtd_dados_dano_magico * ((_carta.dado_dano_magico + 1) / 2) * _multiplicador + _carta.mod_dano_magico);
     return max(_fisico, _magico);
@@ -495,6 +501,7 @@ function resolver_autoataque_carnica(_carta) {
     if (_carta.carnica_estado_proximo_ataque != "autoataque") return false;
     _carta.carnica_estado_proximo_ataque = "";
     if (tem_aliado_adjacente(_carta)) return false;
+    if (!tentar_romper_imitacao(_carta)) return true;
 
     var _dados_autoataque = { carta: _carta };
     rolar_dano_direto_visual(_carta, "fisica", method(_dados_autoataque, function(_dano) {
@@ -526,12 +533,6 @@ function processar_combate(_lado_atacante) {
 			var _proxima_posicao = posicao + _sentido;
 			var _slot_alvo = buscar_slot(lane, _proxima_posicao);
 
-			if (_atacante.iludido_por_imitacao) {
-			    _atacante.iludido_por_imitacao = false;
-			    debug_combate(_atacante.nome_carta + " está iludida e não atacou.");
-			    continue; 
-			}
-
 
 			if ((_slot_alvo == noone || !_slot_alvo.ocupado) && _tem_alcance) {
 			    var _slot_longe = buscar_slot(lane, posicao + _sentido * 2);
@@ -548,6 +549,10 @@ function processar_combate(_lado_atacante) {
 			if (_pode_mirar_alvo) {
 				_atacante.item_ataque_atual = melhor_item_ataque(_atacante);
 				var _tipo_escolhido = ia_escolher_tipo_ataque(_atacante, _slot_alvo.carta_atual);
+                if (abs(posicao - _slot_alvo.posicao) > 1) {
+                    _atacante.item_ataque_atual = noone;
+                    _tipo_escolhido = tem_habilidade(_atacante, "alcance_magico") ? "magica" : "fisica";
+                }
                 _atacante.atacou_este_turno = true;
 				rolar_combate(_atacante, _slot_alvo.carta_atual, _tipo_escolhido);
 
@@ -560,10 +565,10 @@ function processar_combate(_lado_atacante) {
                     var _tipo_construcao = ia_escolher_tipo_ataque_direto(_atacante);
                     var _dados_construcao = { alvo: _construcao_alvo, atacante: _atacante };
                     rolar_ataque_direto_com_acerto(_atacante, _tipo_construcao,
-                        method(_dados_construcao, function(_dano_construcao) {
+                        method(_dados_construcao, function(_dano_construcao, _critico = false) {
                             if (!instance_exists(alvo)) return;
                             evento_partida_aplicar(evento_dano_construcao_criar(
-                                atacante, alvo, _dano_construcao, true));
+                                atacante, alvo, _dano_construcao, true, "", c_red, _critico));
                         })
                     );
                 } else {
@@ -574,7 +579,7 @@ function processar_combate(_lado_atacante) {
                     } else {
                         var _tipo_direto = ia_escolher_tipo_ataque_direto(_atacante);
                         var _dados_castelo = { lado_defensor: _lado_defensor, atacante: _atacante };
-                        rolar_dano_direto_visual(_atacante, _tipo_direto,
+                        if (tentar_romper_imitacao(_atacante)) rolar_dano_direto_visual(_atacante, _tipo_direto,
                             method(_dados_castelo, function(_dano_direto) {
                                 evento_partida_aplicar(evento_dano_castelo_criar(
                                     atacante, lado_defensor, _dano_direto));
@@ -591,21 +596,17 @@ function processar_combate(_lado_atacante) {
 // Versão do combate pra UMA tropa só (usada pelo menu de ação do jogador).
 // Mesma cadeia de alvo que processar_combate(), só que pra 1 tropa específica.
 function processar_combate_tropa(_carta, _tipo_ataque, _indice_ataque = 0, _total_ataques = 1) {
+    if (primeiro_turno_do_lado(_carta.dono) || !tropa_pode_agir(_carta)) return false;
     if (!instance_exists(_carta) || !_carta.travada || _carta.slot_atual == noone) return false;
 
     var _slot = _carta.slot_atual;
     var _lado_atacante = _carta.dono;
     var _lado_defensor = (_lado_atacante == "jogador") ? "inimigo" : "jogador";
     var _sentido = direcao_avanco(_lado_atacante);
-
-    if (_carta.iludido_por_imitacao) {
-        _carta.iludido_por_imitacao = false;
-        debug_combate(_carta.nome_carta + " está iludida e não atacou.");
-        return true;
-    }
     if (resolver_autoataque_carnica(_carta)) return true;
 
-    var _tem_alcance = tem_habilidade(_carta, "alcance") || tem_habilidade(_carta, "alcance_magico");
+    var _tem_alcance = !is_struct(_carta.item_ataque_atual)
+        && tem_habilidade(_carta, _tipo_ataque == "magica" ? "alcance_magico" : "alcance");
     var _proxima_posicao = _slot.posicao + _sentido;
     var _slot_alvo = buscar_slot(_slot.lane, _proxima_posicao);
 
@@ -619,7 +620,7 @@ function processar_combate_tropa(_carta, _tipo_ataque, _indice_ataque = 0, _tota
         && !(_slot.posicao == posicao_assalto(_lado_atacante)
             && _slot_alvo.posicao == posicao_entrada(_lado_defensor)
             && !_slot_alvo.carta_atual.defendendo_castelo)
-        && (!tem_habilidade(_slot_alvo.carta_atual, "voar") || tem_habilidade(_carta, "voar") || _tem_alcance);
+        && (!tem_habilidade(_slot_alvo.carta_atual, "voar") || tem_habilidade(_carta, "voar") || tem_habilidade(_carta, "alcance") || tem_habilidade(_carta, "alcance_magico"));
 
     if (_pode_mirar_alvo) {
         rolar_combate(_carta, _slot_alvo.carta_atual, _tipo_ataque, _indice_ataque, _total_ataques);
@@ -632,10 +633,10 @@ function processar_combate_tropa(_carta, _tipo_ataque, _indice_ataque = 0, _tota
         if (_construcao_alvo != noone) {
             var _dados_construcao = { alvo: _construcao_alvo, atacante: _carta };
             rolar_ataque_direto_com_acerto(_carta, _tipo_ataque,
-                method(_dados_construcao, function(_dano_construcao) {
+                method(_dados_construcao, function(_dano_construcao, _critico = false) {
                     if (!instance_exists(alvo)) return;
                     evento_partida_aplicar(evento_dano_construcao_criar(
-                        atacante, alvo, _dano_construcao, true));
+                        atacante, alvo, _dano_construcao, true, "", c_red, _critico));
                 }),
                 _indice_ataque,
                 _total_ataques
@@ -647,7 +648,7 @@ function processar_combate_tropa(_carta, _tipo_ataque, _indice_ataque = 0, _tota
                 rolar_combate(_carta, _defensor_castelo, _tipo_ataque);
             } else {
                 var _dados_castelo = { lado_defensor: _lado_defensor, atacante: _carta };
-                rolar_dano_direto_visual(_carta, _tipo_ataque,
+                if (tentar_romper_imitacao(_carta)) rolar_dano_direto_visual(_carta, _tipo_ataque,
                     method(_dados_castelo, function(_dano_direto) {
                         evento_partida_aplicar(evento_dano_castelo_criar(
                             atacante, lado_defensor, _dano_direto));
@@ -668,8 +669,8 @@ function processar_combate_tropa(_carta, _tipo_ataque, _indice_ataque = 0, _tota
 // Rola o teste de acerto com suporte genérico a vantagem e desvantagem.
 // Berserker usa o maior D20; Confusão usa o menor D20.
 function rolar_teste_acerto_visual(_atacante, _defensor, _tipo_ataque, _indice_ataque = 0, _total_ataques = 1) {
-    var _modo = (_atacante.condicao == "berserker") ? "vantagem"
-        : ((_atacante.condicao == "confusao") ? "desvantagem" : "normal");
+    var _modo = (tem_condicao(_atacante, "berserker") && !tem_condicao(_atacante, "confusao")) ? "vantagem"
+        : ((tem_condicao(_atacante, "confusao") && !tem_condicao(_atacante, "berserker")) ? "desvantagem" : "normal");
     var _bonus = bonus_cemiterio_acerto(_atacante);
     var _offset_golpe = (_indice_ataque - ((_total_ataques - 1) / 2)) * 110;
     var _atraso_golpe = (_indice_ataque == 0) ? 0 : _indice_ataque * irandom_range(68, 92);
@@ -720,10 +721,14 @@ function rolar_teste_acerto_visual(_atacante, _defensor, _tipo_ataque, _indice_a
 // Inicia um combate entre 2 tropas: rola o D20 de acerto (visual) e, quando ele parar,
 // decide o resultado em processar_resultado_acerto().
 function rolar_combate(_atacante, _defensor, _tipo_ataque, _indice_ataque = 0, _total_ataques = 1) {
+    if (abs(_atacante.posicao_atual - _defensor.posicao_atual) > 1
+        && (is_struct(_atacante.item_ataque_atual)
+            || !tem_habilidade(_atacante, _tipo_ataque == "magica" ? "alcance_magico" : "alcance"))) return;
+    if (!tentar_romper_imitacao(_atacante, _defensor)) return;
     debug_combate("=== ATAQUE (" + _tipo_ataque + "): " + _atacante.nome_carta + " vs " + _defensor.nome_carta + " ===");
 
     // Resultado 4 da Loucura: não se defende e o próximo ataque acerta sem D20.
-    if (_defensor.condicao == "loucura" && _defensor.loucura_sem_defesa) {
+    if (tem_condicao(_defensor, "loucura") && _defensor.loucura_sem_defesa) {
         _defensor.loucura_sem_defesa = false;
         debug_combate(_defensor.nome_carta + " não se defendeu por causa da Loucura.");
         processar_resultado_acerto(11, _atacante, _defensor, _tipo_ataque);
@@ -832,14 +837,14 @@ function aplicar_resultado_dano_tropa(_dados, _resultado, _bonus_extra = 0) {
     var _defensor = _dados.defensor;
     if (!instance_exists(_atacante) || !instance_exists(_defensor)) return;
 
-    var _multiplicador_berserker = (_atacante.condicao == "berserker") ? 2 : 1;
+    var _multiplicador_berserker = (tem_condicao(_atacante, "berserker")) ? 2 : 1;
     var _dano_original = _resultado * _dados.multiplicador_resultado * _multiplicador_berserker + _bonus_extra;
     var _defesa_usada = _dados.ignora_defesa ? 0
         : ((_dados.tipo_ataque == "magica") ? calcular_defesa_magica_total(_defensor) : calcular_defesa_fisica_total(_defensor));
     var _dano_final = _dano_original + _dados.mod_usado + bonus_cemiterio_dano(_atacante);
     _dano_final = max(0, _dano_final - _defesa_usada - (_dados.ignora_defesa ? 0 : obj_controlador.terreno_bonus_defesa));
     evento_partida_aplicar(evento_dano_tropa_criar(_atacante, _defensor,
-        _dano_final, _dados.tipo_ataque, _defesa_usada, true));
+        _dano_final, _dados.tipo_ataque, _defesa_usada, true, "", c_red, _dados.critico));
 }
 
 // Resolve o dano depois do acerto. No crítico, os dados originais podem ser
@@ -864,6 +869,7 @@ function resolver_dano_de_acerto(_contexto, _modo_critico = "normal") {
         mod_usado: _contexto.mod_usado,
         tipo_ataque: _contexto.tipo_ataque,
         multiplicador_resultado: _multiplicador_resultado,
+        critico: _modo_critico != "normal",
         ignora_defesa: _bonus_carnica,
         bonus_carnica: _bonus_carnica
     };
@@ -948,6 +954,7 @@ function ia_escolher_modo_critico(_contexto) {
 // Contra-ataque compartilhado pelo erro crítico e pelo erro sob Confusão.
 function executar_contra_ataque(_atacante, _defensor) {
     if (!instance_exists(_atacante) || !instance_exists(_defensor) || _defensor.dado_dano <= 0) return;
+    if (!tropa_pode_agir(_defensor) || !tentar_romper_imitacao(_defensor)) return;
     var _mod_contra_exibido = _defensor.mod_dano + bonus_cemiterio_dano(_defensor);
     var _dados_contra = { atacante: _atacante, defensor: _defensor };
 
@@ -956,15 +963,13 @@ function executar_contra_ataque(_atacante, _defensor) {
         _defensor.qtd_dados_dano, _defensor.dado_dano,
         method(_dados_contra, function(_resultado) {
             if (!instance_exists(atacante) || !instance_exists(defensor)) return;
-            iniciar_animacao_ataque(defensor, atacante, 18, 18);
-            aplicar_flash_dano(atacante);
 
-            var _original_contra = _resultado * ((defensor.condicao == "berserker") ? 2 : 1);
+            var _original_contra = _resultado * ((tem_condicao(defensor, "berserker")) ? 2 : 1);
             var _dano_contra = _original_contra + defensor.mod_dano + bonus_cemiterio_dano(defensor);
             _dano_contra = max(0, _dano_contra - calcular_defesa_fisica_total(atacante)
                 - obj_controlador.terreno_bonus_defesa);
             atacante.vida -= _dano_contra;
-            mostrar_dano_tropa(atacante, _dano_contra);
+            apresentar_impacto_tropa(defensor, atacante, _dano_contra);
             debug_combate(atacante.nome_carta + " tomou " + string(_dano_contra) + " de contra-ataque. Vida: " + string(atacante.vida));
             if (atacante.vida <= 0) {
                 if (tem_habilidade(defensor, "digestao")) defensor.digestao_cadaver_disponivel = true;
@@ -1003,6 +1008,8 @@ function processar_resultado_acerto(_dado_acerto, _atacante, _defensor, _tipo_at
     var _qtd_usada = _usando_item_ataque ? 1
         : ((_tipo_ataque == "magica") ? _atacante.qtd_dados_dano_magico : _atacante.qtd_dados_dano);
 
+    if (_dado_acerto <= 10 && _atacante.carnica_estado_proximo_ataque == "bonus")
+        _atacante.carnica_estado_proximo_ataque = "";
     if (_dado_natural == 1) {
         debug_combate("Erro crítico! Defensor vai contra-atacar.");
         executar_contra_ataque(_atacante, _defensor);
@@ -1011,7 +1018,7 @@ function processar_resultado_acerto(_dado_acerto, _atacante, _defensor, _tipo_at
 
     if (_dado_acerto <= 10) {
         debug_combate("Errou o ataque (1-10).");
-        if (_atacante.condicao == "confusao") {
+        if (tem_condicao(_atacante, "confusao")) {
             debug_combate("Confusão concedeu um contra-ataque ao defensor.");
             executar_contra_ataque(_atacante, _defensor);
         }
@@ -1119,8 +1126,8 @@ function resolver_escolha_maquina_ima(_indice) {
 function destruir_tropa(_carta, _por_inimigo = true) {
     if (!instance_exists(_carta) || _carta.morrendo) return;
     if (_carta.tipo_morte_visual == "normal") {
-        if (_carta.condicao == "queimado") _carta.tipo_morte_visual = "fogo";
-        else if (_carta.condicao == "envenenado" || _carta.condicao == "apodrecer") _carta.tipo_morte_visual = "veneno";
+        if (tem_condicao(_carta, "queimado")) _carta.tipo_morte_visual = "fogo";
+        else if (tem_condicao(_carta, "envenenado") || tem_condicao(_carta, "apodrecer")) _carta.tipo_morte_visual = "veneno";
     }
     debug_combate(_carta.nome_carta + " foi derrotada e enviada ao cemitério.");
     aplicar_efeitos_morte(_carta, _por_inimigo);
@@ -1157,7 +1164,8 @@ function destruir_tropa(_carta, _por_inimigo = true) {
     if (obj_controlador.tropa_selecionada == _carta) obj_controlador.tropa_selecionada = noone;
     _carta.morrendo = true;
     _carta.morte_timer = _carta.morte_duracao;
-    _carta.condicao = noone;
+    _carta.condicoes = [];
+    sincronizar_condicao_principal(_carta);
 }
 
 // Registra cartas da mão abstrata da IA, que não possuem uma instância visual.
@@ -1376,26 +1384,55 @@ function obter_config_condicao(_tipo) {
     return { cor: c_white, sprite: -1, modo: "meio" };
 }
 
-// Tenta aplicar uma condição -- só funciona se a tropa não tiver outra condição diferente ativa.
-// Já dispara o texto flutuante com a cor certa quando aplica com sucesso.
-function aplicar_condicao(_carta, _tipo, _turnos, _dano_por_turno, _disparar_armadilhas = true) {
-    // A imunidade posterior protege apenas de uma nova queimadura.
+// Cada tipo possui duração e dano próprios; os campos antigos espelham o primeiro.
+function obter_condicao(_carta, _tipo) {
+    if (!variable_instance_exists(_carta, "condicoes")) return noone;
+    for (var i = 0; i < array_length(_carta.condicoes); i++)
+        if (_carta.condicoes[i].tipo == _tipo) return _carta.condicoes[i];
+    return noone;
+}
+
+function tem_condicao(_carta, _tipo) {
+    return obter_condicao(_carta, _tipo) != noone;
+}
+
+function sincronizar_condicao_principal(_carta) {
+    var _primeira = array_length(_carta.condicoes) > 0 ? _carta.condicoes[0] : noone;
+    _carta.condicao = _primeira == noone ? noone : _primeira.tipo;
+    _carta.condicao_turnos_restantes = _primeira == noone ? 0 : _primeira.turnos;
+    _carta.condicao_dano_por_turno = _primeira == noone ? 0 : _primeira.dano;
+}
+
+function remover_condicao(_carta, _tipo) {
+    if (tem_condicao(_carta, _tipo)) debug_combate(_carta.nome_carta + " deixou de estar " + _tipo + ".");
+    for (var i = array_length(_carta.condicoes) - 1; i >= 0; i--)
+        if (_carta.condicoes[i].tipo == _tipo) array_delete(_carta.condicoes, i, 1);
+    sincronizar_condicao_principal(_carta);
+}
+
+function aplicar_condicao(_carta, _tipo, _turnos, _dano_por_turno, _disparar_armadilhas = true, _atraso_visual = 0) {
+    if (!instance_exists(_carta) || _carta.object_index != obj_carta) return false;
     if (_tipo == "queimado" && _carta.imunidade_queimado_turnos > 0) return false;
-    if (_carta.condicao != noone && _carta.condicao != _tipo) {
-        return false;
+    if (_tipo == "paralisado") _turnos = 2;
+    var _estado = obter_condicao(_carta, _tipo);
+    if (_estado == noone) {
+        array_push(_carta.condicoes, { tipo: _tipo, turnos: _turnos, dano: _dano_por_turno });
+    } else {
+        // Reaplicar não duplica o tipo; renova a duração sem encurtá-la.
+        _estado.turnos = (_estado.turnos < 0 || _turnos < 0) ? -1 : max(_estado.turnos, _turnos);
+        _estado.dano = max(_estado.dano, _dano_por_turno);
     }
-
-    _carta.condicao = _tipo;
-    _carta.condicao_turnos_restantes = _turnos;
-    _carta.condicao_dano_por_turno = _dano_por_turno;
-    _carta.efeito_timer = 0; // reseta a animação do sprite
-
-    var _config = obter_config_condicao(_tipo);
-
-    var _texto_flutuante = instance_create_layer(_carta.x, _carta.y - _carta.sprite_height/2, "Instances", obj_texto_flutuante);
-    _texto_flutuante.texto = string_upper(_tipo);
-    _texto_flutuante.cor_texto = _config.cor;
-
+    sincronizar_condicao_principal(_carta);
+    _carta.efeito_visual_tipo = _tipo;
+    _carta.efeito_timer = 18 + _atraso_visual;
+    debug_combate(_carta.nome_carta + " recebeu " + _tipo + (_turnos < 0 ? " (sem duração fixa)." : " por " + string(_turnos) + " turno(s)."));
+    if (_atraso_visual > 0) {
+        apresentacao_enfileirar(evento_feedback_criar(string_upper(_tipo), _carta.x,
+            _carta.y - _carta.sprite_height / 2, obter_config_condicao(_tipo).cor), _atraso_visual);
+    } else {
+        mostrar_feedback(string_upper(_tipo), _carta.x, _carta.y - _carta.sprite_height / 2,
+            obter_config_condicao(_tipo).cor);
+    }
     if (_tipo == "loucura" && _disparar_armadilhas) ativar_loucura_mutua(_carta);
     return true;
 }
@@ -1425,7 +1462,7 @@ function aplicar_condicao_por_chave(_carta, _chave) {
     switch (_chave) {
         case "queimado": return aplicar_condicao(_carta, "queimado", 3, 2);
         case "veneno": case "envenenado": return aplicar_envenenado(_carta);
-        case "paralisado": return aplicar_condicao(_carta, "paralisado", 1, 0);
+        case "paralisado": return aplicar_condicao(_carta, "paralisado", 2, 0);
         case "gelo": case "congelado": return aplicar_congelado(_carta);
         case "choque": case "eletrocutado": aplicar_eletrocutado(_carta); return true;
         case "confusao": return aplicar_confusao(_carta);
@@ -1442,23 +1479,20 @@ function aplicar_condicao_por_chave(_carta, _chave) {
 
 // Golpes no mesmo turno ou no turno ofensivo imediatamente seguinte acumulam.
 function aplicar_sangramento(_carta) {
-    if (_carta.condicao == "sangrando") {
+    var _estado = obter_condicao(_carta, "sangrando");
+    if (_estado != noone) {
         if (_carta.sangramento_janela_consecutiva || _carta.sangramento_atingido_neste_ciclo)
-            _carta.condicao_turnos_restantes += 1;
-        else
-            _carta.condicao_turnos_restantes = max(1, _carta.condicao_turnos_restantes);
-        _carta.sangramento_janela_consecutiva = true;
-        _carta.sangramento_atingido_neste_ciclo = true;
-        return true;
+            _estado.turnos += 1;
+        else _estado.turnos = max(1, _estado.turnos);
+    } else {
+        aplicar_condicao(_carta, "sangrando", _carta.sangramento_janela_consecutiva ? 2 : 1, 3);
     }
-    if (_carta.condicao != noone) return false;
-    var _duracao = _carta.sangramento_janela_consecutiva ? 2 : 1;
-    var _aplicou = aplicar_condicao(_carta, "sangrando", _duracao, 3);
-    if (_aplicou) {
-        _carta.sangramento_janela_consecutiva = true;
-        _carta.sangramento_atingido_neste_ciclo = true;
-    }
-    return _aplicou;
+    _carta.efeito_visual_tipo = "sangrando";
+    _carta.efeito_timer = 18;
+    _carta.sangramento_janela_consecutiva = true;
+    _carta.sangramento_atingido_neste_ciclo = true;
+    sincronizar_condicao_principal(_carta);
+    return true;
 }
 
 // Eletrocutado é diferente das outras: causa dano instantâneo + joga moeda pra decidir
@@ -1476,12 +1510,11 @@ function aplicar_eletrocutado(_carta) {
     jogar_moeda_visual(_carta.x, _carta.y, _carta.x, _carta.y - 45, method(_ctx_choque, function(_moeda) {
         if (!instance_exists(carta)) return;
         if (carta.vezes_eletrocutado_seguidas >= 6) {
-            carta.condicao = noone;
             aplicar_condicao(carta, "loucura", -1, 0);
             carta.vezes_eletrocutado_seguidas = 0;
             mostrar_feedback("LOUCURA", carta.x, carta.y - 45, make_color_rgb(210,45,190), 55);
         } else if (_moeda == 1) {
-            aplicar_condicao(carta, "paralisado", 1, 0);
+            aplicar_condicao(carta, "paralisado", 2, 0);
             mostrar_feedback("CARA: PARALISADA", carta.x, carta.y - 45, c_yellow, 45);
         } else {
             aplicar_condicao(carta, "eletrocutado", 1, 0);
@@ -1538,7 +1571,7 @@ function aplicar_corrosao(_carta) {
 
 // O resultado único do D4 define tanto a duração quanto o valor por turno.
 function aplicar_apodrecer(_carta) {
-    if (!instance_exists(_carta) || _carta.condicao != noone) return false;
+    if (!instance_exists(_carta)) return false;
     var _resultado = irandom_range(1, 4);
     var _ctx = { carta: _carta };
     rolar_dado_visual(_carta.x, _carta.y, _carta.x, _carta.y - 45, 4, _resultado,
@@ -1550,7 +1583,7 @@ function aplicar_apodrecer(_carta) {
 }
 
 function aplicar_regeneracao(_carta) {
-    if (!instance_exists(_carta) || _carta.condicao != noone) return false;
+    if (!instance_exists(_carta)) return false;
     var _resultado = irandom_range(1, 4);
     var _ctx = { carta: _carta };
     rolar_dado_visual(_carta.x, _carta.y, _carta.x, _carta.y - 45, 4, _resultado,
@@ -1563,74 +1596,64 @@ function aplicar_regeneracao(_carta) {
 
 // Condições incapacitantes bloqueiam todas as ações manuais da tropa.
 function tropa_pode_agir(_carta) {
-    return (_carta.condicao != "paralisado"
-        && _carta.condicao != "congelado"
-        && _carta.condicao != "adormecido"
-        && _carta.condicao != "loucura");
+    return (!tem_condicao(_carta, "paralisado")
+        && !tem_condicao(_carta, "congelado")
+        && !tem_condicao(_carta, "adormecido")
+        && !tem_condicao(_carta, "loucura"));
 }
 
 function tropa_pode_usar_habilidade(_carta) {
-    return (_carta.condicao != "paralisado"
-        && _carta.condicao != "adormecido"
-        && _carta.condicao != "loucura");
+    return (!tem_condicao(_carta, "paralisado")
+        && !tem_condicao(_carta, "adormecido")
+        && !tem_condicao(_carta, "loucura"));
 }
 
 // Processa o efeito de todas as condições de um lado (dano/cura), no início do turno dele.
 function processar_condicoes(_dono) {
     with (obj_carta) {
-        if (dono != _dono) continue;
-        if (condicao == noone) continue;
-
-        if (condicao == "loucura") {
-            processar_loucura(id);
-            continue;
+        if (dono != _dono || !travada || morrendo) continue;
+        if (sombra_cooldown > 0) {
+            sombra_cooldown -= 1;
+            if (sombra_cooldown == 1) sombra_ativa = false;
         }
-
-        if (condicao == "adormecido") {
-            var _dados_sono = { carta: id };
-            jogar_moeda_visual(x, y, x, y - 45, method(_dados_sono, function(_resultado_sono) {
+        var _dano_total = 0;
+        var _cura_total = 0;
+        for (var i = 0; i < array_length(condicoes); i++) {
+            var _estado = condicoes[i];
+            switch (_estado.tipo) {
+                case "queimado": case "envenenado": case "corrosao":
+                case "apodrecer": case "sangrando": _dano_total += _estado.dano; break;
+                case "regeneracao": _cura_total += _estado.dano; break;
+            }
+            if (_estado.tipo == "corrosao") _estado.dano = max(1, _estado.dano - 1);
+        }
+        // Dano e cura do mesmo início de turno são somados antes de resolver a morte.
+        var _vida_antes_condicoes = vida;
+        vida = min(vida_maxima, vida - _dano_total + _cura_total);
+        if (_dano_total > 0 || _cura_total > 0) debug_combate(nome_carta + ": condições causaram "
+            + string(_dano_total) + " de dano e " + string(_cura_total) + " de cura. Vida: "
+            + string(_vida_antes_condicoes) + " -> " + string(vida) + ".");
+        if (_dano_total > 0) { aplicar_flash_dano(id, 12); mostrar_dano_tropa(id, _dano_total); }
+        if (_cura_total > 0) mostrar_feedback("+" + string(_cura_total), x, y - 40, c_lime, 38);
+        sincronizar_condicao_principal(id);
+        if (vida <= 0) { destruir_tropa(id, false); continue; }
+        if (tem_condicao(id, "adormecido")) {
+            var _ctx_sono = { carta: id };
+            jogar_moeda_visual(x, y, x, y - 45, method(_ctx_sono, function(_resultado) {
                 if (!instance_exists(carta)) return;
-                if (_resultado_sono == 1) {
-                    carta.condicao = noone;
-                    carta.condicao_turnos_restantes = 0;
-                    mostrar_feedback("ACORDOU", carta.x, carta.y - 45, c_aqua, 45);
-                    debug_combate(carta.nome_carta + " acordou.");
-                } else {
-                    mostrar_feedback("CONTINUA DORMINDO", carta.x, carta.y - 45, c_blue, 45);
-                }
+                if (_resultado == 1) remover_condicao(carta, "adormecido");
+                mostrar_feedback(_resultado == 1 ? "ACORDOU" : "CONTINUA DORMINDO",
+                    carta.x, carta.y - 45, _resultado == 1 ? c_aqua : c_blue, 45);
+                if (_resultado == 1 && tem_condicao(carta, "loucura")
+                    && !tem_condicao(carta, "paralisado") && !tem_condicao(carta, "congelado")) processar_loucura(carta);
             }));
-            continue;
         }
-
-        switch (condicao) {
-            case "queimado":
-            case "envenenado":
-            case "corrosao":
-            case "apodrecer":
-            case "sangrando":
-                vida -= condicao_dano_por_turno;
-                aplicar_flash_dano(id, 12);
-                mostrar_dano_tropa(id, condicao_dano_por_turno);
-                break;
-
-            case "regeneracao":
-                vida = min(vida + condicao_dano_por_turno, vida_maxima);
-                mostrar_feedback("+" + string(condicao_dano_por_turno), x, y - sprite_height * 0.45, c_lime, 38);
-                break;
-        }
-
-        if (vida <= 0) {
-		    destruir_tropa(id, false);
-		    continue;
-		}
-
-        if (condicao == "corrosao" && condicao_dano_por_turno > 1) {
-            condicao_dano_por_turno -= 1;
-        }
+        if (tem_condicao(id, "loucura") && !tem_condicao(id, "adormecido")
+            && !tem_condicao(id, "paralisado") && !tem_condicao(id, "congelado")) processar_loucura(id);
     }
 }
-	
-// Desconta 1 turno de duração das condições e da recarga da Sombra Translúcida.
+
+// Desconta 1 turno de duração das condições.
 // Roda DEPOIS das ações daquele lado (senão a tropa nunca chega a ficar bloqueada de verdade).
 function expirar_condicoes(_dono) {
     with (obj_carta) {
@@ -1645,30 +1668,18 @@ function expirar_condicoes(_dono) {
         if (!eletrocutado_neste_ciclo) vezes_eletrocutado_seguidas = 0;
         eletrocutado_neste_ciclo = false;
 
-        // recarrega/desativa a sombra translúcida com o passar dos turnos
-        if (sombra_cooldown > 0) {
-            sombra_cooldown -= 1;
-            if (sombra_cooldown == 1) {
-                sombra_ativa = false; // já passou o turno de invisibilidade, agora só recarregando
-            }
-        }
-
-        if (condicao == noone) continue;
-
-        if (condicao_turnos_restantes > 0) {
-            condicao_turnos_restantes -= 1;
-
-            if (condicao_turnos_restantes <= 0) {
-                if (condicao == "queimado") {
-                    condicao = noone;
-                    condicao_dano_por_turno = 0;
-                    imunidade_queimado_turnos = 1;
-                } else {
-                    condicao = noone;
-                    condicao_dano_por_turno = 0;
+        for (var i = array_length(condicoes) - 1; i >= 0; i--) {
+            var _estado = condicoes[i];
+            if (_estado.turnos > 0) {
+                _estado.turnos -= 1;
+                if (_estado.turnos <= 0) {
+                    debug_combate(nome_carta + ": " + _estado.tipo + " terminou.");
+                    if (_estado.tipo == "queimado") imunidade_queimado_turnos = 1;
+                    array_delete(condicoes, i, 1);
                 }
             }
         }
+        sincronizar_condicao_principal(id);
     }
 }
 #endregion
@@ -1704,18 +1715,18 @@ function texto_custo_exibicao(_custo) {
 
 function descricao_habilidade(_chave) {
     switch (_chave) {
-        case "alcance": return "Alcance: pode atacar uma casa mais distante.";
-        case "alcance_magico": return "Alcance mágico: pode mirar inimigos mais distantes.";
-        case "voar": return "Voar: atravessa tropas terrestres ao se mover.";
-        case "golpe_duplo": return "Golpe Duplo: realiza dois ataques na mesma ação.";
+        case "alcance": return "Alcance: permite atacar com o dano físico original a até 2 casas.";
+        case "alcance_magico": return "Alcance mágico: permite atacar com o dano mágico original a até 2 casas.";
+        case "voar": return "Voar: atravessa tropas terrestres e ignora armadilhas de solo. Só pode ser atacada por tropas com Voar ou Alcance/Alcance mágico.";
+        case "golpe_duplo": return "Golpe Duplo: realiza dois ataques com o ataque original da tropa.";
         case "mitose": return "Mitose: ao morrer, gera duas tropas menores quando houver espaço.";
-        case "imitacao": return "Imitação: pode confundir ou copiar o comportamento do inimigo.";
-        case "sombra_translucida": return "Sombra Translúcida: fica difícil de ser alvo por um tempo.";
-        case "visao_do_veu": return "Visão do Véu: revela e interage com efeitos ocultos.";
-        case "olhar_vazio": return "Olhar Vazio: aplica seu efeito ao avançar sobre um alvo.";
-        case "tiro_burro": return "Tiro Burro: pode atingir alvos de forma imprevisível.";
-        case "digestao": return "Digestão: devora uma tropa abatida ou com menos de 4 de vida.";
-        case "roubo": return "Roubo: ao ser atacada por um item, tenta roubá-lo com um D10.";
+        case "imitacao": return "Imitação: disputa 1D20 + inteligência com o inimigo à frente. Se vencer, bloqueia seus ataques e permite contra-atacar. Cada tentativa de ataque exige novo teste para romper o bloqueio. Uma ativação por turno, antes de atacar. Ao perder o reteste contra o Mimic, o inimigo recebe um contra-ataque.";
+        case "sombra_translucida": return "Sombra Translúcida: custa 2 Mana. Fica invisível por 1 turno, impedindo ser alvo de ataques; depois precisa de 1 turno de recarga.";
+        case "visao_do_veu": return "Visão do Véu: uso único. Revela a mão inimiga; escolha destruir uma armadilha ou proteger esta tropa de uma armadilha direcionada a ela.";
+        case "olhar_vazio": return "Olhar Vazio: quando uma tropa inimiga fica à frente pela primeira vez, ela testa 1D20 uma única vez na partida; se falhar, fica paralisada por 2 turnos.";
+        case "tiro_burro": return "Tiro Burro: em um acerto crítico, uma tropa aleatória em campo recebe o disparo, podendo ser aliada.";
+        case "digestao": return "Digestão: devora uma tropa que matou ou uma tropa adjacente, aliada ou inimiga, com menos de 4 de vida.";
+        case "roubo": return "Roubo: ao ser atacada com um equipamento, rola 1D10. Com 10, rouba e equipa o item se houver espaço na mochila.";
         case "carnica_frenetica": return "Carniça Frenética: paga 2 Sangues e joga uma moeda para alterar o próximo ataque.";
         case "ferida_exposta": return "Ferida Exposta: joga uma moeda para tentar causar Sangramento com o dano original.";
     }
@@ -1763,8 +1774,39 @@ function descricao_efeito_preview(_carta) {
 
 function descricao_carta_preview(_carta) {
     var _texto = "TIPO: " + categoria_exibicao(_carta.categoria) + "\nCUSTO: " + texto_custo_exibicao(_carta.custo);
+    if (_carta.object_index == obj_carta && _carta.esta_na_mao && lado_controlado_localmente(_carta.dono))
+        _texto += "\n\nDISPONIBILIDADE: " + disponibilidade_carta_mao(_carta).motivo;
 
     if (_carta.categoria == "tropa") {
+        _texto += "\n\nITENS EQUIPADOS (" + string(array_length(_carta.itens_equipados)) + "):";
+        if (array_length(_carta.itens_equipados) == 0) _texto += "\nNenhum item equipado.";
+        for (var _eq = 0; _eq < array_length(_carta.itens_equipados); _eq++) {
+            var _item = _carta.itens_equipados[_eq];
+            _texto += "\n• " + _item.nome;
+            if (_item.dado > 0) _texto += " — ataque D" + string(_item.dado);
+            if (_item.bonus_dano != 0) _texto += " | dano +" + string(_item.bonus_dano);
+            if (_item.bonus_defesa != 0) _texto += " | defesa +" + string(_item.bonus_defesa);
+        }
+        if (_carta.travada) {
+            _texto += "\n\nAÇÕES DA TROPA:";
+            _texto += "\nAtaque: " + (!tropa_pode_agir(_carta) ? "bloqueado por condição"
+                : (primeiro_turno_do_lado(_carta.dono) ? "bloqueado no 1º turno"
+                : (_carta.atacou_este_turno ? "já usado" : "disponível")));
+            _texto += "\nMovimento: " + (!tropa_pode_agir(_carta) ? "bloqueado por condição"
+                : (_carta.turnos_no_campo < 1 ? "a partir do próximo turno"
+                : (_carta.moveu_este_turno ? "já usado" : "disponível")));
+            _texto += "\nAção de item: " + (_carta.troca_item_usada_este_turno ? "já usada" : "disponível");
+            if (_carta.sombra_cooldown > 0)
+                _texto += "\nSombra Translúcida: " + (_carta.sombra_ativa ? "invisível; depois recarrega" : "recarregando por 1 turno");
+            if (_carta.iludido_por_imitacao) _texto += "\nImitação: novo teste de inteligência a cada tentativa de ataque.";
+        }
+        if (array_length(_carta.condicoes) > 0) {
+            _texto += "\n\nCONDIÇÕES ATIVAS:";
+            for (var _ci = 0; _ci < array_length(_carta.condicoes); _ci++) {
+                var _estado = _carta.condicoes[_ci];
+                _texto += "\n" + string_upper(_estado.tipo) + (_estado.turnos < 0 ? " (sem duração fixa)" : " (" + string(_estado.turnos) + " turno(s))");
+            }
+        }
         if (array_length(_carta.habilidades) > 0) {
             _texto += "\n\nHABILIDADES:";
             for (var i = 0; i < array_length(_carta.habilidades); i++) {
@@ -1791,6 +1833,8 @@ function descricao_carta_preview(_carta) {
         break;
         case "armadilha": _texto += "\n\n" + descricao_efeito_preview(_carta); break;
         case "item_equipavel":
+            _texto += "\nINTELIGÊNCIA NECESSÁRIA: " + string(_carta.requisito_inteligencia_item)
+                + "\nA tropa pode equipar ou remover apenas 1 item por turno.";
             if (_carta.efeito_item == "grimorio_iniciante")
                 _texto += "\n\nUma vez por turno, paga 1 Mana para usar Raio (1D4 mágico), Escudo Arcano (+2 DEF mágica) ou Curazinha (+1 vida).";
             else _texto += "\n\nEquipe em uma tropa aliada. Bônus: +" + string(_carta.bonus_mod_dano_item) + " dano e +" + string(_carta.bonus_defesa_item) + " defesa.";
@@ -1813,21 +1857,30 @@ function tem_habilidade(_carta, _chave) {
 
 // Só essas contam como "usar no menu" -- as outras (alcance, voar, olhar_vazio, tiro_burro)
 // são passivas e são checadas direto no combate/movimento, sem precisar de clique.
-function tem_habilidade_ativa(_carta) {
+function habilidades_ativas(_carta) {
     var _ativas = ["golpe_duplo", "sombra_translucida", "ferida_exposta", "imitacao", "visao_do_veu", "digestao", "carnica_frenetica"];
-    for (var i = 0; i < array_length(_carta.habilidades); i++) {
-        if (array_get_index(_ativas, _carta.habilidades[i]) != -1) return _carta.habilidades[i];
-    }
-    return noone;
+    var _resultado = [];
+    for (var i = 0; i < array_length(_carta.habilidades); i++)
+        if (array_get_index(_ativas, _carta.habilidades[i]) != -1) array_push(_resultado, _carta.habilidades[i]);
+    return _resultado;
+}
+
+function tem_habilidade_ativa(_carta) {
+    var _ativas = habilidades_ativas(_carta);
+    return array_length(_ativas) > 0 ? _ativas[0] : noone;
 }
 
 // Despacha pra função específica de cada habilidade, baseado no código salvo na carta.
-function usar_habilidade(_carta) {
+function usar_habilidade(_carta, _habilidade = noone) {
+    if (!instance_exists(_carta) || !_carta.travada || _carta.morrendo || _carta.habilidade_usada_este_turno) return;
+    if (_habilidade == noone) _habilidade = tem_habilidade_ativa(_carta);
+    if (array_get_index(habilidades_ativas(_carta), _habilidade) < 0) return;
     if (!tropa_pode_usar_habilidade(_carta)) {
         if (_carta.dono == "jogador") mostrar_aviso_regra("Esta condição impede usar habilidades", _carta.x, _carta.y);
         return;
     }
-    switch (tem_habilidade_ativa(_carta)) {
+    _carta.visual_habilidade_chave = _habilidade;
+    switch (_habilidade) {
         case "golpe_duplo": habilidade_golpe_duplo(_carta); break;
         case "sombra_translucida": habilidade_sombra_translucida(_carta); break;
         case "ferida_exposta": habilidade_ferida_exposta(_carta); break;
@@ -1840,6 +1893,7 @@ function usar_habilidade(_carta) {
 
 // Golpe Duplo: ataca duas vezes seguidas no mesmo turno.
 function habilidade_golpe_duplo(_carta) {
+    if (primeiro_turno_do_lado(_carta.dono) || !tropa_pode_agir(_carta)) return;
     if (_carta.atacou_este_turno) {
         debug_combate("Golpe Duplo: já atacou esse turno, não pode usar.");
         if (_carta.dono == "jogador") mostrar_aviso_regra("Esta tropa já atacou neste turno", _carta.x, _carta.y);
@@ -1887,6 +1941,7 @@ function habilidade_sombra_translucida(_carta) {
 
 // Ferida Exposta: joga moeda contra a tropa na frente; se der cara, causa dano e Sangrando.
 function habilidade_ferida_exposta(_carta) {
+    if (_carta.atacou_este_turno || primeiro_turno_do_lado(_carta.dono) || !tropa_pode_agir(_carta)) return;
     if (!_carta.travada || _carta.slot_atual == noone) return;
 
     var _slot = _carta.slot_atual;
@@ -1902,17 +1957,20 @@ function habilidade_ferida_exposta(_carta) {
     }
 
     var _alvo = _slot_alvo.carta_atual;
+    if (_alvo.sombra_ativa || (tem_habilidade(_alvo, "voar") && !tem_habilidade(_carta, "voar")
+        && !tem_habilidade(_carta, "alcance") && !tem_habilidade(_carta, "alcance_magico"))) return;
     _carta.habilidade_usada_este_turno = true;
-
+    _carta.atacou_este_turno = true;
+    if (!tentar_romper_imitacao(_carta, _alvo)) return;
     var _dados_ferida = { atacante: _carta, alvo: _alvo };
 
     jogar_moeda_visual(_carta.x, obj_controlador.mao_y, _alvo.x, _alvo.y - _alvo.sprite_height/2 - 20, method(_dados_ferida, function(_resultado) {
         if (!instance_exists(atacante) || !instance_exists(alvo)) return;
 
         if (_resultado == 1) { // cara
-            var _dano = irandom_range(1, atacante.dado_dano);
+            var _dano = rolar_varios_dados(atacante.qtd_dados_dano, atacante.dado_dano_base);
             alvo.vida -= _dano;
-            aplicar_condicao(alvo, "sangrando", 1, 3);
+            aplicar_sangramento(alvo);
 
             debug_combate(alvo.nome_carta + " ficou SANGRANDO pela Ferida Exposta!");
 
@@ -1925,6 +1983,7 @@ function habilidade_ferida_exposta(_carta) {
 }
 	
 function habilidade_imitacao(_carta) {
+    if (_carta.habilidade_usada_este_turno || _carta.atacou_este_turno) return;
     if (!_carta.travada || _carta.slot_atual == noone) return;
     var _slot = _carta.slot_atual;
     var _lado_defensor = (_carta.dono == "jogador") ? "inimigo" : "jogador";
@@ -1938,20 +1997,19 @@ function habilidade_imitacao(_carta) {
     }
 
     var _alvo = _slot_alvo.carta_atual;
-    // Inteligência zero ou menor permite repetir a habilidade, conforme o livro.
-    if (_alvo.nivel_inteligencia > 0) _carta.habilidade_usada_este_turno = true;
+    _carta.habilidade_usada_este_turno = true;
 
     var _rolagem_imitacao = irandom_range(1, 20) + _carta.nivel_inteligencia;
     var _rolagem_defensor = irandom_range(1, 20) + _alvo.nivel_inteligencia;
 
+    apresentar_teste_imitacao(_carta, _alvo, _rolagem_imitacao, _rolagem_defensor);
     debug_combate(_carta.nome_carta + " usa IMITAÇÃO! (" + string(_rolagem_imitacao) + " vs " + string(_rolagem_defensor) + ")");
 
     if (_rolagem_imitacao > _rolagem_defensor) {
         _alvo.iludido_por_imitacao = true;
-        debug_combate(_alvo.nome_carta + " foi enganada e não vai atacar no próximo turno dela!");
-        var _tipo_contra = ia_escolher_tipo_ataque(_carta, _alvo);
-        rolar_combate(_carta, _alvo, _tipo_contra);
-        debug_combate(_carta.nome_carta + " realizou o contra-ataque da Imitação!");
+        _alvo.imitacao_origem = _carta;
+        debug_combate(_alvo.nome_carta + " foi enganada e precisa vencer um novo teste para atacar!");
+        mostrar_feedback("DISFARÇADO DE BAÚ", _carta.x, _carta.y - 45, c_aqua, 65);
     } else {
         debug_combate("A tropa inimiga não caiu no truque.");
         mostrar_feedback("FALHOU", _alvo.x, _alvo.y - 35, c_silver, 40);
@@ -1964,7 +2022,7 @@ function usos_maximos_digestao(_carta) {
 
 function alvo_valido_digestao(_origem, _alvo) {
     if (!instance_exists(_origem) || !instance_exists(_alvo) || _alvo.morrendo) return false;
-    if (!_alvo.travada || _alvo.dono == _origem.dono || _alvo.vida >= 4) return false;
+    if (!_alvo.travada || _alvo.categoria != "tropa" || _alvo.vida <= 0 || _alvo.vida >= 4) return false;
     return abs(_alvo.lane_atual - _origem.lane_atual) + abs(_alvo.posicao_atual - _origem.posicao_atual) == 1;
 }
 
@@ -1984,7 +2042,7 @@ function resolver_digestao(_carta, _alvo = noone) {
         return true;
     }
     if (!alvo_valido_digestao(_carta, _alvo)) return false;
-    destruir_tropa(_alvo);
+    destruir_tropa(_alvo, _alvo.dono != _carta.dono);
     aplicar_beneficio_digestao(_carta);
     return true;
 }
@@ -2059,7 +2117,14 @@ function resolver_visao_veu_escolha(_indice_opcao) {
         mostrar_feedback("PROTEGIDA DA PRÓXIMA ARMADILHA", _carta.x, _carta.y - 45, c_aqua, 60);
     } else if (_indice_opcao < array_length(obj_controlador.ui_modal.visao_veu_opcoes)) {
         var _opcao = obj_controlador.ui_modal.visao_veu_opcoes[_indice_opcao];
-        if (_opcao.armadilha) {
+        if (_opcao.armadilha && partida_local_ativa() && instance_exists(_opcao.instancia)) {
+            var _indice_local = array_get_index(obj_controlador.mao_oculta, _opcao.instancia);
+            if (_indice_local >= 0) {
+                registrar_descarte(_opcao.instancia);
+                array_delete(obj_controlador.mao_oculta, _indice_local, 1);
+                instance_destroy(_opcao.instancia);
+            }
+        } else if (_opcao.armadilha) {
             var _pos = array_get_index(obj_controlador.mao_inimigo, _opcao.funcao);
             if (_pos >= 0) {
                 var _dados = obj_controlador.mao_inimigo[_pos]();
@@ -2083,7 +2148,7 @@ function habilidade_visao_do_veu(_carta) {
     }
     _carta.visao_do_veu_usada = true;
     _carta.habilidade_usada_este_turno = true;
-    if (_carta.dono == "inimigo") {
+    if (_carta.dono == "inimigo" && !partida_local_ativa()) {
         var _armadilha = noone;
         with (obj_carta) if (esta_na_mao && dono == "jogador" && categoria == "armadilha") { _armadilha = id; break; }
         if (instance_exists(_armadilha)) {
@@ -2099,10 +2164,12 @@ function habilidade_visao_do_veu(_carta) {
         return;
     }
     obj_controlador.ui_modal.visao_veu_opcoes = [];
-    for (var i = 0; i < array_length(obj_controlador.mao_inimigo); i++) {
-        var _funcao = obj_controlador.mao_inimigo[i];
+    var _mao_revelada = partida_local_ativa() ? obj_controlador.mao_oculta : obj_controlador.mao_inimigo;
+    for (var i = 0; i < array_length(_mao_revelada); i++) {
+        var _instancia_veu = partida_local_ativa() ? _mao_revelada[i] : noone;
+        var _funcao = partida_local_ativa() ? _instancia_veu.funcao_dados_origem : _mao_revelada[i];
         var _dados = _funcao();
-        array_push(obj_controlador.ui_modal.visao_veu_opcoes, { nome: _dados.nome, funcao: _funcao, armadilha: _dados.categoria == "armadilha" });
+        array_push(obj_controlador.ui_modal.visao_veu_opcoes, { nome: _dados.nome, funcao: _funcao, instancia: _instancia_veu, armadilha: _dados.categoria == "armadilha" });
     }
     obj_controlador.ui_modal.visao_veu_origem = _carta;
     obj_controlador.visao_veu_revelacao_timer = 0;
@@ -2128,7 +2195,7 @@ function verificar_olhar_vazio(_carta) {
     debug_combate(_carta.nome_carta + " encara o Olhar Vazio de " + _oponente.nome_carta + "... rolou " + string(_rolagem));
 
     if (_rolagem <= 10) {
-        aplicar_condicao(_carta, "paralisado", 1, 0);
+        aplicar_condicao(_carta, "paralisado", 2, 0);
         debug_combate(_carta.nome_carta + " ficou PARALISADO pelo Olhar Vazio!");
         mostrar_feedback("PARALISADO", _carta.x, _carta.y - 35, c_aqua, 45);
     }
@@ -2184,3 +2251,24 @@ function processar_construcoes_inicio_turno(_dono) {
     }
 }
 #endregion
+
+// Toda tentativa de ataque, inclusive contra castelo e contra-ataque, retesta.
+function tentar_romper_imitacao(_carta, _alvo = noone) {
+    if (!_carta.iludido_por_imitacao) return true;
+    var _origem = _carta.imitacao_origem;
+    if (!instance_exists(_origem) || _origem.morrendo) {
+        _carta.iludido_por_imitacao = false;
+        return true;
+    }
+    var _teste_inimigo = irandom_range(1, 20) + _carta.nivel_inteligencia;
+    var _teste_origem = irandom_range(1, 20) + _origem.nivel_inteligencia;
+    var _liberou = _teste_inimigo >= _teste_origem;
+    _carta.iludido_por_imitacao = !_liberou;
+    var _contra = (!_liberou && _alvo == _origem);
+    apresentar_teste_imitacao(_origem, _carta, _teste_origem, _teste_inimigo, _contra);
+    mostrar_feedback(_liberou ? "IMITAÇÃO SUPERADA" : "ATAQUE BLOQUEADO: IMITAÇÃO",
+        _carta.x, _carta.y - 45, _liberou ? c_aqua : c_yellow, 65);
+    debug_combate(_carta.nome_carta + ": teste de inteligência " + string(_teste_inimigo) + " contra "
+        + _origem.nome_carta + " (" + string(_teste_origem) + "). " + (_liberou ? "Bloqueio rompido." : "Ataque impedido."));
+    return _liberou;
+}

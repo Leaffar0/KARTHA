@@ -1,1 +1,1 @@
-// O aviso é desenhado no Draw GUI para permanecer acima de toda a interface.
+// O texto é desenhado no Draw GUI End, depois da interface.
