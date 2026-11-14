@@ -333,7 +333,7 @@ function online_configurar_callbacks(_sala) {
                 global.online_seed = _dados.seed;
                 global.modo_partida = "online";
                 random_set_seed(global.online_seed);
-                room_goto(rm_jogo);
+                trocar_sala_suave(rm_jogo);
                 break;
             case "rematch_status":
                 global.online_revanche_solicitada = false;
@@ -351,7 +351,7 @@ function online_configurar_callbacks(_sala) {
                 global.online_estado_publico = noone;
                 global.online_estado_publico_pendente = noone;
                 global.online_atraso_visual_frames = 0;
-                if (room == rm_jogo) room_goto(rm_menu);
+                // match_started reinicia a mesa para comprar as novas mãos.
                 break;
             case "action_confirmed":
                 global.online_revisao = _dados.revision;
@@ -1088,6 +1088,7 @@ function online_sincronizar_efeitos_ativos(_jogadores, _terreno_id) {
                 ? _dados_terreno.efeito_terreno : "";
         }
     }
+    online_sincronizar_terreno_visual(_terreno_id);
 }
 
 function online_atualizar_carta_publica(_registro) {
@@ -1284,6 +1285,14 @@ function online_aplicar_estado_publico(_estado) {
         }
         obj_controlador.disputa_inicial_estado = _mao_inicial_comprada ? "online_aguardando_mao" : "aguardando_deck";
     }
+    if (_estado.phase == "initiative" || _estado.phase == "choose_first") {
+        obj_controlador.disputa_inicial_estado = "online_iniciativa";
+        global.online_vencedor_iniciativa = _estado.initiativeWinner;
+        for (var _pi = 0; _pi < array_length(_estado.players); _pi++) {
+            var _valor_ini = _estado.players[_pi].initiative;
+            global.online_iniciativa[_estado.players[_pi].seat] = (_valor_ini > 0) ? _valor_ini : -1;
+        }
+    }
     obj_controlador.online_aguardando_turno = false;
     online_atualizar_nomes(_estado.players);
     if (variable_struct_exists(_estado, "cemetery") && is_array(_estado.cemetery)
@@ -1315,6 +1324,9 @@ function online_aplicar_estado_publico(_estado) {
     online_reconstruir_recursos(_estado.players,
         variable_struct_exists(_estado, "resources") ? _estado.resources : noone);
     online_sincronizar_efeitos_ativos(_estado.players, _estado.terrainDefinitionId);
+    obj_controlador.nevoa_dono=(variable_struct_exists(_estado,"fogProtectedSeat")
+        && _estado.fogProtectedSeat>=0 && _estado.terrainDefinitionId=="cemiterio")
+        ? online_lado_do_assento(_estado.fogProtectedSeat) : "";
     with (obj_carta) {
         if (travada && online_instance_id != "") online_presente = false;
     }
@@ -1875,4 +1887,34 @@ function registrar_historico_online(_mensagem) {
                 + (_evento.kind == "heal" ? " de cura." : " de dano."));
         }
     }
+}
+
+// O estado do terreno e sua carta no slot devem acompanhar o mesmo snapshot.
+function online_sincronizar_terreno_visual(_terreno_id) {
+    var _slot=instance_find(obj_slot_terreno,0);
+    if(!instance_exists(_slot)) return;
+    var _visual=_slot.terreno_atual;
+    if(_terreno_id=="") {
+        if(instance_exists(_visual)) instance_destroy(_visual);
+        _slot.terreno_atual=noone;_slot.ocupado=false;
+        return;
+    }
+    var _funcao=online_funcao_carta_por_id(_terreno_id);
+    if(_funcao==noone) return;
+    if(instance_exists(_visual) && variable_instance_exists(_visual,"online_terreno_id")
+        && _visual.online_terreno_id==_terreno_id) {
+        _slot.ocupado=true;
+        return;
+    }
+    var _dados=_funcao();
+    if(instance_exists(_visual)) instance_destroy(_visual);
+    _visual=instance_create_layer(_slot.x,_slot.y,"Instances",obj_terreno_ativo);
+    _visual.online_terreno_id=_terreno_id;
+    _visual.dados_carta=_dados;
+    _visual.sprite_index=sprite_exists(_dados.sprite_carta)?_dados.sprite_carta:spr_carta_placeholder;
+    _visual.escala_base=global.TERRENO_LARGURA_ALVO/sprite_get_height(_visual.sprite_index);
+    _visual.entrando=false;_visual.image_angle=90;
+    _visual.origem_x=_slot.x;_visual.origem_y=_slot.y;
+    _visual.destino_x=_slot.x;_visual.destino_y=_slot.y;
+    _slot.terreno_atual=_visual;_slot.ocupado=true;
 }

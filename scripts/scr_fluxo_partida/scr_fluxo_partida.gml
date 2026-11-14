@@ -106,12 +106,23 @@ if (ui_modal.tutorial_ativo) {
     return true;
 }
 
-// Abertura interativa: primeiro arremesse o D20; após a escolha, compre a mão.
+// Abertura: compre a mão, aguarde a distribuição e então dispute a iniciativa.
 if (disputa_inicial_estado != "concluida") {
     var _iniciativa_cx = _tutorial_largura_gui / 2;
     var _iniciativa_cy = _tutorial_altura_gui / 2;
 
-    if (disputa_inicial_estado == "online_preparar") {
+    if (disputa_inicial_estado == "online_iniciativa") {
+        disputa_inicial_resultado_jogador = global.online_iniciativa[global.online_assento];
+        disputa_inicial_resultado_inimigo = global.online_iniciativa[1 - global.online_assento];
+        if (mouse_check_button_pressed(mb_left)) {
+            if (global.online_fase == "initiative"
+                && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _iniciativa_cx-100, _iniciativa_cy+55, _iniciativa_cx+100, _iniciativa_cy+105)) online_rolar_iniciativa();
+            else if (global.online_fase == "choose_first" && global.online_vencedor_iniciativa == global.online_assento) {
+                if (point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _iniciativa_cx-215, _iniciativa_cy+55, _iniciativa_cx-15, _iniciativa_cy+105)) online_escolher_primeiro(global.online_assento);
+                else if (point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _iniciativa_cx+15, _iniciativa_cy+55, _iniciativa_cx+215, _iniciativa_cy+105)) online_escolher_primeiro(1-global.online_assento);
+            }
+        }
+    } else if (disputa_inicial_estado == "online_preparar") {
         if (instance_exists(obj_deck) && variable_global_exists("online_estado_publico")
             && is_struct(global.online_estado_publico)) {
             online_reconstruir_mao_privada();
@@ -185,7 +196,8 @@ if (disputa_inicial_estado != "concluida") {
     } else if (disputa_inicial_estado == "distribuindo") {
         disputa_inicial_timer--;
         if (disputa_inicial_timer <= 0) {
-            finalizar_disputa_inicial(disputa_inicial_primeiro_escolhido);
+            disputa_inicial_estado = "preparando_dado";
+            disputa_inicial_timer = 18;
         }
     }
     return true;
@@ -409,30 +421,30 @@ if (ui_modal.pausa_ativa) {
             ui_modal.opcoes_pausa_ativa = false;
         } else if (mouse_check_button_pressed(mb_left) && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _pausa_cx-85, _efeitos_y-18, _pausa_cx+85, _efeitos_y+18)) {
             global.canal_audio_opcoes=(global.canal_audio_opcoes+1) mod 4;
-        } else if (mouse_check_button_pressed(mb_left) && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _pausa_cx - 160, _musica_y - 18, _pausa_cx - 90, _musica_y + 18)) {
+        } else if (mouse_check_button_pressed(mb_left) && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _pausa_cx - 147, _musica_y - 14, _pausa_cx - 103, _musica_y + 14)) {
             global.volume_musica = clamp(global.volume_musica - 0.1, 0, 1);
             aplicar_config_audio();
             salvar_configuracoes();
-        } else if (mouse_check_button_pressed(mb_left) && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _pausa_cx + 90, _musica_y - 18, _pausa_cx + 160, _musica_y + 18)) {
+        } else if (mouse_check_button_pressed(mb_left) && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _pausa_cx + 103, _musica_y - 14, _pausa_cx + 147, _musica_y + 14)) {
             global.volume_musica = clamp(global.volume_musica + 0.1, 0, 1);
             aplicar_config_audio();
             salvar_configuracoes();
-        } else if (mouse_check_button_pressed(mb_left) && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _pausa_cx - 160, _efeitos_y - 18, _pausa_cx - 90, _efeitos_y + 18)) {
+        } else if (mouse_check_button_pressed(mb_left) && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _pausa_cx - 147, _efeitos_y - 14, _pausa_cx - 103, _efeitos_y + 14)) {
             ajustar_canal_audio(-0.1);
             aplicar_config_audio();
             salvar_configuracoes();
-        } else if (mouse_check_button_pressed(mb_left) && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _pausa_cx + 90, _efeitos_y - 18, _pausa_cx + 160, _efeitos_y + 18)) {
+        } else if (mouse_check_button_pressed(mb_left) && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _pausa_cx + 103, _efeitos_y - 14, _pausa_cx + 147, _efeitos_y + 14)) {
             ajustar_canal_audio(0.1);
             aplicar_config_audio();
             salvar_configuracoes();
-        } else if (mouse_check_button_pressed(mb_left) && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _pausa_cx - 160, _tela_y - 18, _pausa_cx + 160, _tela_y + 18)) {
+        } else if (mouse_check_button_pressed(mb_left) && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _pausa_cx - 130, _tela_y - 14, _pausa_cx + 130, _tela_y + 14)) {
             window_set_fullscreen(!window_get_fullscreen());
             salvar_configuracoes();
-        } else if (mouse_check_button_pressed(mb_left) && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _pausa_cx - 150, _interface_y - 18, _pausa_cx + 150, _interface_y + 18)) {
+        } else if (mouse_check_button_pressed(mb_left) && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _pausa_cx - 130, _interface_y - 14, _pausa_cx + 130, _interface_y + 14)) {
             alternar_tamanho_interface();
-        } else if (mouse_check_button_pressed(mb_left) && point_in_rectangle(_tutorial_gui_x,_tutorial_gui_y,_pausa_cx-150,_pausa_cy+124,_pausa_cx+150,_pausa_cy+160)) {
+        } else if (mouse_check_button_pressed(mb_left) && point_in_rectangle(_tutorial_gui_x,_tutorial_gui_y,_pausa_cx-130,_pausa_cy+128,_pausa_cx+130,_pausa_cy+156)) {
             alternar_efeitos_visuais();
-        } else if (mouse_check_button_pressed(mb_left) && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _pausa_cx - 150, _voltar_y - 22, _pausa_cx + 150, _voltar_y + 22)) {
+        } else if (mouse_check_button_pressed(mb_left) && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _pausa_cx - 110, _voltar_y - 14, _pausa_cx + 110, _voltar_y + 14)) {
             ui_modal.opcoes_pausa_ativa = false;
         }
         return true;
@@ -449,7 +461,7 @@ if (ui_modal.pausa_ativa) {
             online_desconectar();
         }
         ui_modal.pausa_ativa = false;
-        room_goto(rm_menu);
+        trocar_sala_suave(rm_menu);
     } else if (_clicou_opcoes) {
         ui_modal.opcoes_pausa_ativa = true;
     } else if (keyboard_check_pressed(vk_escape) || keyboard_check_pressed(ord("P")) || _clicou_continuar) {
@@ -594,6 +606,10 @@ with (obj_construcao) {
 if (mouse_check_button_pressed(mb_right)) {
     var _alvo_preview = (hover_atual != noone) ? hover_atual
         : ((_hover_campo != noone) ? _hover_campo : _hover_construcao);
+    if (tropa_oculta_nevoa(_alvo_preview)) {
+        mostrar_aviso_regra("Tropa oculta pela névoa até o fim do turno",mouse_x,mouse_y);
+        return true;
+    }
     if (_alvo_preview != noone) {
         carta_preview = _alvo_preview;
         return true;

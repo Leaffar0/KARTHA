@@ -1,13 +1,20 @@
 var _w=display_get_gui_width(), _h=display_get_gui_height();
-draw_set_alpha(1); draw_set_color(make_color_rgb(15,18,24)); draw_rectangle(0,0,_w,_h,false);
+mesa_ambiente_desenhar(ambiente_mesa, 0, 0, _w, _h);
+var _mesa_previa_h = max(120,_h-175);
+tabuleiro_couro_desenhar(ambiente_mesa, _w/2-_mesa_previa_h/2, 150, _mesa_previa_h, _mesa_previa_h);
+mesa_ambiente_atmosfera(ambiente_mesa,0,162,_w,max(120,_h-282));
+draw_set_alpha(0.58); draw_set_color(c_black);
+draw_rectangle(0,0,_w,162,false);
+draw_rectangle(0,_h-120,_w,_h,false);
+draw_set_alpha(1);
 draw_set_font(Fontenil); draw_set_halign(fa_center); draw_set_valign(fa_middle); draw_set_color(c_white);
 draw_text_transformed(_w/2,28,"LABORATÓRIO DE EFEITOS",0.8,0.8,0);
 draw_text_transformed(_w/2,54,"Prévia visual e sonora — sua partida está guardada",0.45,0.45,0);
 var _bw=(_w-40)/4;
 for(var i=0;i<8;i++) {
     var _x=20+(i mod 4)*_bw, _y=80+floor(i/4)*42;
-    draw_set_color(i==modo?make_color_rgb(89,65,31):make_color_rgb(30,36,45));
-    draw_roundrect(_x,_y,_x+_bw-6,_y+34,false); draw_set_color(i==modo?c_yellow:c_white);
+    draw_set_color(i==modo?make_color_rgb(65,65,65):make_color_rgb(33,33,33));
+    draw_roundrect(_x,_y,_x+_bw-6,_y+34,false); draw_set_color(i==modo?c_white:c_silver);
     desenhar_texto_ajustado_ui(string(i+1)+"  "+rotulos[i],_x+(_bw-6)/2,_y+17,_bw-26,0.52);
 }
 var _cx=_w/2, _cy=170+max(40,(_h-270)*0.5), _t=min(tempo,180);
@@ -92,5 +99,5 @@ if(modo==1) { draw_set_color(c_silver); draw_text_transformed(_w/2,_h-88,magias[
 if(modo==6) { draw_set_color(c_silver); draw_text_transformed(_w/2,_h-88,"Setas: escolher habilidade",0.48,0.48,0); }
 draw_set_alpha(1); draw_set_color(c_silver);
 draw_text_transformed(_w/2,_h-58,"Espaço: repetir | P: "+(pausado?"retomar":"pausar")+" | R: repetição "+(repetir?"ligada":"desligada"),0.5,0.5,0);
-draw_text_transformed(_w/2,_h-30,"ESC / F7: voltar à partida pausada",0.55,0.55,0);
+draw_text_transformed(_w/2,_h-30,"T: terreno — "+nomes_terreno_previa[terreno_previa]+" | ESC / F7: voltar",0.46,0.46,0);
 draw_set_font(-1); draw_set_halign(fa_left); draw_set_valign(fa_top); draw_set_color(c_white);

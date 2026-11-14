@@ -66,6 +66,7 @@ export const KarthaRoomState = schema({
   seed: t.number(),
   turnNumber: t.number(),
   terrainDefinitionId: t.string(),
+  fogProtectedSeat: t.number(),
   discardCount0: t.number(),
   discardCount1: t.number(),
   lastAction: t.string(),

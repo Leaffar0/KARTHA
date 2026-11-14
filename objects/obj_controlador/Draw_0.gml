@@ -98,19 +98,15 @@ draw_set_color(c_white);
 #region Indicadores da tropa selecionada
 if (tropa_selecionada != noone && instance_exists(tropa_selecionada)) {
     var _selecionada = tropa_selecionada;
-    var _pulso_selecao = 0.65 + sin(current_time / 110) * 0.25;
     var _meia_largura_selecao = global.CARTA_LARGURA * 0.28;
     var _meia_altura_selecao = global.CARTA_ALTURA * 0.28;
 
-    // Moldura, nunca preenchimento: o círculo preenchido escondia a própria carta.
-    draw_set_alpha(_pulso_selecao);
-    draw_set_color(c_yellow);
-    draw_roundrect(_selecionada.x - _meia_largura_selecao, _selecionada.y - _meia_altura_selecao,
-        _selecionada.x + _meia_largura_selecao, _selecionada.y + _meia_altura_selecao, true);
-    draw_set_alpha(1);
+    // Contorno único e estável, sem halo colorido ou pulsação.
+    draw_set_alpha(0.65);
     draw_set_color(c_white);
-    draw_roundrect(_selecionada.x - _meia_largura_selecao - 2, _selecionada.y - _meia_altura_selecao - 2,
-        _selecionada.x + _meia_largura_selecao + 2, _selecionada.y + _meia_altura_selecao + 2, true);
+    draw_roundrect(_selecionada.x-_meia_largura_selecao-2,_selecionada.y-_meia_altura_selecao-2,
+        _selecionada.x+_meia_largura_selecao+2,_selecionada.y+_meia_altura_selecao+2,true);
+    draw_set_alpha(1);
 
     var _posicao_frente = _selecionada.posicao_atual + direcao_avanco(_selecionada.dono);
     var _slot_frente = buscar_slot(_selecionada.lane_atual, _posicao_frente);
@@ -128,18 +124,18 @@ if (tropa_selecionada != noone && instance_exists(tropa_selecionada)) {
             _cor_alvo = c_red;
             _texto_alvo = "ATACAR CASTELO";
         } else if (!_slot_frente.ocupado && _pode_mover_visual) {
-            _cor_alvo = c_lime;
+            _cor_alvo = c_white;
             _texto_alvo = (_selecionada.posicao_atual == posicao_ataque()) ? "AVANÇAR PARA ASSALTO" : "MOVER";
         }
 
-        draw_set_alpha(0.25 + _pulso_selecao * 0.25);
+        draw_set_alpha(0.65);
         draw_set_color(_cor_alvo);
-        draw_circle(_slot_frente.x, _slot_frente.y, 33, false);
+        draw_circle(_slot_frente.x, _slot_frente.y, 8, true);
         draw_set_alpha(1);
         draw_set_halign(fa_center);
         draw_set_valign(fa_bottom);
         draw_set_color(_cor_alvo);
-        draw_text_transformed(_slot_frente.x, _slot_frente.y - 38, _texto_alvo, 0.4, 0.4, 0);
+        draw_text_transformed(_slot_frente.x, _slot_frente.y - 15, _texto_alvo, 0.30, 0.30, 0);
         draw_set_halign(fa_left);
         draw_set_valign(fa_top);
     }

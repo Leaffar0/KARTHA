@@ -1210,6 +1210,14 @@ function registrar_descarte(_carta) {
     });
     if (_carta.dono == "jogador") obj_controlador.descarte_jogador = _destino;
     else obj_controlador.descarte_inimigo = _destino;
+    // Apenas uma cópia visual: a carta e as regras do descarte já foram resolvidas.
+    if ((_carta.dono == "jogador" || (obj_controlador.modo_partida == "local"
+        && _carta.dono == obj_controlador.turno)) && instance_exists(obj_descarte)) {
+        var _cesto = instance_find(obj_descarte, 0);
+        array_push(_cesto.cartas_caindo, {sprite: _carta.sprite_index,
+            x: _carta.x, y: _carta.y, escala: abs(_carta.image_xscale),
+            angulo: _carta.rotacao_atual + _carta.arrasto_rotacao, tempo: 0});
+    }
     debug_combate(_carta.nome_carta + " foi para o descarte.");
 }
 
@@ -1853,6 +1861,7 @@ function descricao_carta_preview(_carta) {
         case "magica": _texto += "\n\n" + descricao_efeito_preview(_carta) + " Magias possuem limite por turno."; break;
         case "terreno":
             if (_carta.efeito_terreno == "planicies_profanas") _texto += "\n\nReduz em 1 o custo de Mana de todas as tropas enquanto estiver ativo.";
+            else if (_carta.efeito_terreno == "cemiterio") _texto += "\n\nNo início de cada turno, 20% de chance de esconder as tropas adversárias até o fim dele. Bloqueia consultar detalhes, mas permite atacar os espaços ocupados.";
             else _texto += "\n\nAltera regras ou atributos do campo enquanto estiver ativo.";
         break;
         case "bencao": _texto += "\n\nEfeito positivo permanente para seu lado da partida: " + string(_carta.efeito_passivo) + "."; break;

@@ -423,8 +423,8 @@ function desenhar_pagina_do_livro(_pagina, _centro_x, _centro_y, _largura_dispon
     var _escala_corpo = calcular_escala_texto_ajustada(_pagina.corpo, _largura_texto, _altura_corpo_disponivel, 0.58, 0.40);
 
     var _topo_y = _centro_y - _altura_disponivel/2;
-    var _cor_tinta = make_color_rgb(64, 44, 27);
-    var _cor_titulo = make_color_rgb(90, 30, 24); // um vermelho-vinho escuro, tipo tinta de destaque
+    var _cor_tinta = make_color_rgb(40, 40, 40);
+    var _cor_titulo = make_color_rgb(25, 25, 25); // tinta neutra de destaque
 
     draw_set_color(_cor_titulo);
     draw_set_halign(fa_center);
@@ -714,7 +714,7 @@ function desenhar_resumo_regras_turno() {
     draw_set_font(Fontenil); draw_set_halign(fa_left); draw_set_valign(fa_top);
     desenhar_painel_carta_menu(_x,_y,_x+_largura,_y+139,_alpha_painel,false);
     draw_set_halign(fa_left);draw_set_valign(fa_top);
-    draw_set_color(make_color_rgb(235,210,164));
+    draw_set_color(make_color_rgb(226,226,226));
     desenhar_texto_ajustado_ui("AÇÕES DO TURNO — " + nome_jogador_lado(_lado), _x + 12, _y + 7, _largura - 24, 0.62);
     for (var i = 0; i < 9; i++) {
         var _bloqueado = _primeiro && (i == 1 || i == 2 || i == 4);
@@ -1322,23 +1322,26 @@ function moldura_carta_menu(_x,_y,_w,_h,_rot,_cor,_borda) {
         draw_primitive_end();
     }
 }
-function desenhar_carta_menu(_c,_texto,_titulo,_hover,_indice) {
+function desenhar_carta_menu(_c,_texto,_titulo,_hover,_indice,_escala_rotulo=0.65) {
     draw_set_alpha(_c.alpha*0.45);
     moldura_carta_menu(_c.x+7,_c.y+11,_c.w,_c.h,_c.rot,c_black,false);
     draw_set_alpha(_c.alpha);
-    moldura_carta_menu(_c.x,_c.y,_c.w,_c.h,_c.rot,make_color_rgb(29+_hover*9,27+_hover*7,25),false);
-    var _ouro=merge_color(make_color_rgb(115,96,65),make_color_rgb(226,196,139),_hover);
-    moldura_carta_menu(_c.x,_c.y,_c.w,_c.h,_c.rot,_ouro,true);
-    moldura_carta_menu(_c.x,_c.y,_c.w-10,_c.h-10,_c.rot,make_color_rgb(70,61,46),true);
+    moldura_carta_menu(_c.x,_c.y,_c.w,_c.h,_c.rot,make_color_rgb(27+_hover*10,27+_hover*10,27+_hover*10),false);
+    var _borda_neutra=merge_color(make_color_rgb(172,172,172),make_color_rgb(240,240,240),_hover);
+    moldura_carta_menu(_c.x,_c.y,_c.w,_c.h,_c.rot,_borda_neutra,true);
+    moldura_carta_menu(_c.x,_c.y,_c.w-10,_c.h-10,_c.rot,make_color_rgb(81,81,81),true);
     draw_set_font(Fontenil);draw_set_halign(fa_center);draw_set_valign(fa_middle);
-    draw_set_color(make_color_rgb(235,220,189));
-    var _escala=min(_titulo?2.8:0.65,(_c.w-24)/max(1,string_width(_texto)),_c.h*0.43/max(1,string_height(_texto)));
-    draw_text_transformed(_c.x,_c.y,_texto,_escala,_escala,_c.rot);
-    draw_set_color(_ouro);
+    draw_set_color(make_color_rgb(235,235,235));
+    var _escala=min(_titulo?2.8:_escala_rotulo,(_c.w-24)/max(1,string_width(_texto)),_c.h*0.43/max(1,string_height(_texto)));
+    if(_titulo) {
+        var _es=min((_c.w-16)/sprite_get_width(spr_titulo_kartha_letras),(_c.h*0.70)/sprite_get_height(spr_titulo_kartha_letras));
+        draw_sprite_ext(spr_titulo_kartha_letras,_indice,_c.x,_c.y,_es,_es,_c.rot,c_white,_c.alpha);
+    } else draw_text_transformed(_c.x,_c.y,_texto,_escala,_escala,_c.rot);
+    draw_set_color(_borda_neutra);
     var _dist=_c.h*0.34;
     for(var _s=-1;_s<=1;_s+=2) {
         var _dx=_c.x+_dist*_s*dsin(_c.rot),_dy=_c.y+_dist*_s*dcos(_c.rot);
-        moldura_carta_menu(_dx,_dy,4,4,_c.rot+45,_ouro,false);
+        moldura_carta_menu(_dx,_dy,4,4,_c.rot+45,_borda_neutra,false);
     }
     draw_set_alpha(1);draw_set_color(c_white);
 }
@@ -1358,24 +1361,51 @@ function desenhar_painel_carta_menu(_x1,_y1,_x2,_y2,_alpha=1,_ornamentos=true) {
     draw_set_alpha(0.45*_alpha);
     moldura_carta_menu(_x+9,_y+12,_w,_h,0,c_black,false);
     draw_set_alpha(_alpha);
-    moldura_carta_menu(_x,_y,_w,_h,0,make_color_rgb(29,27,25),false);
-    moldura_carta_menu(_x,_y,_w,_h,0,make_color_rgb(158,130,83),true);
-    moldura_carta_menu(_x,_y,_w-12,_h-12,0,make_color_rgb(76,64,45),true);
+    moldura_carta_menu(_x,_y,_w,_h,0,make_color_rgb(27,27,27),false);
+    moldura_carta_menu(_x,_y,_w,_h,0,make_color_rgb(211,211,211),true);
+    moldura_carta_menu(_x,_y,_w-12,_h-12,0,make_color_rgb(89,89,89),true);
     if(_ornamentos) for(var _lado=-1;_lado<=1;_lado+=2)
-        moldura_carta_menu(_x+_lado*(_w/2-18),_y1+18,6,6,45,make_color_rgb(192,160,102),false);
-    draw_set_font(Fontenil);draw_set_halign(fa_center);draw_set_valign(fa_middle);draw_set_color(make_color_rgb(235,220,189));
+        moldura_carta_menu(_x+_lado*(_w/2-18),_y1+18,6,6,45,make_color_rgb(218,218,218),false);
+    draw_set_font(Fontenil);draw_set_halign(fa_center);draw_set_valign(fa_middle);draw_set_color(make_color_rgb(235,235,235));
 }
 function botao_carta_painel(_x1,_y1,_x2,_y2,_texto,_gui=false) {
     var _mx=_gui?device_mouse_x_to_gui(0):mouse_x;
     var _my=_gui?device_mouse_y_to_gui(0):mouse_y;
     var _sobre=point_in_rectangle(_mx,_my,_x1,_y1,_x2,_y2);
-    var _cor=_sobre?make_color_rgb(66,54,36):make_color_rgb(37,34,29);
+    var _cor=_sobre?make_color_rgb(61,61,61):make_color_rgb(35,35,35);
     moldura_carta_menu((_x1+_x2)/2,(_y1+_y2)/2,_x2-_x1,_y2-_y1,0,_cor,false);
-    moldura_carta_menu((_x1+_x2)/2,(_y1+_y2)/2,_x2-_x1,_y2-_y1,0,make_color_rgb(151,126,83),true);
-    draw_set_color(make_color_rgb(235,220,189));draw_set_halign(fa_center);draw_set_valign(fa_middle);
+    moldura_carta_menu((_x1+_x2)/2,(_y1+_y2)/2,_x2-_x1,_y2-_y1,0,make_color_rgb(198,198,198),true);
+    draw_set_color(make_color_rgb(235,235,235));draw_set_halign(fa_center);draw_set_valign(fa_middle);
     desenhar_texto_ajustado_ui(_texto,(_x1+_x2)/2,(_y1+_y2)/2,_x2-_x1-16,0.56);
 }
 function carta_modo_menu(_i,_cy) {
     var _w=min(190,(room_width-100)/3.3);
     return {x:room_width/2+(_i-1)*(_w+16),y:_cy+5,w:_w,h:180,rot:0,alpha:1,pronto:true};
+}
+
+// Conteúdo compacto exclusivo das opções; centros compartilhados com os controles.
+function desenhar_conteudo_opcoes_compacto(_cx,_cy,_gui=false) {
+    draw_set_font(Fontenil);draw_set_halign(fa_center);draw_set_valign(fa_middle);
+    for(var _r=0;_r<2;_r++) {
+        var _y=_cy+(_r==0?-35:10);
+        botao_carta_painel(_cx-147,_y-14,_cx-103,_y+14,"",_gui);
+        botao_carta_painel(_cx+103,_y-14,_cx+147,_y+14,"",_gui);
+        desenhar_texto_ajustado_ui("<",_cx-125,_y,28,0.47);
+        desenhar_texto_ajustado_ui(">",_cx+125,_y,28,0.47);
+    }
+    desenhar_texto_ajustado_ui("MÚSICA "+string(round(global.volume_musica*100))+"%",_cx,_cy-35,166,0.50);
+    var _canais=["GERAL","INTERFACE","COMBATE","MAGIAS"];
+    desenhar_texto_ajustado_ui(_canais[global.canal_audio_opcoes]+" "+string(round(variable_global_get(chave_canal_audio())*100))+"%",_cx,_cy+10,166,0.50);
+    draw_set_color(c_silver);
+    desenhar_texto_ajustado_ui("Clique no nome para trocar",_cx,_cy+29,180,0.28);
+    var _visuais=["DISCRETO","NORMAL","INTENSO"];
+    var _textos=["TELA CHEIA: "+(window_get_fullscreen()?"SIM":"NÃO"),
+        "INTERFACE "+string(round(global.escala_interface*100))+"%  >",
+        "VISUAL: "+_visuais[global.intensidade_visual]+"  >","VOLTAR"];
+    var _ys=[55,98,142,190];
+    for(var _i=0;_i<4;_i++) {
+        var _y=_cy+_ys[_i],_hw=_i==3?110:130;
+        botao_carta_painel(_cx-_hw,_y-14,_cx+_hw,_y+14,"",_gui);
+        desenhar_texto_ajustado_ui(_textos[_i],_cx,_y,_hw*2-24,0.51);
+    }
 }

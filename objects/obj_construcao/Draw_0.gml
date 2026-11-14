@@ -13,6 +13,7 @@ if (entrada_visual_timer > 0) {
 // Quando a carta possui arte, ela própria vira o visual da construção no campo.
 // escala_visual_base também é aplicada ao image_xscale para manter a área de clique correta.
 var _escala_desenho = escala_visual_base * _escala_entrada;
+desenhar_sombra_contato(sprite_index,image_index,x,y,_escala_desenho,_escala_desenho,0);
 draw_sprite_ext(sprite_index, image_index, x, y, _escala_desenho, _escala_desenho, 0, c_white, 1);
 
 // Sprites genéricos ainda precisam do nome; artes completas já trazem o título impresso.

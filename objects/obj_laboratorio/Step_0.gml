@@ -71,3 +71,6 @@ if(!pausado && !som_contato && tempo>=((modo==4)?12:((modo==1 && magia==1)?70:32
 }
 // Sons longos terminam antes da próxima repetição automática.
 if(!pausado && repetir && tempo>180 && (som_previa==noone || !audio_is_playing(som_previa))) laboratorio_reiniciar(id);
+
+if (keyboard_check_pressed(ord("T"))) terreno_previa = (terreno_previa+1) mod 4;
+if (!pausado) mesa_ambiente_atualizar(ambiente_mesa, terreno_previa, delta_time/1000000);

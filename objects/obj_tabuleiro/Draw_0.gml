@@ -1,22 +1,8 @@
-var _largura = 1000;
-var _altura = 560;
-
-var _escala_x = _largura / sprite_get_width(sprite_index);
-var _escala_y = _altura / sprite_get_height(sprite_index);
-
-var _escala = min(_escala_x, _escala_y);
-
-draw_sprite_ext(
-    sprite_index,
-    0,
-    room_width / 2,
-    room_height / 2,
-    _escala,
-    _escala,
-    0,
-    c_white,
-    1
-);
+// A mesa cobre toda a sala; a câmera e os slots mantêm suas posições.
+mesa_ambiente_desenhar(ambiente_mesa, 0, 0, room_width, room_height);
+tabuleiro_couro_desenhar(ambiente_mesa);
+tabuleiro_couro_gravuras();
+mesa_ambiente_atmosfera(ambiente_mesa,0,0,room_width,room_height);
 
 #region Espaços de efeitos ativos
 // Esta instância está na camada do tabuleiro (depth 200), abaixo das cartas.
@@ -45,10 +31,9 @@ if (instance_exists(obj_controlador)) {
             var _efeito_x2 = _efeito_x1 + _efeito_largura_slot;
             var _efeito_y2 = _efeito_y1 + _efeito_altura_slot;
 
-            draw_set_alpha(_efeito_ativo ? 0.88 : 0.42);
-            draw_set_color(c_black);
-            draw_rectangle(_efeito_x1, _efeito_y1, _efeito_x2, _efeito_y2, false);
-            draw_set_alpha(1);
+            desenhar_slot_gravado((_efeito_x1+_efeito_x2)/2,(_efeito_y1+_efeito_y2)/2,
+                _efeito_largura_slot,_efeito_altura_slot,0,_efeito_cor,_efeito_ativo,_efeito_categoria,
+                gravura_efeitos_hover[_lado_efeito*4+_slot_efeito],gravura_efeitos_pressao[_lado_efeito*4+_slot_efeito]);
 
             if (_efeito_ativo) {
                 var _efeito_nome = is_struct(_efeito_entrada) ? _efeito_entrada.nome
@@ -72,17 +57,8 @@ if (instance_exists(obj_controlador)) {
                 draw_set_valign(fa_middle);
                 draw_text_transformed((_efeito_x1 + _efeito_x2) / 2, _efeito_y2 - 8,
                     string_copy(_efeito_nome, 1, 11), 0.28, 0.28, 0);
-            } else {
-                draw_set_font(Fontenil);
-                draw_set_halign(fa_center);
-                draw_set_valign(fa_middle);
-                draw_set_color(_efeito_cor);
-                draw_text_transformed((_efeito_x1 + _efeito_x2) / 2, (_efeito_y1 + _efeito_y2) / 2,
-                    ((_efeito_categoria == "bencao") ? "B" : "M") + string(_efeito_indice + 1), 0.42, 0.42, 0);
             }
 
-            draw_set_color(_efeito_cor);
-            draw_rectangle(_efeito_x1, _efeito_y1, _efeito_x2, _efeito_y2, true);
         }
     }
 }

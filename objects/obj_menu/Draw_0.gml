@@ -1,7 +1,7 @@
 // Mesa escura e cartas com entrada escalonada.
-draw_set_alpha(1);draw_set_color(make_color_rgb(14,17,18));
+draw_set_alpha(1);draw_set_color(make_color_rgb(16,16,16));
 draw_rectangle(0,0,room_width,room_height,false);
-draw_set_alpha(0.20);draw_set_color(make_color_rgb(68,58,40));
+draw_set_alpha(0.20);draw_set_color(make_color_rgb(62,62,62));
 for(var _halo=4;_halo>0;_halo--) draw_ellipse(room_width*0.5-room_width*0.10*_halo,
     room_height*0.43-room_height*0.095*_halo,room_width*0.5+room_width*0.10*_halo,
     room_height*0.43+room_height*0.095*_halo,false);
@@ -32,27 +32,9 @@ if (opcoes_abertas) {
     var _interface_y = _opcoes_y + 98;
     var _voltar_y = _opcoes_y + 190;
     desenhar_painel_carta_menu(_opcoes_x-225,_opcoes_y-110,_opcoes_x+225,_opcoes_y+225);
-    botao_carta_painel(_opcoes_x-165,_tela_y-18,_opcoes_x+165,_tela_y+18,"");
-    botao_carta_painel(_opcoes_x-165,_interface_y-18,_opcoes_x+165,_interface_y+18,"");
-    botao_carta_painel(_opcoes_x-165,_opcoes_y+124,_opcoes_x+165,_opcoes_y+160,"");
-    botao_carta_painel(_opcoes_x-150,_voltar_y-22,_opcoes_x+150,_voltar_y+22,"");
-    for(var _r=0;_r<2;_r++) {
-        var _ay=_r==0?_musica_y:_efeitos_y;
-        botao_carta_painel(_opcoes_x-160,_ay-18,_opcoes_x-90,_ay+18,"");
-        botao_carta_painel(_opcoes_x+90,_ay-18,_opcoes_x+160,_ay+18,"");
-    }
-    desenhar_texto_interface(_opcoes_x, _opcoes_y - 65, "OPÇÕES");
-    desenhar_texto_interface(_opcoes_x - 125, _musica_y, "<");
-    desenhar_texto_interface(_opcoes_x + 125, _musica_y, ">");
-    desenhar_texto_interface(_opcoes_x, _musica_y, "MÚSICA  " + string(round(global.volume_musica * 100)) + "%");
-    desenhar_texto_interface(_opcoes_x - 125, _efeitos_y, "<");
-    desenhar_texto_interface(_opcoes_x + 125, _efeitos_y, ">");
-    desenhar_seletor_audio(_opcoes_x, _efeitos_y);
-    draw_set_color(c_gray);
-    desenhar_texto_interface(_opcoes_x, _tela_y, "TELA CHEIA: " + (window_get_fullscreen() ? "SIM" : "NÃO"));
-    desenhar_opcao_tamanho_interface(_opcoes_x, _interface_y);
-    opcao_efeitos_visuais(_opcoes_x,_opcoes_y+142);
-    desenhar_texto_interface(_opcoes_x, _voltar_y, "VOLTAR");
+    desenhar_texto_ajustado_ui("OPÇÕES",_opcoes_x,_opcoes_y-75,260,0.72);
+    desenhar_conteudo_opcoes_compacto(_opcoes_x,_opcoes_y);
+
 }
 #endregion
 
@@ -61,15 +43,15 @@ if(modo_jogo_aberto) {
     var _cy=centro_painel_menu(id);
     var _cw=min(190,(room_width-100)/3.3);
     desenhar_painel_carta_menu(room_width/2-(_cw*3+64)/2,_cy-150,room_width/2+(_cw*3+64)/2,_cy+195);
-    desenhar_texto_interface(room_width/2,_cy-115,"ESCOLHA SUA PARTIDA");
+    desenhar_texto_ajustado_ui("ESCOLHA SUA PARTIDA",room_width/2,_cy-115,_cw*3+16,0.86);
     var _nomes=["CONTRA IA","LOCAL","ONLINE"];
     var _sub=["Você contra a máquina","Dois jogadores na mesa","Convide outro jogador"];
     for(var _m=0;_m<3;_m++) {
         var _c=carta_modo_menu(_m,_cy);
         var _h=ponto_carta_menu(_c,mouse_x,mouse_y);
-        desenhar_carta_menu(_c,_nomes[_m],false,_h?1:0,_m);
+        desenhar_carta_menu(_c,_nomes[_m],false,_h?1:0,_m,0.76);
         draw_set_color(c_silver);
-        desenhar_texto_ajustado_ui(_sub[_m],_c.x,_c.y+44,_c.w-22,0.34);
+        desenhar_texto_ajustado_ui(_sub[_m],_c.x,_c.y+44,_c.w-22,0.40);
     }
     botao_carta_painel(room_width/2-100,_cy+135,room_width/2+100,_cy+175,"VOLTAR");
 }

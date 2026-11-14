@@ -19,6 +19,7 @@ if(_menu_sobre>=0 && _menu_sobre!=menu_hover_anterior) tocar_som_variado("pagina
 menu_hover_anterior=_menu_sobre;
 // O SDK usa uma fila de eventos; ela precisa ser processada a cada frame.
 if (colyseus_is_ready()) colyseus_process();
+if (transicao_sala_ativa()) exit;
 if (online_copiado_timer > 0) online_copiado_timer--;
 if (_painel_atual!="" && painel_menu_abertura<0.85) exit;
 if(opcoes_abertas && keyboard_check_pressed(vk_escape)) {opcoes_abertas=false;exit;}
@@ -188,7 +189,7 @@ if (modo_jogo_aberto) {
             var _c=carta_modo_menu(_m,_cy);
             if(ponto_carta_menu(_c,mouse_x,mouse_y)) {
                 tocar_som_variado("clique",0.20);
-                if(_m<2) {global.modo_partida=_m==0?"ia":"local";room_goto(rm_jogo);}
+                if(_m<2) {global.modo_partida=_m==0?"ia":"local";trocar_sala_suave(rm_jogo);}
                 else {modo_jogo_aberto=false;online_aberto=true;online_foco=0;keyboard_string=online_nome_input;painel_menu_abertura=0;}
             }
         }
@@ -219,32 +220,32 @@ if (opcoes_abertas && mouse_check_button_pressed(mb_left)) {
     var _tela_y = centro_painel_menu(id) + 55;
     var _interface_y = centro_painel_menu(id) + 98;
     var _voltar_y = centro_painel_menu(id) + 190;
-    if (point_in_rectangle(mouse_x, mouse_y, _opcoes_x - 85, _efeitos_y - 18, _opcoes_x + 85, _efeitos_y + 18)) {
+    if (point_in_rectangle(mouse_x, mouse_y, _opcoes_x - 85, _efeitos_y - 14, _opcoes_x + 85, _efeitos_y + 14)) {
         global.canal_audio_opcoes=(global.canal_audio_opcoes+1) mod 4;
-    } else if (point_in_rectangle(mouse_x, mouse_y, _opcoes_x - 160, _musica_y - 18, _opcoes_x - 90, _musica_y + 18)) {
+    } else if (point_in_rectangle(mouse_x, mouse_y, _opcoes_x - 147, _musica_y - 14, _opcoes_x - 103, _musica_y + 14)) {
         global.volume_musica = clamp(global.volume_musica - 0.1, 0, 1);
         aplicar_config_audio();
         salvar_configuracoes();
-    } else if (point_in_rectangle(mouse_x, mouse_y, _opcoes_x + 90, _musica_y - 18, _opcoes_x + 160, _musica_y + 18)) {
+    } else if (point_in_rectangle(mouse_x, mouse_y, _opcoes_x + 103, _musica_y - 14, _opcoes_x + 147, _musica_y + 14)) {
         global.volume_musica = clamp(global.volume_musica + 0.1, 0, 1);
         aplicar_config_audio();
         salvar_configuracoes();
-    } else if (point_in_rectangle(mouse_x, mouse_y, _opcoes_x - 160, _efeitos_y - 18, _opcoes_x - 90, _efeitos_y + 18)) {
+    } else if (point_in_rectangle(mouse_x, mouse_y, _opcoes_x - 147, _efeitos_y - 14, _opcoes_x - 103, _efeitos_y + 14)) {
         ajustar_canal_audio(-0.1);
         aplicar_config_audio();
         salvar_configuracoes();
-    } else if (point_in_rectangle(mouse_x, mouse_y, _opcoes_x + 90, _efeitos_y - 18, _opcoes_x + 160, _efeitos_y + 18)) {
+    } else if (point_in_rectangle(mouse_x, mouse_y, _opcoes_x + 103, _efeitos_y - 14, _opcoes_x + 147, _efeitos_y + 14)) {
         ajustar_canal_audio(0.1);
         aplicar_config_audio();
         salvar_configuracoes();
-    } else if (point_in_rectangle(mouse_x, mouse_y, _opcoes_x - 160, _tela_y - 18, _opcoes_x + 160, _tela_y + 18)) {
+    } else if (point_in_rectangle(mouse_x, mouse_y, _opcoes_x - 130, _tela_y - 14, _opcoes_x + 130, _tela_y + 14)) {
         window_set_fullscreen(!window_get_fullscreen());
         salvar_configuracoes();
-    } else if (point_in_rectangle(mouse_x, mouse_y, _opcoes_x - 150, _interface_y - 18, _opcoes_x + 150, _interface_y + 18)) {
+    } else if (point_in_rectangle(mouse_x, mouse_y, _opcoes_x - 130, _interface_y - 14, _opcoes_x + 130, _interface_y + 14)) {
         alternar_tamanho_interface();
-    } else if (point_in_rectangle(mouse_x, mouse_y, _opcoes_x-150, centro_painel_menu(id)+124, _opcoes_x+150, centro_painel_menu(id)+160)) {
+    } else if (point_in_rectangle(mouse_x, mouse_y, _opcoes_x-130, centro_painel_menu(id)+128, _opcoes_x+130, centro_painel_menu(id)+156)) {
         alternar_efeitos_visuais();
-    } else if (point_in_rectangle(mouse_x, mouse_y, _opcoes_x - 150, _voltar_y - 22, _opcoes_x + 150, _voltar_y + 22)) {
+    } else if (point_in_rectangle(mouse_x, mouse_y, _opcoes_x - 110, _voltar_y - 14, _opcoes_x + 110, _voltar_y + 14)) {
         opcoes_abertas = false;
     }
 }

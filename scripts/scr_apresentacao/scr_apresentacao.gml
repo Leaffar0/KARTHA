@@ -560,6 +560,7 @@ function desenhar_previa_ataque() {
     if(_c.opcao_hover_index>=array_length(_opcoes)) return;
     var _prev=dados_previa_ataque(_c.carta_menu_aberto,_opcoes[_c.opcao_hover_index]);
     if(!is_struct(_prev)) return;
+    if(tropa_oculta_nevoa(_prev.alvo)) _prev.texto="TROPA OCULTA PELA NÉVOA\nVocê pode atacar este espaço, mas os atributos ficam ocultos até o fim do turno.";
     var _cam=view_camera[0],_gw=display_get_gui_width(),_gh=display_get_gui_height();
     var _refs=[_c.carta_menu_aberto,_prev.alvo];
     draw_set_color(c_aqua);
@@ -707,4 +708,37 @@ function tocar_som_impacto_criatura(_dados) {
     if (_ataque == "" && _dano == "" && !_dados.critico && _dados.defesa <= 0)
         array_push(_vozes,tocar_som_variado(_magica ? "magia_impacto" : "ataque_corpo", 0.26, 0.98));
     return _vozes;
+}
+
+// Contato da peça com a superfície: repouso quase colado; altura só durante ações.
+function desenhar_sombra_contato(_sprite, _frame, _x, _y, _sx, _sy, _rot, _altura = 0, _alpha = 1) {
+    var _h = clamp(_altura, 0, 40);
+    var _dist = 1 + _h*0.18;
+    var _opacidade = lerp(0.38, 0.19, _h/40) * _alpha;
+    draw_sprite_ext(_sprite,_frame,_x+_dist+1,_y+_dist+2,_sx*1.008,_sy*1.008,_rot,c_black,_opacidade*0.35);
+    draw_sprite_ext(_sprite,_frame,_x+_dist,_y+_dist,_sx,_sy,_rot,c_black,_opacidade);
+}
+
+// Legenda pequena para objetos da mesa; preserva o estado de desenho do chamador.
+function desenhar_legenda_mesa(_x, _y, _texto, _alpha) {
+    if (_alpha < 0.015) return;
+    var _font = draw_get_font(), _ha = draw_get_halign(), _va = draw_get_valign();
+    var _cor = draw_get_color(), _a = draw_get_alpha();
+    draw_set_font(Fontenil);
+    // Estas legendas são desenhadas no mundo: respeitam os limites da câmera.
+    var _vx = view_enabled ? view_xview[0] : 0;
+    var _vy = view_enabled ? view_yview[0] : 0;
+    var _vw = view_enabled ? view_wview[0] : room_width;
+    var _vh = view_enabled ? view_hview[0] : room_height;
+    var _esc = min(0.38, min(174,max(1,_vw-32))/max(1,string_width(_texto)));
+    var _w = string_width(_texto)*_esc + 16;
+    _x = clamp(_x, _vx+8+_w/2, _vx+_vw-8-_w/2);
+    _y = clamp(_y, _vy+8, _vy+_vh-30);
+    draw_set_halign(fa_center); draw_set_valign(fa_middle);
+    draw_set_color(c_black); draw_set_alpha(_alpha*0.78);
+    draw_roundrect(_x-_w/2,_y,_x+_w/2,_y+22,false);
+    draw_set_alpha(_alpha); draw_set_color(make_color_rgb(220,220,220));
+    draw_text_transformed(_x,_y+11,_texto,_esc,_esc,0);
+    draw_set_font(_font); draw_set_halign(_ha); draw_set_valign(_va);
+    draw_set_color(_cor); draw_set_alpha(_a);
 }

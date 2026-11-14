@@ -13,3 +13,7 @@ visual_habilidade_chave=""; visual_habilidade_timer=0;
 amostras=[criar_dados_mimic(),criar_dados_slime(),criar_dados_olho_demonio()];
 item=criar_dados_item_espada();
 laboratorio_reiniciar(id);
+
+ambiente_mesa = mesa_ambiente_criar();
+terreno_previa = 0;
+nomes_terreno_previa = ["Madeira", "Pântano Sombrio", "Cemitério", "Planícies Profanas"];

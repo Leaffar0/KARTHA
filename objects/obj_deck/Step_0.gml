@@ -18,9 +18,9 @@ if (instance_exists(obj_controlador)) {
 if (pulso_timer > 0) {
     var _progresso = pulso_timer / pulso_duracao;
     var _onda = sin(_progresso * pi);
-    escala_deck_x = 1 + _onda * 0.14;
-    escala_deck_y = 1 - _onda * 0.10;
-    offset_y_pulso = -_onda * 5;
+    escala_deck_x = 1 + _onda * 0.025;
+    escala_deck_y = 1 - _onda * 0.018;
+    offset_y_pulso = -_onda * 0.8;
     pulso_timer--;
 } else {
     escala_deck_x += (1 - escala_deck_x) * 0.3;
@@ -29,3 +29,9 @@ if (pulso_timer > 0) {
 }
 
 offset_y_bob = offset_y_pulso;
+var _mostrar_legenda = point_in_rectangle(mouse_x,mouse_y,x-sprite_width/2-4, y-sprite_height/2-5, x+sprite_width/2+4, y+sprite_height/2+4);
+if (instance_exists(obj_controlador)) {
+    _mostrar_legenda = _mostrar_legenda && !obj_controlador.ui_modal.pausa_ativa
+        && !obj_controlador.ui_modal.descarte_aberto && obj_controlador.carta_preview == noone;
+}
+legenda_alpha = lerp(legenda_alpha, _mostrar_legenda ? 1 : 0, 1-exp(-14*min(delta_time/1000000,0.1)));

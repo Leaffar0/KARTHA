@@ -1,3 +1,4 @@
+if (transicao_sala_ativa()) exit;
 if (travada && categoria == "tropa" && !morrendo && obj_controlador.modo_partida != "online")
     verificar_olhar_vazio(id);
 atualizar_efeitos_identidade(id);
@@ -928,9 +929,9 @@ if (esta_na_mao && !arrastando && !travada) {
     }
     
     if (hover_ativo_externo && !compra_animando && retorno_invalido_timer <= 0) {
-        escala_alvo = 1.25;
+        escala_alvo = 1.12;
         hover_ativo = true;
-        y_offset_alvo = -30;
+        y_offset_alvo = -12;
         depth = -1000;
     } else {
         escala_alvo = 1;

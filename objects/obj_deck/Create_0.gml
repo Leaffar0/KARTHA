@@ -8,3 +8,10 @@ pulso_duracao = 14;
 escala_deck_x = 1;
 escala_deck_y = 1;
 offset_y_pulso = 0;
+legenda_alpha = 0;
+
+// Tamanho físico da pilha; sprite_width/height também atualizam clique e hover.
+escala_pilha = 1.4;
+image_xscale = escala_pilha;
+image_yscale = escala_pilha;
+y += 6;

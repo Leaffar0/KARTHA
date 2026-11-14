@@ -14,7 +14,11 @@ const ctx={global:{},modo:0,tempo:0,som_contato:false,pausado:false,repetir:fals
  laboratorio_reiniciar(){throw Error('Unexpected automatic replay');}
 };
 for(const [i,k] of ['escape','f7','space','left','right','up','down'].entries())ctx['vk_'+k]=1000+i;
+Object.assign(ctx,{clamp:(v,a,b)=>Math.max(a,Math.min(b,v)),exp:Math.exp,
+ lerp:(a,b,t)=>a+(b-a)*t,delta_time:1000000/60,terreno_previa:0});
 vm.createContext(ctx);
+vm.runInContext(fs.readFileSync(path.join(root,'scripts/scr_mesa_ambiente/scr_mesa_ambiente.gml'),'utf8').replace(/\bmod\b/g,'%'),ctx);
+ctx.ambiente_mesa=ctx.mesa_ambiente_criar();
 for(let i=0;i<31;i++)vm.runInContext(step,ctx);
 assert.equal(hits.length,0);vm.runInContext(step,ctx);assert.equal(hits.length,1);
 assert.equal(hits[0].nome_atacante,'Lobo');assert.equal(hits[0].nome_alvo,'Slime');
@@ -23,4 +27,7 @@ keys.add('P'.charCodeAt(0));vm.runInContext(step,ctx);keys.clear();assert.deepEq
 const t=ctx.tempo;for(let i=0;i<40;i++)vm.runInContext(step,ctx);assert.equal(ctx.tempo,t);
 vm.runInContext(fs.readFileSync(path.join(root,'objects/obj_laboratorio/CleanUp_0.gml'),'utf8'),ctx);
 assert.deepEqual(stopped,[71,72]);
+keys.add('T'.charCodeAt(0));vm.runInContext(step,ctx);keys.clear();
+assert.equal(ctx.terreno_previa,1);assert.equal(ctx.ambiente_mesa.pesos[1],0);
+ctx.pausado=false;vm.runInContext(step,ctx);assert.ok(ctx.ambiente_mesa.pesos[1]>0);
 console.log('OK: combat preview triggers audio once at contact, pauses timeline and voices, cleans up on exit');

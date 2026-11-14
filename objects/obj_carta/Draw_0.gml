@@ -1,3 +1,4 @@
+if(tropa_oculta_nevoa(id)) { desenhar_tropa_oculta_nevoa(id); exit; }
 // No modo local, somente a mão do jogador ativo pode ser vista.
 if (esta_na_mao && partida_local_ativa()
     && (obj_controlador.passagem_turno_ativa || dono != obj_controlador.turno)) exit;
@@ -34,19 +35,19 @@ image_yscale = _escala_final;
 if (travada && categoria == "tropa" && !morrendo && !evoluindo && !pulando
     && ataque_animacao == noone && tropa_pode_agir(id)) {
     var _personalidade = personalidade_visual(nome_carta, tem_habilidade(id, "voar"), current_time + xstart*7 + ystart*3);
-    _y_desenho += _personalidade.y;
-    _rotacao_total += _personalidade.rotacao;
-    _escala_final *= _personalidade.escala;
+    _y_desenho += _personalidade.y * 0.15;
+    _rotacao_total += _personalidade.rotacao * 0.5;
+    _escala_final *= 1 + (_personalidade.escala - 1) * 0.3;
 }
 var _alpha_carta = sombra_ativa ? 0.4 : 1;
 draw_set_alpha(_alpha_carta);
 
-if (pulando || impacto_colocacao_timer > 0) {
-    var _altura_pulo = pulando ? pulo_elevacao : 0;
-    desenhar_sombra_mesa(_x_desenho,
-        _y_desenho + _altura_pulo + _quique_pouso + sprite_get_height(sprite_index) * _escala_final * 0.46,
-        sprite_get_width(sprite_index) * _escala_final, _altura_pulo / max(1, pulo_altura), _alpha_carta);
-    draw_set_alpha(_alpha_carta);
+if (!morrendo) {
+    var _altura_contato = arrastando ? 18 : (hover_ativo ? 5 : 0);
+    if (pulando) _altura_contato += pulo_elevacao;
+    _altura_contato += ataque_elevacao;
+    desenhar_sombra_contato(sprite_index,image_index,_x_desenho,_y_desenho,
+        _escala_final,_escala_final,_rotacao_total,_altura_contato,_alpha_carta);
 }
 
 // Durante a virada a largura diminui até a borda e volta a abrir pela face.
@@ -213,12 +214,6 @@ if (travada && categoria == "tropa" && array_length(itens_equipados) > 0) {
 
         }
     }
-}
-// Sombra deslocada dá altura e peso à carta enquanto ela acompanha o mouse.
-if (arrastando) {
-    var _sombra_distancia = 8 + min(5, point_distance(0, 0, arrasto_velocidade_x, arrasto_velocidade_y) * 0.15);
-    draw_sprite_ext(sprite_index, image_index, _x_desenho + _sombra_distancia, _y_desenho + _sombra_distancia,
-        _escala_final * 1.015, _escala_final * 1.015, _rotacao_total, c_black, 0.24);
 }
 
 draw_sprite_ext(

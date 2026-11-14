@@ -1,3 +1,4 @@
+desenhar_cortina_nevoa();
 #region Informações da partida
 draw_set_font(Fontenil);
 desenhar_resumo_regras_turno();
@@ -790,29 +791,13 @@ if (ui_modal.pausa_ativa) {
     draw_set_font(fnt_vitoria);
     draw_set_halign(fa_center);
     draw_set_valign(fa_middle);
-    desenhar_texto_interface(_pausa_cx, _pausa_cy - 88, ui_modal.opcoes_pausa_ativa ? "OPÇÕES" : "PAUSA");
+    if(ui_modal.opcoes_pausa_ativa) {
+        draw_set_font(Fontenil);
+        desenhar_texto_ajustado_ui("OPÇÕES",_pausa_cx,_pausa_cy-88,260,0.72);
+    } else desenhar_texto_interface(_pausa_cx,_pausa_cy-88,"PAUSA");
     draw_set_font(Fontenil);
     if (ui_modal.opcoes_pausa_ativa) {
-        for(var _r=0;_r<2;_r++) {
-            var _ay=_pausa_cy+(_r==0?-35:10);
-            botao_carta_painel(_pausa_cx-160,_ay-18,_pausa_cx-90,_ay+18,"",true);
-            botao_carta_painel(_pausa_cx+90,_ay-18,_pausa_cx+160,_ay+18,"",true);
-        }
-        botao_carta_painel(_pausa_cx-160,_pausa_cy+37,_pausa_cx+160,_pausa_cy+73,"",true);
-        botao_carta_painel(_pausa_cx-150,_pausa_cy+80,_pausa_cx+150,_pausa_cy+116,"",true);
-        botao_carta_painel(_pausa_cx-150,_pausa_cy+124,_pausa_cx+150,_pausa_cy+160,"",true);
-        botao_carta_painel(_pausa_cx-150,_pausa_cy+168,_pausa_cx+150,_pausa_cy+212,"",true);
-        desenhar_texto_interface(_pausa_cx - 125, _pausa_cy - 35, "<");
-        desenhar_texto_interface(_pausa_cx + 125, _pausa_cy - 35, ">");
-        desenhar_texto_interface(_pausa_cx, _pausa_cy - 35, "MÚSICA  " + string(round(global.volume_musica * 100)) + "%");
-        desenhar_texto_interface(_pausa_cx - 125, _pausa_cy + 10, "<");
-        desenhar_texto_interface(_pausa_cx + 125, _pausa_cy + 10, ">");
-        desenhar_seletor_audio(_pausa_cx, _pausa_cy + 10);
-        draw_set_color(c_gray);
-        desenhar_texto_interface(_pausa_cx, _pausa_cy + 55, "TELA CHEIA: " + (window_get_fullscreen() ? "SIM" : "NÃO"));
-        desenhar_opcao_tamanho_interface(_pausa_cx, _pausa_cy + 98);
-        opcao_efeitos_visuais(_pausa_cx,_pausa_cy+142);
-        desenhar_texto_interface(_pausa_cx, _pausa_cy + 190, "VOLTAR");
+        desenhar_conteudo_opcoes_compacto(_pausa_cx,_pausa_cy,true);
     } else {
         desenhar_texto_interface(_pausa_cx,_pausa_cy-38,"A partida está aguardando.");
         botao_carta_painel(_pausa_cx-125,_pausa_cy+35,_pausa_cx+125,_pausa_cy+75,"CONTINUAR  [P / ESC]",true);
@@ -908,7 +893,7 @@ if (disputa_inicial_estado == "troca_dado_local" && !ui_modal.tutorial_ativo) {
     draw_set_valign(fa_top);
 }
 
-var _mostrar_painel_iniciativa = (disputa_inicial_estado == "resultado"
+var _mostrar_painel_iniciativa = (disputa_inicial_estado == "online_iniciativa" || disputa_inicial_estado == "resultado"
     || disputa_inicial_estado == "escolha_local"
     || disputa_inicial_estado == "escolha_jogador"
     || disputa_inicial_estado == "escolha_inimigo");
@@ -937,7 +922,17 @@ if (_mostrar_painel_iniciativa && !ui_modal.tutorial_ativo && !(instance_exists(
     draw_text(_ini_cx + 120, _ini_cy - 38, nome_jogador_lado("inimigo") + "\n" + (disputa_inicial_resultado_inimigo >= 0 ? string(disputa_inicial_resultado_inimigo) : "D20"));
     draw_set_color(c_white);
 
-    if (disputa_inicial_estado == "resultado") {
+    if (disputa_inicial_estado == "online_iniciativa") {
+        if (global.online_fase == "initiative") {
+            if (global.online_iniciativa[global.online_assento] < 0)
+                botao_carta_painel(_ini_cx-100,_ini_cy+55,_ini_cx+100,_ini_cy+105,"ROLAR D20",true);
+            else draw_text(_ini_cx, _ini_cy+25, "AGUARDANDO O OUTRO JOGADOR");
+        } else if (global.online_vencedor_iniciativa == global.online_assento) {
+            draw_text(_ini_cx, _ini_cy+18, "VOCÊ VENCEU. QUEM COMEÇA?");
+            botao_carta_painel(_ini_cx-215,_ini_cy+55,_ini_cx-15,_ini_cy+105,"EU COMEÇO",true);
+            botao_carta_painel(_ini_cx+15,_ini_cy+55,_ini_cx+215,_ini_cy+105,"OPONENTE COMEÇA",true);
+        } else draw_text(_ini_cx, _ini_cy+25, "O OPONENTE ESTÁ ESCOLHENDO...");
+    } else if (disputa_inicial_estado == "resultado") {
         var _texto_resultado_ini = (disputa_inicial_resultado_jogador == disputa_inicial_resultado_inimigo)
             ? "EMPATE — NOVA ROLAGEM" : "O maior resultado escolhe quem começa";
         draw_text(_ini_cx, _ini_cy + 25, _texto_resultado_ini);

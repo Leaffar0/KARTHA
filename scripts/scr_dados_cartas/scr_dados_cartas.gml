@@ -305,14 +305,7 @@ function rolar_disputa_inicial() {
 }
 
 function finalizar_disputa_inicial(_primeiro) {
-    if (!obj_controlador.mao_inicial_comprada) {
-        obj_controlador.disputa_inicial_primeiro_escolhido = _primeiro;
-        obj_controlador.disputa_inicial_estado = "aguardando_deck";
-        obj_controlador.disputa_inicial_vencedor = "";
-        mostrar_feedback(nome_jogador_lado(_primeiro) + " COMEÇA — COMPRE A MÃO",
-            obj_deck.x, obj_deck.y - 55, (_primeiro == "jogador") ? c_aqua : c_red, 80);
-        return;
-    }
+    if (!obj_controlador.mao_inicial_comprada) return;
 
     if (partida_local_ativa()) {
         obj_controlador.disputa_inicial_estado = "concluida";
@@ -417,6 +410,7 @@ function iniciar_turno_local(_dono, _comprar_no_inicio = true) {
 
 
 function anunciar_turno(_dono) {
+    nevoa_iniciar_turno(_dono);
     obj_controlador.onda_turno_timer = obj_controlador.onda_turno_duracao;
     obj_controlador.anuncio_turno_texto = partida_local_ativa()
         ? nome_jogador_lado(_dono) + " — SEU TURNO" : ((_dono == "jogador") ? "SEU TURNO" : "TURNO DO INIMIGO");

@@ -105,7 +105,7 @@ fim_animacao_timer = 0;
 fim_animacao_duracao = 90;
 
 // A partida só começa depois que os dois lados disputarem a iniciativa no D20.
-disputa_inicial_estado = "preparando_dado";
+disputa_inicial_estado = "aguardando_deck";
 disputa_inicial_resultado_jogador = -1;
 disputa_inicial_resultado_inimigo = -1;
 disputa_inicial_timer = 18;
@@ -262,3 +262,7 @@ ligacoes_visuais = [];
 audio_painel_anterior="";
 audio_submenu_anterior="";
 audio_historico_pagina=0;
+
+nevoa_dono="";
+nevoa_turno_sorteado="";
+nevoa_dono_anunciado="";

@@ -1,7 +1,22 @@
+if (transicao_sala_ativa()) exit;
+if (recolhendo) {
+    recolher_tempo = min(0.75, recolher_tempo + min(delta_time/1000000,0.05));
+    var _t = recolher_tempo/0.75;
+    var _mov = _t*_t*(3-2*_t);
+    altura_voo = sin(_t*pi)*32;
+    x = lerp(recolher_x,recolher_destino_x,_mov);
+    y = lerp(recolher_y,recolher_destino_y,_mov)-altura_voo;
+    image_xscale = escala_base_dado*(1+_mov*0.22);
+    image_yscale = image_xscale;
+    image_angle = (devolver_topo ? -1 : 1)*_mov*16;
+    // Só conclui a disputa quando o dado já saiu pela borda da mesa.
+    if (_t >= 1) event_perform(ev_alarm,0);
+    exit;
+}
 // D20 físico da iniciativa: pode ser pego e precisa ser arremessado.
 if (interativo_iniciativa) {
-    var _meia_dado_x = sprite_width * image_xscale * 0.55;
-    var _meia_dado_y = sprite_height * image_yscale * 0.55;
+    var _meia_dado_x = sprite_get_width(sprite_index) * abs(image_xscale) * 0.55;
+    var _meia_dado_y = sprite_get_height(sprite_index) * abs(image_yscale) * 0.55;
     if (!iniciativa_arrastando && mouse_check_button_pressed(mb_left)
         && point_in_rectangle(mouse_x, mouse_y, x - _meia_dado_x, y - _meia_dado_y, x + _meia_dado_x, y + _meia_dado_y)) {
         iniciativa_arrastando = true;
@@ -73,13 +88,13 @@ if (girando) {
 
     x = lerp(pos_inicial_x, destino_x, _progresso_suave) + (sin(_progresso * pi * 2) * desvio_lateral * _onda);
     y = lerp(pos_inicial_y, destino_y, _progresso_suave) - altura_voo;
-    image_angle += 28 + (_onda * 14);
+    image_angle += tamanho_dado == 20 ? lerp(32,5,sqr(_progresso)) : 28 + (_onda * 14);
     image_xscale = escala_base_dado * (0.88 + (_onda * 0.24));
     image_yscale = escala_base_dado * (1.10 - (_onda * 0.16));
 
     // Os lados passam muito rápido no começo e ficam mais legíveis perto do pouso.
     var _intervalo_faces = max(2, floor(2 + (_progresso * 8)));
-    if (tempo_girando mod _intervalo_faces == 0) {
+    if (tamanho_dado != 20 && tempo_girando mod _intervalo_faces == 0) {
         image_index = irandom_range(0, sprite_get_number(sprite_index) - 1);
     }
 
@@ -91,9 +106,8 @@ if (girando) {
         image_angle = 0;
         image_xscale = escala_base_dado;
         image_yscale = escala_base_dado;
-        // Há sprites de seis faces, inclusive quando a rolagem lógica é D20.
-        // O texto mostra o valor exato e esta linha mantém um lado válido no sprite.
-        image_index = (valor_final - 1) mod sprite_get_number(sprite_index);
+        // D20 usa sua própria arte e escreve valor_final na face, sem conversão para D6.
+        image_index = tamanho_dado == 20 ? 0 : (valor_final - 1) mod sprite_get_number(sprite_index);
         // Uma batida por grupo evita empilhar sons quando vários dados chegam juntos.
         if (!is_struct(grupo_soma) || grupo_soma.pousados == 0)
             tocar_som_variado("dado", 0.36, 1);
@@ -103,7 +117,8 @@ if (girando) {
             grupo_soma_pouso_registrado = true;
             grupo_soma.pousados += 1;
         }
-        alarm[0] = 90;
+        // Três segundos de leitura, além da acomodação do impacto.
+        alarm[0] = round(game_get_speed(gamespeed_fps) * 3) + duracao_pouso;
     }
 } else {
     if (tempo_pouso > 0) {

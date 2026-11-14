@@ -10,24 +10,46 @@ for (var i = 0; i < instance_number(obj_carta); i++) {
 }
 
 var _ativo = _hover || _carta_sobre_descarte;
-var _escala = _ativo ? 1.08 : 1;
-var _pulso_alpha = _ativo ? (0.45 + sin(pulso) * 0.12) : 0;
+// Mantém a máscara antiga para o clique e a área de descarte.
+var _cx = x + sprite_width/2;
+var _cy = y + 23;
+var _tamanho = 68;
+var _bx = _cx - _tamanho/2;
+var _by = y - 2;
+// Sombra curta sob a base do cesto, sem fazê-lo pairar.
+draw_set_color(c_black);
+draw_set_alpha(0.16);
+draw_ellipse(_cx-23,_by+57,_cx+25,_by+68,false);
+draw_set_alpha(0.3);
+draw_ellipse(_cx-18,_by+59,_cx+20,_by+65,false);
+draw_set_alpha(1); draw_set_color(c_white);
+draw_sprite_ext(spr_descarte_cesto, 0, _bx, _by,
+    _tamanho/sprite_get_width(spr_descarte_cesto),
+    _tamanho/sprite_get_height(spr_descarte_cesto), 0,
+    c_white, 1);
 
-draw_set_alpha(_pulso_alpha);
-draw_set_color(c_yellow);
-draw_rectangle(x - 3, y - 3, x + sprite_width + 3, y + sprite_height + 3, false);
+for (var _i = 0; _i < array_length(cartas_caindo); _i++) {
+    var _c = cartas_caindo[_i];
+    var _voo = clamp(_c.tempo/22, 0, 1);
+    var _suave = _voo*_voo*(3-2*_voo);
+    var _queda = clamp((_c.tempo-22)/30, 0, 1);
+    var _px = lerp(_c.x, _cx, _suave);
+    var _py = lerp(_c.y, _cy, _suave) - sin(_voo*pi)*24 + _queda*7;
+    var _encaixe = 28/max(1,sprite_get_width(_c.sprite));
+    var _esc = lerp(_c.escala, _encaixe, _suave) * power(1-_queda, 1.5);
+    var _angulo = lerp(_c.angulo, -12, _suave) + _queda*100;
+    draw_sprite_ext(_c.sprite,0,_px,_py,_esc,_esc*(1-_queda*0.5),_angulo,
+        merge_color(c_white,c_black,_queda*0.95),1-power(_queda,2));
+}
+
 draw_set_alpha(1);
 draw_set_color(c_white);
-draw_sprite_ext(sprite_index, image_index, x, y, _escala, _escala, 0, c_white, 1);
-
-draw_set_font(fnt_botao);
-draw_set_halign(fa_center);
-draw_set_valign(fa_top);
-draw_text(x + sprite_width / 2, y + sprite_height + 6, "DESCARTE");
-draw_text(x + sprite_width / 2, y + sprite_height + 22, string(array_length(obj_controlador.descarte_jogador)) + " cartas");
-if (_carta_sobre_descarte) {
-    draw_set_color(c_yellow);
-    draw_text(x + sprite_width / 2, y - 20, "SOLTE PARA DESCARTAR");
+if (instance_exists(obj_controlador)) {
+    var _total_descarte = array_length(obj_controlador.descarte_jogador);
+    var _texto_legenda = _carta_sobre_descarte ? "SOLTE PARA DESCARTAR"
+        : "DESCARTE · "+string(_total_descarte)+(_total_descarte==1?" carta":" cartas");
+    desenhar_legenda_mesa(_cx,y+sprite_height+6,_texto_legenda,
+        _carta_sobre_descarte ? 1 : legenda_alpha);
 }
 draw_set_halign(fa_left);
 draw_set_valign(fa_top);

@@ -77,6 +77,18 @@ card.ability.illusion = true;
 room.state.cards.delete('source');
 assert.equal(room.tryBreakIllusion(card), true);
 const net = setup(), combined = troop();
+for (const roll of [1, 20, 21, 100]) {
+  const fog = setup();
+  fog.state.terrainDefinitionId = 'cemiterio';
+  fog.roll = sides => { assert.equal(sides, 100); return roll; };
+  fog.endTurn(0);
+  assert.equal(fog.state.fogProtectedSeat, roll <= 20 ? 0 : -1);
+  fog.endTurn(1);
+  assert.equal(fog.state.fogProtectedSeat, roll <= 20 ? 1 : -1);
+  fog.state.terrainDefinitionId = '';
+  fog.endTurn(0);
+  assert.equal(fog.state.fogProtectedSeat, -1, 'fog clears outside Cemetery');
+}
 net.state.cards.set('a', combined);
 combined.life = 1;
 net.applyCondition(combined, 'envenenado', -1, 1);

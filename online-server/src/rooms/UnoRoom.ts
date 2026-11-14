@@ -160,6 +160,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     this.state.seed = Math.floor(Math.random() * 2147483646) + 1;
     this.state.turnNumber = 0;
     this.state.terrainDefinitionId = "";
+      this.state.fogProtectedSeat = -1;
     this.state.discardCount0 = 0;
     this.state.discardCount1 = 0;
     this.state.lastAction = "";
@@ -197,7 +198,12 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       if (!player || this.state.phase !== "choose_first") return;
       if (player.seatIndex !== this.state.initiativeWinner) return;
       if (seat !== 0 && seat !== 1) return;
-      this.startMatch(seat);
+      this.state.currentPlayer = seat;
+      this.state.phase = "playing";
+      this.state.fogProtectedSeat = this.state.terrainDefinitionId === "cemiterio" && this.roll(100) <= 20 ? 1 - seat : -1;
+      this.bump("match_ready");
+      this.broadcastJson("match_ready", { currentPlayer: seat, revision: this.state.revision });
+      this.sendPublicState();
     });
 
     this.onMessage("draw_initial", (client: Client) => {
@@ -211,9 +217,9 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       let everyoneDrew = true;
       this.state.players.forEach((participant: PlayerState) => { if (!participant.initialHandDrawn) everyoneDrew = false; });
       if (everyoneDrew) {
-        this.state.phase = "playing";
-        this.bump("match_ready");
-        this.broadcastJson("match_ready", { currentPlayer: this.state.currentPlayer, revision: this.state.revision });
+        this.state.phase = "initiative";
+        this.bump("initiative_started");
+        this.broadcastJson("initiative_started", { revision: this.state.revision });
       }
       this.sendPublicState();
     });
@@ -277,6 +283,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       this.activeTerrain = undefined;
       this.state.cards.clear();
       this.state.terrainDefinitionId = "";
+      this.state.fogProtectedSeat = -1;
       this.state.currentPlayer = -1;
       this.state.initiativeWinner = -1;
       this.state.winner = -1;
@@ -288,7 +295,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       });
       this.bump("rematch_started");
       this.broadcastJson("rematch_started", { revision: this.state.revision });
-      this.sendPublicState();
+      this.startMatch(0);
     });
   }
 
@@ -379,6 +386,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       player.life = 20;
       player.hasTakenTurn = false;
       player.initialHandDrawn = false;
+      player.initiative = 0;
       player.mana = 0; player.sangue = 0; player.ossos = 0; player.sucata = 0;
       player.blockedResource = ""; player.blockedTurns = 0;
     player.evolutionsUsed = 0;
@@ -386,6 +394,8 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       this.resetPlayerTurn(player);
     }
 
+    this.state.initiativeWinner = -1;
+    this.state.fogProtectedSeat = -1;
     this.state.currentPlayer = firstSeat;
     this.state.phase = "drawing";
     this.state.turnNumber = 1;
@@ -410,7 +420,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     return {
       state: { phase: this.state.phase, currentPlayer: this.state.currentPlayer, initiativeWinner: this.state.initiativeWinner,
         winner: this.state.winner, revision: this.state.revision, seed: this.state.seed, turnNumber: this.state.turnNumber,
-        terrainDefinitionId: this.state.terrainDefinitionId, discardCount0: this.state.discardCount0,
+        terrainDefinitionId: this.state.terrainDefinitionId, fogProtectedSeat: this.state.fogProtectedSeat, discardCount0: this.state.discardCount0,
         discardCount1: this.state.discardCount1, lastAction: this.state.lastAction },
       players, cards, privatePlayers: this.cloneData(this.privatePlayers), nextCardId: this.nextCardId,
       pendingCritical: this.pendingCritical ? this.cloneData(this.pendingCritical) : undefined,
@@ -1120,6 +1130,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       if (this.activeTerrain) this.moveToDiscardOrAbyss(this.activeTerrain.owner, this.activeTerrain.card);
       this.activeTerrain = { owner: seat, card: terrainCard };
       this.state.terrainDefinitionId = terrainCard.definitionId;
+      if (terrainCard.definitionId !== "cemiterio") this.state.fogProtectedSeat = -1;
       player.terrainPlayed = true;
     } else {
       const effectKey = found.definition.effect ?? found.card.definitionId;
@@ -1997,6 +2008,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     const madnessEvents = this.processMadness(nextSeat);
     const artillery = this.processArtillery(nextSeat);
     this.drawCards(nextSeat, 1);
+    this.state.fogProtectedSeat = this.state.terrainDefinitionId === "cemiterio" && this.roll(100) <= 20 ? seat : -1;
     return {
       ok: true,
       details: { currentPlayer: nextSeat, turnNumber: this.state.turnNumber, conditionEvents, sleepEvents, madnessEvents, artillery },
@@ -2292,7 +2304,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     const viewerSeat = this.findPlayer(client.sessionId)?.seatIndex ?? -1;
     const players: Record<string, unknown>[] = [];
     this.state.players.forEach((player: PlayerState) => players.push({
-      seat: player.seatIndex, name: player.name, connected: player.connected,
+      seat: player.seatIndex, name: player.name, connected: player.connected, initiative: player.initiative,
       itemSwapUsed: this.privatePlayers[player.seatIndex]?.itemSwapUsed ?? false,
       turnUsage: {
         troops: player.troopsPlayed, items: player.itemsUsed, spells: player.spellsUsed,
@@ -2337,10 +2349,11 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       ...resource, owner,
     })));
     const payload = {
-      phase: this.state.phase, currentPlayer: this.state.currentPlayer,
+      phase: this.state.phase, currentPlayer: this.state.currentPlayer, initiativeWinner: this.state.initiativeWinner,
       winner: this.state.winner, revision: this.state.revision,
       turnNumber: this.state.turnNumber,
       terrainDefinitionId: this.state.terrainDefinitionId,
+      fogProtectedSeat: this.state.fogProtectedSeat,
       discardCounts: [this.state.discardCount0, this.state.discardCount1],
       cemetery, abyss, resources,
       players, cards, traps,
@@ -2472,11 +2485,8 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     if (this.clients.length !== 2 || this.state.players.size !== 2) return;
     let allReady = true;
     this.state.players.forEach((player: PlayerState) => { if (!player.ready) allReady = false; });
-    if (!allReady) return;
-    this.state.phase = "initiative";
-    this.bump("initiative_started");
-    this.broadcastJson("initiative_started", { revision: this.state.revision });
-    this.sendPublicState();
+    if (!allReady || this.state.phase !== "waiting") return;
+    this.startMatch(0);
   }
 
   private finishInitiativeIfReady() {

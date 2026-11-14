@@ -1,4 +1,5 @@
 var _pulso = 1 + 0.035 * sin(pulso_virada_timer / pulso_virada_duracao * pi);
+desenhar_sombra_contato(sprite_index,image_index,x,y,escala_recurso*escala_animacao*_pulso,escala_recurso*escala_animacao*_pulso,rotacao_atual,0,alpha_animacao);
 draw_sprite_ext(sprite_index, image_index, x, y, escala_recurso * escala_animacao * _pulso, escala_recurso * escala_animacao * _pulso, rotacao_atual, c_white, alpha_animacao);
 
 if (quantidade > 1) {

@@ -50,3 +50,8 @@ iniciativa_mouse_anterior_x = x;
 iniciativa_mouse_anterior_y = y;
 iniciativa_velocidade_x = 0;
 iniciativa_velocidade_y = 0;
+// Recolhimento dos dados da disputa, depois do tempo de leitura.
+devolver_mao = false;
+devolver_topo = false;
+recolhendo = false;
+recolher_tempo = 0;

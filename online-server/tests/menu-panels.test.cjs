@@ -3,7 +3,7 @@ const root=path.resolve(__dirname,'../..');
 const ui=fs.readFileSync(path.join(root,'scripts/scr_ui/scr_ui.gml'),'utf8');
 const step=fs.readFileSync(path.join(root,'objects/obj_menu/Step_0.gml'),'utf8').replace(/^#.*$/gm,'').replace(/ mod /g,' % ').replace(/exit;/g,'return;');
 let click=false,escape=false;
-const c={room_width:1152,room_height:648,delta_time:16667,tempo_menu:3,menu_hover:[0,0,0,0],menu_hover_anterior:-1,
+const c={transicao_sala_ativa:()=>false,room_width:1152,room_height:648,delta_time:16667,tempo_menu:3,menu_hover:[0,0,0,0],menu_hover_anterior:-1,
  opcoes_abertas:false,modo_jogo_aberto:false,online_aberto:false,deck_aberto:false,painel_menu_abertura:1,painel_menu_anterior:'',
  online_copiado_timer:0,deck_aviso_timer:0,deck_por_pagina:8,deck_pagina:0,deck_catalogo_menu:[()=>({nome:'Slime'})],deck_backup_menu:[],global:{deck_contagens:[50]},
  min:Math.min,max:Math.max,abs:Math.abs,ceil:Math.ceil,sin:Math.sin,power:Math.pow,lerp:(a,b,t)=>a+(b-a)*t,clamp:(x,a,b)=>Math.max(a,Math.min(b,x)),dcos:a=>Math.cos(a*Math.PI/180),dsin:a=>Math.sin(a*Math.PI/180),

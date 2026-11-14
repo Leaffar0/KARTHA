@@ -1,3 +1,9 @@
+// Mantém a conexão ativa durante o fade, sem aceitar ações sob a cortina.
+if (transicao_sala_ativa()) {
+    if (modo_partida == "online" && colyseus_is_ready()) colyseus_process();
+    exit;
+}
+nevoa_atualizar_consulta();
 // =============================================================================
 // obj_controlador — Step Event
 // =============================================================================

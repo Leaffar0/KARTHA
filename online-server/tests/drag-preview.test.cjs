@@ -77,3 +77,13 @@ assert.equal(context.estado_previa_arrasto(card).perto.x, 110, 'valid equipment 
 card.categoria = 'item_consumivel'; card.efeito_tipo = 'comprar_cartas';
 assert.equal(context.carta_arrasto_sem_alvo(card), true);
 console.log('OK: resource reservation, missing/blocked resources, terrain discount, placement, turn/hand blocking and equipment targeting');
+
+const eyeCost=[{tipo:'mana',quantidade:1},{tipo:'sangue',quantidade:1}];
+groups.resource.length=0;groups.resource.push(resource('sangue'));
+context.obj_controlador.terreno_ativo='';
+assert.equal(context.selecionar_recursos_para_custo(eyeCost,'jogador','tropa').sucesso,false);
+context.obj_controlador.terreno_ativo='planicies_profanas';
+assert.equal(context.selecionar_recursos_para_custo(eyeCost,'jogador','tropa').sucesso,true);
+context.obj_controlador.terreno_ativo='';groups.resource.push(resource('mana'));
+assert.equal(context.selecionar_recursos_para_custo(eyeCost,'jogador','tropa').sucesso,true);
+console.log('OK: Demon Eye requires mana and blood, except the active Plains mana discount');

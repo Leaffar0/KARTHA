@@ -1,3 +1,4 @@
+if (transicao_sala_ativa()) exit;
 #region Arrasto do livro fechado
 if (arrastando) {
     x = mouse_x;
