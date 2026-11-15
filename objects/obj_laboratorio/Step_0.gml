@@ -11,6 +11,11 @@ for(var i=0;i<8;i++) {
         modo=i; laboratorio_reiniciar(id);
     }
 }
+if(keyboard_check_pressed(ord("D"))) { modo=8; laboratorio_reiniciar(id); }
+if(modo==8 && (keyboard_check_pressed(vk_left)||keyboard_check_pressed(vk_right))) {
+    dado_previa_deslocamento += keyboard_check_pressed(vk_right)?1:-1;
+    laboratorio_reiniciar(id);
+}
 if(keyboard_check_pressed(vk_space)) laboratorio_reiniciar(id);
 if(keyboard_check_pressed(ord("P"))) {
     pausado=!pausado;
@@ -70,7 +75,7 @@ if(!pausado && !som_contato && tempo>=((modo==4)?12:((modo==1 && magia==1)?70:32
     if(modo==5) array_push(sons_combate,tocar_som_variado("encaixe",0.40));
 }
 // Sons longos terminam antes da próxima repetição automática.
-if(!pausado && repetir && tempo>180 && (som_previa==noone || !audio_is_playing(som_previa))) laboratorio_reiniciar(id);
+if(!pausado && repetir && tempo>(modo==8?300:180) && (som_previa==noone || !audio_is_playing(som_previa))) laboratorio_reiniciar(id);
 
 if (keyboard_check_pressed(ord("T"))) terreno_previa = (terreno_previa+1) mod 4;
 if (!pausado) mesa_ambiente_atualizar(ambiente_mesa, terreno_previa, delta_time/1000000);

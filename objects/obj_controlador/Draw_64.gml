@@ -1,4 +1,5 @@
 desenhar_cortina_nevoa();
+desenhar_escudos_bloqueio_gui();
 #region Informações da partida
 draw_set_font(Fontenil);
 desenhar_resumo_regras_turno();

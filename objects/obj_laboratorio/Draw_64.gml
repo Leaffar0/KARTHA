@@ -20,7 +20,22 @@ for(var i=0;i<8;i++) {
 var _cx=_w/2, _cy=170+max(40,(_h-270)*0.5), _t=min(tempo,180);
 var _altura_carta=max(40,min(160,_h-300));
 
-if(modo==4) {
+if(modo==8) {
+    var _tipos=[4,6,8,10,12,20];
+    var _render=[desenhar_d4_visual,desenhar_d6_visual,desenhar_d8_visual,desenhar_d10_visual,desenhar_d12_visual,desenhar_d20_visual];
+    var _faces=[d4_face_visual,d6_face_visual,d8_face_visual,d10_face_visual,d12_face_visual,d20_face_visual];
+    var _passo=min(150,(_w-60)/6),_esc=min(5,_passo/20);
+    for(var _di=0;_di<6;_di++) {
+        var _dt=max(0,tempo-_di*5),_girando=_dt<60;
+        var _valor=1+(((_tipos[_di]-1+dado_previa_deslocamento) mod _tipos[_di])+_tipos[_di]) mod _tipos[_di];
+        var _p=clamp(_dt/60,0,1),_angulo=_girando?720*(1-power(1-_p,2)):0;
+        var _dx=_cx+(_di-2.5)*_passo,_dy=_cy-sin(_p*pi)*50;
+        _render[_di](_dx,_dy,_esc,_esc,_angulo,_faces[_di](_valor,_girando,_dt),1);
+        draw_set_font(Fontenil);draw_set_halign(fa_center);draw_set_valign(fa_middle);draw_set_color(c_white);
+        draw_text_transformed(_dx,_cy+65,"D"+string(_tipos[_di]),0.5,0.5,0);
+    }
+    desenhar_texto_ajustado_ui("DADOS — ARTES NOVAS | ← → mudar valores",_cx,_h-96,_w-40,0.5);
+} else if(modo==4) {
     desenhar_quebra_castelo(_cx,_cy,_t,2);
     if(_t>=55) { draw_set_alpha(clamp((_t-55)/28,0,1)); draw_set_color(c_yellow); draw_text_transformed(_cx,_cy,"VITÓRIA",1.4,1.4,0); draw_set_alpha(1); }
 } else if(modo==7) {
@@ -61,6 +76,10 @@ if(modo==4) {
     }
     if(modo==3 && _t<65) { draw_set_color(c_yellow); draw_text_transformed(_cx,_cy-115,"CONTRA-ATAQUE",0.8,0.8,0); }
     // Camada superior: os mesmos renderizadores da partida, após as cartas.
+    if(modo==0 && bloqueio_previa && _t>=32 && _t<74) {
+        var _bx=_cx+min(180,_w/4)*0.5+sin(clamp((_t-32)/18,0,1)*pi)*10;
+        desenhar_escudo_bloqueio(_bx,_cy,_altura_carta*0.48,(_t-32)/42,true);
+    }
     if(modo==0 && magia_previa) {
         var _dist_combate=min(180,_w/4)*0.5;
         if(tempo<32) {
@@ -99,5 +118,5 @@ if(modo==1) { draw_set_color(c_silver); draw_text_transformed(_w/2,_h-88,magias[
 if(modo==6) { draw_set_color(c_silver); draw_text_transformed(_w/2,_h-88,"Setas: escolher habilidade",0.48,0.48,0); }
 draw_set_alpha(1); draw_set_color(c_silver);
 draw_text_transformed(_w/2,_h-58,"Espaço: repetir | P: "+(pausado?"retomar":"pausar")+" | R: repetição "+(repetir?"ligada":"desligada"),0.5,0.5,0);
-draw_text_transformed(_w/2,_h-30,"T: terreno — "+nomes_terreno_previa[terreno_previa]+" | ESC / F7: voltar",0.46,0.46,0);
+draw_text_transformed(_w/2,_h-30,"D: dados | T: terreno — "+nomes_terreno_previa[terreno_previa]+" | ESC / F7: voltar",0.46,0.46,0);
 draw_set_font(-1); draw_set_halign(fa_left); draw_set_valign(fa_top); draw_set_color(c_white);

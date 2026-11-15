@@ -742,3 +742,62 @@ function desenhar_legenda_mesa(_x, _y, _texto, _alpha) {
     draw_set_font(_font); draw_set_halign(_ha); draw_set_valign(_va);
     draw_set_color(_cor); draw_set_alpha(_a);
 }
+
+// A borda se forma progressivamente; o interior translúcido preserva a arte.
+function desenhar_escudo_defesa_formacao(_x,_y,_w,_form,_alpha) {
+    if (_alpha<=0) return;
+    var _a=draw_get_alpha(),_cor=draw_get_color();
+    var _f=clamp(_form,0,1),_h=_w*1.24;
+    var _px=[-0.44,0,0.44,0.39,0.25,0,-0.25,-0.39];
+    var _py=[-0.40,-0.50,-0.40,0.08,0.32,0.51,0.32,0.08];
+    draw_set_color(make_color_rgb(55,151,235));
+    draw_set_alpha(_alpha*_f*0.25);
+    draw_primitive_begin(pr_trianglefan);draw_vertex(_x,_y);
+    for(var _i=0;_i<=8;_i++){var _j=_i mod 8;draw_vertex(_x+_px[_j]*_w,_y+_py[_j]*_h);}
+    draw_primitive_end();
+    for(var _b=0;_b<2;_b++) {
+        var _esc=_b==0?1:0.88;
+        draw_set_color(_b==0?make_color_rgb(127,211,255):make_color_rgb(65,158,229));
+        draw_set_alpha(_alpha*(_b==0?0.85:0.42));
+        for(var _i=0;_i<8;_i++) {
+            var _q=clamp(_f*8-_i,0,1),_j=(_i+1) mod 8;
+            if(_q<=0) continue;
+            draw_line_width(_x+_px[_i]*_w*_esc,_y+_py[_i]*_h*_esc,
+                _x+lerp(_px[_i],_px[_j],_q)*_w*_esc,
+                _y+lerp(_py[_i],_py[_j],_q)*_h*_esc,max(1,_w*0.025));
+        }
+    }
+    // Reflexo curto durante a formação, sem círculo em volta da tropa.
+    if(_f>0 && _f<1) {
+        draw_set_alpha(sin(_f*pi)*_alpha*0.6);draw_set_color(c_white);
+        var _sy=_y+lerp(-0.26,0.20,_f)*_h;
+        draw_line(_x-_w*0.18,_sy,_x+_w*0.18,_sy-_h*0.10);
+    }
+    draw_set_alpha(_a);draw_set_color(_cor);
+}
+
+function desenhar_escudo_bloqueio(_x,_y,_tamanho,_p,_total=true) {
+    if(_p<0 || _p>=1) return;
+    var _f=clamp(_p/0.24,0,1);
+    var _esc=0.85+0.15*_f+sin(_f*pi)*0.08;
+    var _alpha=(1-power(clamp((_p-0.5)/0.5,0,1),2))*(_total?1:0.65);
+    _x+=sin(_p*55)*power(1-_f,2)*_tamanho*0.035*min(1,fator_efeitos_visuais());
+    desenhar_escudo_defesa_formacao(_x,_y,_tamanho*_esc,_f,_alpha);
+}
+
+function desenhar_escudos_bloqueio_gui() {
+    var _cam=view_camera[0];
+    var _sx=display_get_gui_width()/camera_get_view_width(_cam);
+    var _sy=display_get_gui_height()/camera_get_view_height(_cam);
+    var _vx=camera_get_view_x(_cam),_vy=camera_get_view_y(_cam);
+    with(obj_carta) {
+        if((defesa_impacto_timer<=0 && defesa_presenca<=0) || tropa_oculta_nevoa(id) || esta_na_mao) continue;
+        var _x=(x+ataque_offset_x+recuo_dano_x-_vx)*_sx;
+        var _y=(y+y_offset_atual+ataque_offset_y-ataque_elevacao+recuo_dano_y-_vy)*_sy;
+        var _w=sprite_get_width(sprite_index)*abs(image_xscale)*_sx*0.72;
+        if(defesa_impacto_timer>0)
+            desenhar_escudo_bloqueio(_x,_y,_w,1-defesa_impacto_timer/defesa_impacto_duracao,defesa_bloqueio_total);
+        else desenhar_escudo_defesa_formacao(_x,_y,_w,defesa_formacao,
+            defesa_presenca*lerp(1,0.65,defesa_formacao));
+    }
+}

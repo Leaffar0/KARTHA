@@ -17,3 +17,6 @@ laboratorio_reiniciar(id);
 ambiente_mesa = mesa_ambiente_criar();
 terreno_previa = 0;
 nomes_terreno_previa = ["Madeira", "Pântano Sombrio", "Cemitério", "Planícies Profanas"];
+
+// Conferência direta dos renderizadores usados na partida.
+dado_previa_deslocamento = 0;

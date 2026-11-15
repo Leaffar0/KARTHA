@@ -1,4 +1,14 @@
 if (transicao_sala_ativa()) exit;
+var _dt_defesa = min(delta_time/1000000,0.05);
+var _em_defesa = defendendo_castelo && travada && !morrendo;
+if (_em_defesa) {
+    if (defesa_presenca<=0) defesa_formacao=0;
+    defesa_formacao=min(1,defesa_formacao+_dt_defesa/0.65);
+    defesa_presenca=min(1,defesa_presenca+_dt_defesa/0.20);
+} else {
+    defesa_presenca=max(0,defesa_presenca-_dt_defesa/0.28);
+    if (defesa_presenca<=0) defesa_formacao=0;
+}
 if (travada && categoria == "tropa" && !morrendo && obj_controlador.modo_partida != "online")
     verificar_olhar_vazio(id);
 atualizar_efeitos_identidade(id);

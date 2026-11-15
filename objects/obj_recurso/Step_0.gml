@@ -42,3 +42,13 @@ if (atraso_virada_visual > 0) {
     }
 }
 if (pulso_virada_timer > 0) pulso_virada_timer--;
+
+var _dt_bloqueio = min(delta_time/1000000,0.05);
+if (bloqueado_turnos > 0) {
+    if (bloqueio_visual_anterior <= 0 || bloqueado_turnos > bloqueio_visual_anterior)
+        bloqueio_visual_entrada = 0;
+    bloqueio_visual_turnos = bloqueado_turnos;
+}
+bloqueio_visual_anterior = bloqueado_turnos;
+bloqueio_visual_entrada = min(1,bloqueio_visual_entrada+_dt_bloqueio/0.34);
+bloqueio_visual_alpha = clamp(bloqueio_visual_alpha+_dt_bloqueio*(bloqueado_turnos>0?6:-4),0,1);

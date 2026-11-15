@@ -49,6 +49,11 @@
   },
   "name":"KARTHA",
   "resources":[
+    {"id":{"name":"spr_d12_corpo","path":"sprites/spr_d12_corpo/spr_d12_corpo.yy"},},
+    {"id":{"name":"spr_d10_corpo","path":"sprites/spr_d10_corpo/spr_d10_corpo.yy"},},
+    {"id":{"name":"spr_d8_corpo","path":"sprites/spr_d8_corpo/spr_d8_corpo.yy"},},
+    {"id":{"name":"spr_d6_corpo","path":"sprites/spr_d6_corpo/spr_d6_corpo.yy"},},
+    {"id":{"name":"spr_d4_corpo","path":"sprites/spr_d4_corpo/spr_d4_corpo.yy"},},
     {"id":{"name":"tween_curves","path":"animcurves/tween_curves/tween_curves.yy",},},
     {"id":{"name":"Colyseus_SDK","path":"extensions/Colyseus_SDK/Colyseus_SDK.yy",},},
     {"id":{"name":"fnt_botao","path":"fonts/fnt_botao/fnt_botao.yy",},},

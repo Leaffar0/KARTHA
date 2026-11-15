@@ -196,7 +196,8 @@ dano_flash_duracao = 25;
 recuo_dano_x = 0;
 recuo_dano_y = 0;
 defesa_impacto_timer = 0;
-defesa_impacto_duracao = 20;
+defesa_impacto_duracao = 42;
+defesa_bloqueio_total = false;
 tipo_morte_visual = "normal";
 morrendo = false;
 morte_timer = 0;
@@ -225,3 +226,6 @@ contra_visual_timer = 0;
 contra_ataque_pendente = false;
 
 leque_equipamento = 0;
+
+defesa_formacao = 0;
+defesa_presenca = 0;

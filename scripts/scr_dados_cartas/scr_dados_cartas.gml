@@ -168,6 +168,7 @@ function preparar_dado_disputa_inicial() {
     _dado.tamanho_dado = 20;
     _dado.valor_final = -1;
     _dado.interativo_iniciativa = true;
+    _dado.devolver_mao = true;
     _dado.ocultar_resultado_ate_rolar = true;
     _dado.girando = false;
     _dado.escala_base_dado = 3.25;
@@ -293,6 +294,8 @@ function lancar_dado_disputa_inicial(_dado, _velocidade_arremesso) {
                 controle.disputa_inicial_timer = 55;
             }
         }), 0, irandom_range(8, 15), 78 + irandom_range(-5, 12));
+    _dado_ia.devolver_mao = true;
+    _dado_ia.devolver_topo = true;
     _dado_ia.rotulo_resultado = "";
     _dado_ia.cor_resultado = c_white;
     _dado_ia.escala_texto_resultado = 1.22;

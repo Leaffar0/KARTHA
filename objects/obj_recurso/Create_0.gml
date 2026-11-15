@@ -27,3 +27,9 @@ alpha_animacao = 1;
 // Bloqueio de Recurso: conta turnos completos do dono sem permitir uso/retirada.
 bloqueado_turnos = 0;
 bloqueio_acabou_de_aplicar = false;
+
+// Estado visual do pequeno cadeado; independente da regra de bloqueio.
+bloqueio_visual_alpha = 0;
+bloqueio_visual_entrada = 1;
+bloqueio_visual_turnos = 0;
+bloqueio_visual_anterior = 0;

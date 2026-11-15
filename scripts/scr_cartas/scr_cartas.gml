@@ -1096,7 +1096,7 @@ function bloquear_recurso(_recurso, _turnos = 3) {
     if (!instance_exists(_recurso)) return false;
     _recurso.bloqueado_turnos = max(_recurso.bloqueado_turnos, _turnos);
     _recurso.bloqueio_acabou_de_aplicar = true;
-    mostrar_feedback("BLOQUEADO: " + string(_turnos), _recurso.x, _recurso.y - 32, make_color_rgb(175, 95, 235), 60);
+    mostrar_feedback("BLOQUEADO: " + string(_turnos), _recurso.x, _recurso.y - 32, c_silver, 60);
     return true;
 }
 

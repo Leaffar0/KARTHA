@@ -11,6 +11,26 @@ if (tamanho_dado == 20) {
     gpu_set_texfilter(true);
     var _face_d20 = interativo_iniciativa ? 0 : d20_face_visual(valor_final,girando,tempo_girando);
     desenhar_d20_visual(x,y,image_xscale,image_yscale,image_angle,_face_d20,image_alpha);
+} else if (tamanho_dado == 4) {
+    gpu_set_texfilter(true);
+    desenhar_d4_visual(x,y,image_xscale,image_yscale,image_angle,
+        d4_face_visual(valor_final,girando,tempo_girando),image_alpha);
+} else if (tamanho_dado == 6) {
+    gpu_set_texfilter(true);
+    desenhar_d6_visual(x,y,image_xscale,image_yscale,image_angle,
+        d6_face_visual(valor_final,girando,tempo_girando),image_alpha);
+} else if (tamanho_dado == 8) {
+    gpu_set_texfilter(true);
+    desenhar_d8_visual(x,y,image_xscale,image_yscale,image_angle,
+        d8_face_visual(valor_final,girando,tempo_girando),image_alpha);
+} else if (tamanho_dado == 10) {
+    gpu_set_texfilter(true);
+    desenhar_d10_visual(x,y,image_xscale,image_yscale,image_angle,
+        d10_face_visual(valor_final,girando,tempo_girando),image_alpha);
+} else if (tamanho_dado == 12) {
+    gpu_set_texfilter(true);
+    desenhar_d12_visual(x,y,image_xscale,image_yscale,image_angle,
+        d12_face_visual(valor_final,girando,tempo_girando),image_alpha);
 } else draw_self();
 
 // Somente o bônus permanece fora da face; não repete o valor sorteado.
@@ -23,7 +43,7 @@ if (!girando && progresso_revelacao > 0 && !ocultar_resultado_ate_rolar
 
 // Os dados de outros tamanhos usam o corpo D6: substitui os pontos por seu
 // valor real na própria face ao pousar (um D8 não pode parecer um D2).
-if (tamanho_dado != 20 && tamanho_dado != 6 && !girando && !ocultar_resultado_ate_rolar) {
+if (tamanho_dado != 20 && tamanho_dado != 4 && tamanho_dado != 6 && tamanho_dado != 8 && tamanho_dado != 10 && tamanho_dado != 12 && !girando && !ocultar_resultado_ate_rolar) {
     var _fw = sprite_get_width(sprite_index)*abs(image_xscale)*0.82;
     var _fh = sprite_get_height(sprite_index)*abs(image_yscale)*0.82;
     var _font = draw_get_font(), _ha = draw_get_halign(), _va = draw_get_valign();

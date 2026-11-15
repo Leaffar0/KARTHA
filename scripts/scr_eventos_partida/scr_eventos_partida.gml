@@ -71,6 +71,7 @@ function evento_partida_aplicar(_evento) {
             if (instance_exists(_dados.alvo)) {
                 aplicar_flash_dano(_dados.alvo, 18, _dados.atacante, _dados.defesa, _dados.critico);
                 if (_dados.defesa > 0) {
+                    _dados.alvo.defesa_bloqueio_total = _dados.dano <= 0;
                     if (!_dados.critico || _dados.dano <= 0)
                         tocar_som_variado((variable_struct_exists(_dados,"magica") && _dados.magica)?"magia_escudo":"defesa_escudo", 0.25, 1);
                     if (_dados.dano <= 0) {

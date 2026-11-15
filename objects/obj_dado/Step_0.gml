@@ -88,13 +88,13 @@ if (girando) {
 
     x = lerp(pos_inicial_x, destino_x, _progresso_suave) + (sin(_progresso * pi * 2) * desvio_lateral * _onda);
     y = lerp(pos_inicial_y, destino_y, _progresso_suave) - altura_voo;
-    image_angle += tamanho_dado == 20 ? lerp(32,5,sqr(_progresso)) : 28 + (_onda * 14);
+    image_angle += (tamanho_dado == 20 || tamanho_dado == 4 || tamanho_dado == 6 || tamanho_dado == 8 || tamanho_dado == 10 || tamanho_dado == 12) ? lerp(32,5,sqr(_progresso)) : 28 + (_onda * 14);
     image_xscale = escala_base_dado * (0.88 + (_onda * 0.24));
     image_yscale = escala_base_dado * (1.10 - (_onda * 0.16));
 
     // Os lados passam muito rápido no começo e ficam mais legíveis perto do pouso.
     var _intervalo_faces = max(2, floor(2 + (_progresso * 8)));
-    if (tamanho_dado != 20 && tempo_girando mod _intervalo_faces == 0) {
+    if (tamanho_dado != 20 && tamanho_dado != 4 && tamanho_dado != 6 && tamanho_dado != 8 && tamanho_dado != 10 && tamanho_dado != 12 && tempo_girando mod _intervalo_faces == 0) {
         image_index = irandom_range(0, sprite_get_number(sprite_index) - 1);
     }
 
@@ -107,7 +107,7 @@ if (girando) {
         image_xscale = escala_base_dado;
         image_yscale = escala_base_dado;
         // D20 usa sua própria arte e escreve valor_final na face, sem conversão para D6.
-        image_index = tamanho_dado == 20 ? 0 : (valor_final - 1) mod sprite_get_number(sprite_index);
+        image_index = (tamanho_dado == 20 || tamanho_dado == 4 || tamanho_dado == 6 || tamanho_dado == 8 || tamanho_dado == 10 || tamanho_dado == 12) ? 0 : (valor_final - 1) mod sprite_get_number(sprite_index);
         // Uma batida por grupo evita empilhar sons quando vários dados chegam juntos.
         if (!is_struct(grupo_soma) || grupo_soma.pousados == 0)
             tocar_som_variado("dado", 0.36, 1);
