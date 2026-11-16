@@ -26,9 +26,9 @@ flip_direcao = 1;
 flip_pagina_alvo = 0;
 
 // tamanho do livro FECHADO, como aparece solto pela room
-livro_escala = 0.1;
-livro_largura = 90 * livro_escala;
-livro_altura = 128 * livro_escala;
+livro_escala = 0.115;
+livro_largura = sprite_get_width(spr_livro_fechado) * livro_escala;
+livro_altura = sprite_get_height(spr_livro_fechado) * livro_escala;
 livro_escala_atual = livro_escala;
 livro_bob = 0;
 

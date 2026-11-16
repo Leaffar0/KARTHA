@@ -28,15 +28,13 @@ if (virando) {
 
 #region Resposta visual do livro fechado
 if (!preview_ativo && !arrastando) {
-    var _meia_largura_hover = livro_largura / 2;
-    var _meia_altura_hover = livro_altura / 2;
-    var _sobre_livro = point_in_rectangle(mouse_x, mouse_y, x - _meia_largura_hover, y - _meia_altura_hover, x + _meia_largura_hover, y + _meia_altura_hover);
-    var _escala_alvo_livro = _sobre_livro ? (livro_escala * 1.16) : livro_escala;
+    var _sobre_livro = point_in_rectangle(mouse_x, mouse_y, bbox_left, bbox_top, bbox_right, bbox_bottom);
+    var _escala_alvo_livro = _sobre_livro ? (livro_escala * 1.025) : livro_escala;
     livro_escala_atual += (_escala_alvo_livro - livro_escala_atual) * 0.18;
     livro_bob += 0.08;
     image_xscale = livro_escala_atual;
     image_yscale = livro_escala_atual;
-    image_angle = _sobre_livro ? (sin(livro_bob) * 2) : 0;
+    image_angle = 0; // Repousa na mesa: a perspectiva está na arte.
 }
 #endregion
 
@@ -45,9 +43,7 @@ if (mouse_check_button_pressed(mb_right)) {
     if (preview_ativo) {
         preview_ativo = false;
     } else if (!arrastando) {
-        var _meia_largura = livro_largura / 2;
-        var _meia_altura = livro_altura / 2;
-        if (point_in_rectangle(mouse_x, mouse_y, x - _meia_largura, y - _meia_altura, x + _meia_largura, y + _meia_altura)) {
+        if (point_in_rectangle(mouse_x, mouse_y, bbox_left, bbox_top, bbox_right, bbox_bottom)) {
             preview_ativo = true;
             mostrando_sumario = true; // sempre entra pelo sumário
             virando = false;

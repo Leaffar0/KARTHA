@@ -1378,6 +1378,35 @@ function botao_carta_painel(_x1,_y1,_x2,_y2,_texto,_gui=false) {
     draw_set_color(make_color_rgb(235,235,235));draw_set_halign(fa_center);draw_set_valign(fa_middle);
     desenhar_texto_ajustado_ui(_texto,(_x1+_x2)/2,(_y1+_y2)/2,_x2-_x1-16,0.56);
 }
+
+// Atalhos compactos da partida: mesma moldura das cartas de menu.
+function desenhar_botao_hud_carta(_x1,_y1,_x2,_y2,_titulo,_nota="") {
+    var _cor=draw_get_color(),_a=draw_get_alpha(),_f=draw_get_font();
+    var _ha=draw_get_halign(),_va=draw_get_valign();
+    var _sobre=point_in_rectangle(device_mouse_x_to_gui(0),device_mouse_y_to_gui(0),_x1,_y1,_x2,_y2);
+    var _cx=(_x1+_x2)/2,_cy=(_y1+_y2)/2,_w=_x2-_x1,_h=_y2-_y1;
+    draw_set_alpha(0.25);
+    moldura_carta_menu(_cx+1,_cy+2,_w,_h,0,c_black,false);
+    draw_set_alpha(1);
+    moldura_carta_menu(_cx,_cy,_w,_h,0,_sobre?make_color_rgb(64,64,64):make_color_rgb(39,39,39),false);
+    moldura_carta_menu(_cx,_cy,_w,_h,0,make_color_rgb(208,208,202),true);
+    moldura_carta_menu(_cx,_cy,_w-7,_h-7,0,make_color_rgb(91,91,88),true);
+    draw_set_font(Fontenil);draw_set_color(make_color_rgb(237,237,230));
+    var _nota_w=_nota==""?0:min(76,_w*0.40);
+    var _titulo_w=_w-22-_nota_w;
+    draw_set_halign(fa_left);draw_set_valign(fa_middle);
+    var _esc=min(0.46,min(_titulo_w/max(1,string_width(_titulo)),(_h-14)/max(1,string_height(_titulo))));
+    draw_text_transformed(_x1+11,_cy,_titulo,_esc,_esc,0);
+    if(_nota!="") {
+        draw_set_color(make_color_rgb(177,177,171));
+        draw_line(_x2-_nota_w-4,_y1+9,_x2-_nota_w-4,_y2-9);
+        draw_set_halign(fa_right);
+        var _ne=min(0.36,(_nota_w-10)/max(1,string_width(_nota)));
+        draw_text_transformed(_x2-10,_cy,_nota,_ne,_ne,0);
+    }
+    draw_set_font(_f);draw_set_halign(_ha);draw_set_valign(_va);
+    draw_set_alpha(_a);draw_set_color(_cor);
+}
 function carta_modo_menu(_i,_cy) {
     var _w=min(190,(room_width-100)/3.3);
     return {x:room_width/2+(_i-1)*(_w+16),y:_cy+5,w:_w,h:180,rot:0,alpha:1,pronto:true};

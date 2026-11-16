@@ -12,16 +12,11 @@ for (var i = 0; i < instance_number(obj_carta); i++) {
 var _ativo = _hover || _carta_sobre_descarte;
 // Mantém a máscara antiga para o clique e a área de descarte.
 var _cx = x + sprite_width/2;
-var _cy = y + 23;
+var _cy = y + 30;
 var _tamanho = 68;
 var _bx = _cx - _tamanho/2;
 var _by = y - 2;
-// Sombra curta sob a base do cesto, sem fazê-lo pairar.
-draw_set_color(c_black);
-draw_set_alpha(0.16);
-draw_ellipse(_cx-23,_by+57,_cx+25,_by+68,false);
-draw_set_alpha(0.3);
-draw_ellipse(_cx-18,_by+59,_cx+20,_by+65,false);
+// A arte já traz a sombra de contato, rente à base.
 draw_set_alpha(1); draw_set_color(c_white);
 draw_sprite_ext(spr_descarte_cesto, 0, _bx, _by,
     _tamanho/sprite_get_width(spr_descarte_cesto),
@@ -44,6 +39,14 @@ for (var _i = 0; _i < array_length(cartas_caindo); _i++) {
 
 draw_set_alpha(1);
 draw_set_color(c_white);
+// A borda frontal passa à frente da carta quando ela mergulha na abertura.
+if (array_length(cartas_caindo)>0) {
+    var _sw=sprite_get_width(spr_descarte_cesto), _sh=sprite_get_height(spr_descarte_cesto);
+    var _corte=floor(_sh*0.69);
+    draw_sprite_part_ext(spr_descarte_cesto,0,0,_corte,_sw,_sh-_corte,
+        _bx,_by+_corte*_tamanho/_sh,_tamanho/_sw,_tamanho/_sh,c_white,1);
+}
+
 if (instance_exists(obj_controlador)) {
     var _total_descarte = array_length(obj_controlador.descarte_jogador);
     var _texto_legenda = _carta_sobre_descarte ? "SOLTE PARA DESCARTAR"
