@@ -102,58 +102,90 @@ function mesa_ambiente_atmosfera(_ambiente,_x,_y,_w,_h) {
 function mesa_ambiente_desenhar(_ambiente, _x, _y, _w, _h) {
     // Apenas o fundo recebe a correção; slots, cartas e HUD mantêm suas cores.
     var _cinza = shader_is_compiled(shd_mesa_cinza);
-    if (_cinza) shader_set(shd_mesa_cinza);
+    if (_cinza) {
+        shader_set(shd_mesa_cinza);
+        shader_set_uniform_f(shader_get_uniform(shd_mesa_cinza, "u_area"), _x, _y, _w, _h);
+    }
     var _soma = 0;
     for (var _i = 0; _i < 4; _i++) {
         var _peso = _ambiente.pesos[_i];
         if (_peso <= 0) continue;
         _soma += _peso;
         // Alpha composto mantém o brilho constante no meio da transição.
-        draw_sprite_stretched_ext(spr_mesa_madeira, _i, _x, _y, _w, _h, c_white, _peso/_soma);
+        draw_sprite_stretched_ext(spr_mesa_madeira, _i, _x, _y, _w, _h, make_color_rgb(221, 215, 207), _peso/_soma);
     }
     if (_cinza) shader_reset();
+}
+
+// Posições no couro de referência (690 × 580), nos intervalos livres entre os slots.
+// Cada peça tem quadro, pé no tabuleiro e largura. O mesmo mapa serve ao laboratório.
+function mesa_desenhar_aderecos(_ambiente, _x, _y, _w, _h) {
+    static _grupos = [
+        [],
+        [[1,158,175,43], [0,180,180,29], [1,226,321,29], [0,449,353,56],
+         [1,469,360,33], [0,-10,412,41], [1,619,452,58]],
+        [[3,144,212,40], [2,222,322,30], [2,450,353,58], [3,473,361,31],
+         [2,-12,417,43], [3,616,454,45]],
+        [[4,159,209,61], [5,220,322,30], [5,448,349,47], [4,465,358,44],
+         [4,-14,415,54], [5,617,451,43]]
+    ];
+    var _sx = _w/690, _sy = _h/580;
+    var _sw = sprite_get_width(spr_aderecos_terreno), _sh = sprite_get_height(spr_aderecos_terreno);
+    var _cor = draw_get_color(), _alpha = draw_get_alpha();
+    for (var _terreno=1; _terreno<array_length(_grupos); _terreno++) {
+        var _peso = _ambiente.pesos[_terreno];
+        if (_peso < 0.008) continue;
+        var _pecas = _grupos[_terreno];
+        for (var i=0; i<array_length(_pecas); i++) {
+            var _peca = _pecas[i];
+            var _atraso = (i mod 3)*0.09;
+            var _p = clamp((_peso-_atraso)/(1-_atraso),0,1);
+            if (_p <= 0) continue;
+            var _base_x = _x+_peca[1]*_sx, _base_y = _y+_peca[2]*_sy;
+            var _largura = _peca[3], _esc = _largura/_sw;
+            var _fenda = _largura*_sx*0.61*min(1,_p*3);
+
+            // A fenda abre antes de a silhueta passar pela superfície.
+            draw_set_alpha(_alpha*min(1,_p*3));
+            draw_set_color(make_color_rgb(26,23,22));
+            draw_triangle(_base_x-_fenda,_base_y+2*_sy,_base_x-_fenda*0.16,_base_y-2*_sy,
+                _base_x+_fenda*0.75,_base_y,false);
+            draw_line_width(_base_x,_base_y,_base_x+_fenda,_base_y-1.5*_sy,max(1,_sy));
+            draw_set_color(make_color_rgb(108,95,77));
+            draw_line(_base_x-_fenda*0.75,_base_y+2*_sy,_base_x-_fenda*0.15,_base_y+_sy);
+
+            // Somente a parte já emersa fica acima da fenda. A pedra mantém a forma.
+            var _recorte = max(1,ceil(_sh*_p));
+            var _ex = _esc*_sx, _ey = _esc*_sy;
+            var _ang = _terreno == 1 ? sin(_ambiente.tempo*1.4+i*1.9)*2*min(1,fator_efeitos_visuais()) : 0;
+            var _meia_w = _sw*_ex*0.5, _altura = _recorte*_ey;
+            var _ox = _base_x-_meia_w*dcos(_ang)-_altura*dsin(_ang);
+            var _oy = _base_y+_meia_w*dsin(_ang)-_altura*dcos(_ang);
+            draw_set_alpha(1);
+            var _tinta = make_color_rgb(217,211,200);
+            draw_sprite_general(spr_aderecos_terreno,_peca[0],0,0,_sw,_recorte,
+                _ox,_oy,_ex,_ey,_ang,_tinta,_tinta,_tinta,_tinta,_alpha*min(1,_p*2.4));
+        }
+    }
+    draw_set_color(_cor);
+    draw_set_alpha(_alpha);
 }
 
 // Coordenadas da peça física; os slots e suas áreas de interação não mudam.
 function tabuleiro_couro_desenhar(_ambiente, _x = 248, _y = -26, _w = 690, _h = 580) {
     draw_sprite_stretched_ext(spr_tabuleiro_couro, 0, _x+3, _y+7, _w, _h, c_black, 0.28);
     var _papel = shader_is_compiled(shd_mesa_cinza);
-    if (_papel) shader_set(shd_mesa_cinza);
+    if (_papel) {
+        shader_set(shd_mesa_cinza);
+        shader_set_uniform_f(shader_get_uniform(shd_mesa_cinza, "u_area"), _x, _y, _w, _h);
+    }
     draw_sprite_stretched_ext(spr_tabuleiro_couro, 0, _x, _y, _w, _h, c_white, 1);
     if (_papel) shader_reset();
 
-    // Pequenos vestígios de terreno nas bordas, em grafite. Nenhuma partícula
-    // cobre cartas e nenhuma chamada aleatória interfere nos dados da partida.
-    for (var _lado = 0; _lado < 2; _lado++) {
-        var _ex = _x + _w * (_lado == 0 ? 0.055 : 0.945);
-        var _ey = _y + _h * (_lado == 0 ? 0.57 : 0.11);
-        var _direcao = _lado == 0 ? 1 : -1;
-        for (var _i = 0; _i < 5; _i++) {
-            var _py = _ey + _i * _h * 0.045;
-            var _dx = _direcao * _w * (0.012 + 0.004 * sin(_i*7));
-            draw_set_color(make_color_rgb(16,16,16));
-            draw_set_alpha(_ambiente.pesos[1]*0.55);
-            draw_line_width(_ex,_py,_ex+_dx,_py+8,2);
-            draw_line(_ex+_dx,_py+8,_ex+_dx*0.7,_py+18);
-            draw_line(_ex+_dx,_py+8,_ex+_dx*2,_py+5);
-            draw_set_color(make_color_rgb(160,160,160));
-            draw_set_alpha(_ambiente.pesos[2]*0.24);
-            for (var _j=0; _j<5; _j++) {
-                var _po = _direcao * (3 + _j*3);
-                draw_line(_ex+_po,_py+sin(_j*8+_i)*9,_ex+_po+2,_py+sin(_j*8+_i)*9+1);
-            }
-            draw_set_color(c_black);
-            draw_set_alpha(_ambiente.pesos[3]*0.65);
-            draw_line(_ex,_py,_ex+_dx*1.5,_py+5);
-            draw_line(_ex+_dx*1.5,_py+5,_ex+_dx,_py+9);
-            draw_line(_ex+_dx,_py+9,_ex+_dx*2.5,_py+15);
-        }
-    }
-    draw_set_alpha(1);
-    draw_set_color(c_white);
+    mesa_desenhar_aderecos(_ambiente,_x,_y,_w,_h);
 }
 
-function tabuleiro_couro_gravuras() {
+function tabuleiro_couro_gravuras(_piscada) {
     draw_set_color(make_color_rgb(140,140,140));
     draw_set_alpha(0.18);
     // Corredores do campo, entre as molduras, como sulcos feitos à mão.
@@ -164,23 +196,46 @@ function tabuleiro_couro_gravuras() {
     }
     draw_line(496,77,656,77.5);
     draw_line(496,430.5,656,430);
-    draw_line(495,287.5,657,288);
     draw_line(301,449,475,449.5);
     draw_line(680,190,854,190.5);
 
-    // Selo gravado em uma área livre, ao lado do terreno.
-    draw_set_alpha(0.28);
-    draw_line(329,259,352,244);
-    draw_line(352,244,375,259);
-    draw_line(375,259,352,274);
-    draw_line(352,274,329,259);
-    draw_ellipse(339,254,365,264,true);
-    draw_circle(352,259,3,true);
+    // Filetes com pontas em losango delimitam a fileira central pelos dois lados.
+    draw_set_color(make_color_rgb(200, 187, 164));
+    draw_set_alpha(0.48);
+    for (var _j = 0; _j < 2; _j++) {
+        var _fy = 218.5 + _j * 69;
+        draw_line(491, _fy, 661, _fy);
+        for (var _k = 0; _k < 4; _k++) {
+            var _fx = 495 + _k * 54;
+            draw_triangle(_fx-3, _fy, _fx, _fy-2, _fx+3, _fy, false);
+            draw_triangle(_fx-3, _fy, _fx, _fy+2, _fx+3, _fy, false);
+        }
+    }
+
+    // O mesmo olho do baralho, estampado a seco entre a costura e o terreno.
+    draw_set_alpha(1);
+    var _fechar = min(1, fator_efeitos_visuais()) * round(sin(_piscada * pi) * 2) * 0.47;
+    var _piscar = _fechar > 0 && shader_is_compiled(shd_piscar_selo);
+    if (_piscar) {
+        static _recorte = shader_get_uniform(shd_piscar_selo, "u_recorte");
+        static _pixels = shader_get_uniform(shd_piscar_selo, "u_pixels");
+        static _fechamento = shader_get_uniform(shd_piscar_selo, "u_fechamento");
+        var _uv = sprite_get_uvs(spr_selo_espinhos, 0);
+        shader_set(shd_piscar_selo);
+        shader_set_uniform_f(_recorte, _uv[0], _uv[1], _uv[2], _uv[3]);
+        shader_set_uniform_f(_pixels, _uv[4], _uv[5], _uv[6] * sprite_get_width(spr_selo_espinhos),
+            _uv[7] * sprite_get_height(spr_selo_espinhos));
+        shader_set_uniform_f(_fechamento, _fechar);
+    }
+    draw_sprite_stretched_ext(spr_selo_espinhos, 0, 294, 229, 105, 52, c_black, 0.70);
+    draw_sprite_stretched_ext(spr_selo_espinhos, 0, 294, 228, 105, 52, c_white, 0.46);
+    if (_piscar) shader_reset();
     var _fonte = draw_get_font(), _ha = draw_get_halign(), _va = draw_get_valign();
     draw_set_font(Fontenil);
     draw_set_halign(fa_center);
     draw_set_valign(fa_middle);
-    draw_text_transformed(352,288,"K A R T H A",0.32,0.32,0);
+    draw_set_alpha(0.64);
+    draw_text_transformed(346.5,286,"K A R T H A",0.32,0.32,0);
     draw_set_font(_fonte);
     draw_set_halign(_ha);
     draw_set_valign(_va);

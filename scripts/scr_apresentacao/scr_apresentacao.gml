@@ -115,7 +115,10 @@ function apresentacao_animar_ataque_confirmado(_tipo_mensagem, _dados) {
                 obj_controlador.ui_modal.critico_escolha_ativa = true;
                 obj_controlador.carta_menu_aberto = noone;
             } else if (!acertou) {
-                mostrar_feedback(_prefixo + "ERROU — " + string(total), px, py - 58, c_gray, 68);
+                if (instance_exists(atacante) && instance_exists(alvo))
+                    registrar_trajeto_erro(atacante, alvo, _prefixo + "Errou · " + string(total));
+                else mostrar_feedback(_prefixo + "ERROU — " + string(total), px, py - 58, c_gray, 68);
+                if (instance_exists(atacante)) registrar_jogada_recente(atacante.dono, "Ataque errou", atacante.lane_atual);
             } else {
                 mostrar_feedback(_prefixo + "ACERTOU — " + string(total), px, py - 58, c_lime, 52);
             }
@@ -457,6 +460,11 @@ function laboratorio_reiniciar(_lab) {
     }
 }
 
+function escala_pulso_vida(_inicio) {
+    var _p = clamp((current_time - _inicio) / 360, 0, 1);
+    return 1 + 0.65 * sin(_p*pi) * (1-_p) * fator_efeitos_visuais();
+}
+
 function fator_efeitos_visuais() {
     var _nivel=variable_global_exists("intensidade_visual")?global.intensidade_visual:1;
     return _nivel==0?0.35:(_nivel==2?1.35:1);
@@ -475,6 +483,16 @@ function ligar_efeito_alvo(_origem,_alvo,_cor=c_aqua) {
         raio:max(40,sprite_get_width(_alvo.sprite_index)*abs(_alvo.image_xscale)*0.65)});
     if(array_length(obj_controlador.ligacoes_visuais)>12) array_delete(obj_controlador.ligacoes_visuais,0,1);
 }
+function registrar_trajeto_erro(_atacante, _alvo, _rotulo) {
+    if (!instance_exists(_atacante) || !instance_exists(_alvo)) return;
+    var _lista = obj_controlador.ligacoes_visuais;
+    array_push(_lista, { erro: _rotulo, t: 0,
+        x1: _atacante.x - _atacante.sprite_width*0.53, y1: _atacante.y,
+        x2: _alvo.x - _alvo.sprite_width*0.53, y2: _alvo.y });
+    if (array_length(_lista) > 12) array_delete(_lista, 0, 1);
+    obj_controlador.ligacoes_visuais = _lista;
+}
+
 function desenhar_ligacao_gui(_x1,_y1,_x2,_y2,_r,_cor,_tempo) {
     if(_tempo<0 || _tempo>=54) return;
     var _p=_tempo/54, _forca=clamp(fator_efeitos_visuais(),0.55,1.2);
@@ -508,9 +526,57 @@ function desenhar_ligacoes_visuais() {
     var _vx=camera_get_view_x(_cam),_vy=camera_get_view_y(_cam);
     for(var i=0;i<array_length(_c.ligacoes_visuais);i++) {
         var _l=_c.ligacoes_visuais[i];
+        if (variable_struct_exists(_l, "erro")) {
+            var _p = clamp(_l.t / 42, 0, 1);
+            if (_p < 1) {
+                draw_set_alpha(min(1, (1-_p)*2));
+                desenhar_trajeto_ataque((_l.x1-_vx)*_sx, (_l.y1-_vy)*_sy,
+                    (_l.x2-_vx)*_sx-9, (_l.y2-_vy)*_sy, make_color_rgb(201,183,157), _p);
+                desenhar_rotulo_resultado_ataque(_l.erro, (_l.x2-_vx)*_sx-48, (_l.y2-_vy)*_sy-12, 76);
+                draw_set_alpha(1);
+                draw_set_color(c_white);
+            }
+            continue;
+        }
         desenhar_ligacao_gui((_l.x1-_vx)*_sx,(_l.y1-_vy)*_sy,(_l.x2-_vx)*_sx,(_l.y2-_vy)*_sy,
             max(36,_l.raio*max(_sx,_sy)),_l.cor,_l.t);
     }
+}
+
+// O aviso guarda apenas informação pública e continua legível se a carta sair de campo.
+function registrar_jogada_recente(_lado, _texto, _lane = -1, _tropa_movida = noone) {
+    var _c = obj_controlador;
+    if (_lado != "inimigo" && _c.modo_partida != "local") return;
+    _c.jogada_recente_lado = _lado;
+    _c.jogada_recente_tropa = instance_exists(_tropa_movida) && !tropa_oculta_nevoa(_tropa_movida)
+        ? _tropa_movida.nome_carta : "";
+    _c.jogada_recente_texto = _texto + (_lane >= 0 ? " · coluna " + string(_lane+1) : "");
+    _c.jogada_recente_tempo = 4;
+}
+
+function desenhar_jogada_recente() {
+    var _c = obj_controlador;
+    if (_c.jogada_recente_tempo <= 0 || controlador_modal_atual(_c) != ""
+        || _c.ui_modal.historico_aberto || _c.carta_preview != noone || _c.painel_regras_animacao >= 0.005) return;
+    var _alpha = min(1, _c.jogada_recente_tempo / 0.45);
+    var _x = 20 - max(0, _c.jogada_recente_tempo-3.8)*22;
+    var _y = layout_painel_regras().y > 100 ? 150 : 118;
+    var _largura = 230;
+    draw_set_alpha(_alpha * 0.94);
+    draw_set_color(make_color_rgb(28, 26, 27));
+    draw_roundrect(_x, _y, _x+_largura, _y+49, false);
+    draw_set_alpha(_alpha);
+    draw_set_color(make_color_rgb(212, 181, 134));
+    draw_rectangle(_x, _y+4, _x+2, _y+45, false);
+    desenhar_texto_ajustado_ui("ÚLTIMA JOGADA · " + nome_jogador_lado(_c.jogada_recente_lado),
+        _x+10, _y+4, _largura-20, 0.49);
+    draw_set_color(make_color_rgb(241, 235, 222));
+    var _texto = _c.jogada_recente_texto;
+    if (_c.jogada_recente_tropa != "" && !lado_oculto_nevoa(_c.jogada_recente_lado))
+        _texto = string_replace(_texto, "Tropa", _c.jogada_recente_tropa);
+    desenhar_texto_ajustado_ui(_texto, _x+10, _y+22, _largura-20, 0.70);
+    draw_set_color(c_white);
+    draw_set_alpha(1);
 }
 
 // Read-only attack preview: never rolls dice, pays costs or changes the selected weapon.
@@ -538,6 +604,11 @@ function dados_previa_ataque(_carta,_opcao) {
         if(_alvo==noone) _alvo=buscar_defensor_castelo(_carta.lane_atual,lado_oposto(_carta.dono));
         if(_alvo==noone) _nome_alvo="Castelo inimigo";
     }
+    var _castelo = _alvo == noone && _carta.posicao_atual == posicao_assalto(_carta.dono);
+    if (_carta.carnica_estado_proximo_ataque == "autoataque" && !tem_aliado_adjacente(_carta)) {
+        _alvo = _carta;
+        _castelo = false;
+    }
     if(instance_exists(_alvo)) {
         _nome_alvo=_alvo.nome_carta;
         if(_alvo.object_index==obj_carta) _defesa=(_magica?calcular_defesa_magica_total(_alvo):calcular_defesa_fisica_total(_alvo))+obj_controlador.terreno_bonus_defesa;
@@ -550,8 +621,38 @@ function dados_previa_ataque(_carta,_opcao) {
     _texto+="\nBônus, condições e testes são resolvidos ao atacar.";
     if(_carta.iludido_por_imitacao) _texto+="\nImitação: exige novo teste; pode provocar contra-ataque.";
     else if(instance_exists(_alvo)&&_alvo.object_index==obj_carta&&_alvo.dado_dano>0) _texto+="\nFalha crítica pode provocar contra-ataque.";
-    return {alvo:_alvo,texto:_texto};
+    return {alvo:_alvo, castelo:_castelo, texto:_texto};
 }
+// A seta contorna as cartas pela esquerda, deixando livres a ilustração e o menu.
+function desenhar_trajeto_ataque(_x1, _y1, _x2, _y2, _cor, _erro = 0) {
+    var _margem = min(_x1, _x2) - 14;
+    var _pontos_x = [_x1, _margem, _margem, _x2];
+    var _pontos_y = [_y1, _y1, _y2, _y2];
+    var _extensao = (_x1-_margem) + abs(_y2-_y1) + (_x2-_margem);
+    var _apagado = _extensao * sqr(_erro);
+    var _distancia = 0;
+    var _fase = frac(current_time / 680) * 14;
+    for (var i = 0; i < 3; i++) {
+        var _ax = _pontos_x[i], _ay = _pontos_y[i];
+        var _bx = _pontos_x[i+1], _by = _pontos_y[i+1];
+        var _comprimento = point_distance(_ax, _ay, _bx, _by);
+        if (_comprimento < 1) continue;
+        draw_set_color(make_color_rgb(28, 23, 23));
+        var _inicio = clamp((_apagado - _distancia) / _comprimento, 0, 1);
+        if (_inicio < 1) draw_line_width(lerp(_ax,_bx,_inicio), lerp(_ay,_by,_inicio), _bx, _by, 4);
+        draw_set_color(_cor);
+        for (var d = _fase - (_distancia mod 14) - 14; d < _comprimento; d += 14) {
+            var _de = max(_inicio, clamp(d, 0, _comprimento) / _comprimento);
+            var _ate = clamp(d + 8, 0, _comprimento) / _comprimento;
+            if (_ate > _de) draw_line_width(lerp(_ax,_bx,_de), lerp(_ay,_by,_de),
+                lerp(_ax,_bx,_ate), lerp(_ay,_by,_ate), 2);
+        }
+        _distancia += _comprimento;
+    }
+    if (_erro == 0) draw_circle(_x1, _y1, 3, false);
+    draw_triangle(_x2, _y2, _x2-8, _y2-5, _x2-8, _y2+5, false);
+}
+
 function desenhar_previa_ataque() {
     var _c=obj_controlador;
     if(!instance_exists(_c.carta_menu_aberto)||_c.menu_submenu!="ataque"||_c.opcao_hover_index<0
@@ -562,22 +663,43 @@ function desenhar_previa_ataque() {
     if(!is_struct(_prev)) return;
     if(tropa_oculta_nevoa(_prev.alvo)) _prev.texto="TROPA OCULTA PELA NÉVOA\nVocê pode atacar este espaço, mas os atributos ficam ocultos até o fim do turno.";
     var _cam=view_camera[0],_gw=display_get_gui_width(),_gh=display_get_gui_height();
-    var _refs=[_c.carta_menu_aberto,_prev.alvo];
-    draw_set_color(c_aqua);
+    var _sx = _gw/camera_get_view_width(_cam), _sy = _gh/camera_get_view_height(_cam);
+    var _vx = camera_get_view_x(_cam), _vy = camera_get_view_y(_cam);
+    var _origem = _c.carta_menu_aberto;
+    var _cor = make_color_rgb(229, 195, 141);
+    var _ox = (_origem.x-_vx - sprite_get_width(_origem.sprite_index)*abs(_origem.image_xscale)*0.53)*_sx;
+    var _oy = (_origem.y-_vy)*_sy;
+    var _topo_trajeto = _oy, _base_trajeto = _oy;
+    var _refs = [_origem, _prev.alvo];
+    draw_set_color(_cor);
     for(var i=0;i<2;i++) if(instance_exists(_refs[i])) {
-        var _r=_refs[i],_sx=_gw/camera_get_view_width(_cam),_sy=_gh/camera_get_view_height(_cam);
-        var _x=(_r.x-camera_get_view_x(_cam))*_sx,_y=(_r.y-camera_get_view_y(_cam))*_sy;
+        var _r=_refs[i];
+        var _x=(_r.x-_vx)*_sx,_y=(_r.y-_vy)*_sy;
         var _w=sprite_get_width(_r.sprite_index)*abs(_r.image_xscale)*_sx*0.53;
         var _h=sprite_get_height(_r.sprite_index)*abs(_r.image_yscale)*_sy*0.53;
+        _topo_trajeto = min(_topo_trajeto, _y-_h);
+        _base_trajeto = max(_base_trajeto, _y+_h);
         draw_rectangle(_x-_w,_y-_h,_x+_w,_y+_h,true);
+        if (i == 1) desenhar_trajeto_ataque(_ox, _oy, _x-_w, _y-(_r == _origem ? _h*0.6 : 0), _cor);
+    }
+    if (_prev.castelo) {
+        var _destino = obter_posicao_castelo(lado_oposto(_origem.dono));
+        var _cx = (_destino.x-_vx)*_sx, _cy = (_destino.y-_vy)*_sy;
+        _topo_trajeto = min(_topo_trajeto, _cy-8);
+        _base_trajeto = max(_base_trajeto, _cy+8);
+        desenhar_trajeto_ataque(_ox, _oy, _cx-8, _cy, _cor);
+        draw_circle(_cx, _cy, 8, true);
     }
     var _pw=min(520,_gw-24),_px=(_gw-_pw)/2;
     draw_set_font(Fontenil);draw_set_halign(fa_left);draw_set_valign(fa_top);
     var _paginas=paginar_detalhes_carta(_prev.texto,_pw-24,140,0.50);
     var _ph=min(164,string_height(_paginas[0])*0.5+24);
-    draw_set_color(make_color_rgb(15,22,29));draw_set_alpha(0.96);draw_roundrect(_px,12,_px+_pw,12+_ph,false);
-    draw_set_alpha(1);draw_set_color(c_aqua);draw_roundrect(_px,12,_px+_pw,12+_ph,true);
-    draw_set_color(c_white);draw_text_transformed(_px+12,24,_paginas[0],0.5,0.5,0);
+    var _py = 12;
+    if (_topo_trajeto < _ph+24 && _gh-_base_trajeto > _topo_trajeto)
+        _py = _gh-12-_ph;
+    draw_set_color(make_color_rgb(28,26,27));draw_set_alpha(0.96);draw_roundrect(_px,_py,_px+_pw,_py+_ph,false);
+    draw_set_alpha(1);draw_set_color(_cor);draw_roundrect(_px,_py,_px+_pw,_py+_ph,true);
+    draw_set_color(c_white);draw_text_transformed(_px+12,_py+12,_paginas[0],0.5,0.5,0);
     draw_set_font(-1);draw_set_halign(fa_left);draw_set_valign(fa_top);
 }
 
@@ -785,6 +907,20 @@ function desenhar_escudo_bloqueio(_x,_y,_tamanho,_p,_total=true) {
     desenhar_escudo_defesa_formacao(_x,_y,_tamanho*_esc,_f,_alpha);
 }
 
+function desenhar_rotulo_resultado_ataque(_texto, _x, _y, _largura) {
+    var _fonte = draw_get_font(), _ha = draw_get_halign(), _va = draw_get_valign();
+    draw_set_font(Fontenil);
+    draw_set_halign(fa_center);
+    draw_set_valign(fa_middle);
+    var _esc = min(0.68, _largura/max(1, string_width(_texto)));
+    var _hw = string_width(_texto)*_esc/2+4, _hh = string_height(_texto)*_esc/2;
+    draw_set_color(make_color_rgb(36,32,30));
+    draw_roundrect(_x-_hw,_y-_hh,_x+_hw,_y+_hh,false);
+    draw_set_color(make_color_rgb(229,207,167));
+    draw_text_transformed(_x,_y,_texto,_esc,_esc,0);
+    draw_set_halign(_ha); draw_set_valign(_va); draw_set_font(_fonte);
+}
+
 function desenhar_escudos_bloqueio_gui() {
     var _cam=view_camera[0];
     var _sx=display_get_gui_width()/camera_get_view_width(_cam);
@@ -795,9 +931,114 @@ function desenhar_escudos_bloqueio_gui() {
         var _x=(x+ataque_offset_x+recuo_dano_x-_vx)*_sx;
         var _y=(y+y_offset_atual+ataque_offset_y-ataque_elevacao+recuo_dano_y-_vy)*_sy;
         var _w=sprite_get_width(sprite_index)*abs(image_xscale)*_sx*0.72;
-        if(defesa_impacto_timer>0)
-            desenhar_escudo_bloqueio(_x,_y,_w,1-defesa_impacto_timer/defesa_impacto_duracao,defesa_bloqueio_total);
-        else desenhar_escudo_defesa_formacao(_x,_y,_w,defesa_formacao,
+        if(defesa_impacto_timer>0) {
+            var _p = 1-defesa_impacto_timer/defesa_impacto_duracao;
+            desenhar_escudo_bloqueio(_x,_y,_w,_p,defesa_bloqueio_total);
+            if (defesa_bloqueio_total) {
+                var _hw = sprite_width*_sx*0.51, _hh = sprite_height*_sy*0.51;
+                var _alpha = clamp((1-_p)*4, 0, 1);
+                var _cor = make_color_rgb(229,207,167);
+                draw_set_alpha(_alpha);
+                draw_set_color(_cor);
+                draw_rectangle(_x-_hw,_y-_hh,_x+_hw,_y+_hh,true);
+                desenhar_rotulo_resultado_ataque("Bloqueado", _x, _y+_hh*0.64, _hw*2-4);
+                draw_set_color(c_white); draw_set_alpha(1);
+            }
+        } else desenhar_escudo_defesa_formacao(_x,_y,_w,defesa_formacao,
             defesa_presenca*lerp(1,0.65,defesa_formacao));
     }
+}
+
+// A tinta acompanha o papel durante giros, ampliações e animações de dano.
+function desenhar_carta_mesa(_sprite, _frame, _x, _y, _sx, _sy, _rot, _cor, _alpha, _inspecao = 0) {
+    // A escala de entrada se refere à máscara original, inclusive em cartas sem ilustração.
+    if (_sprite == spr_deck || _sprite == spr_carta_placeholder) {
+        var _arte = _sprite == spr_deck ? spr_verso_kartha : spr_papel_carvao;
+        _sx *= sprite_get_width(_sprite) / sprite_get_width(_arte);
+        _sy *= sprite_get_height(_sprite) / sprite_get_height(_arte);
+        _sprite = _arte;
+    }
+    var _papel = _sprite != spr_verso_kartha && shader_is_compiled(shd_papel_carta);
+    if (_papel) {
+        static _recorte = shader_get_uniform(shd_papel_carta, "u_recorte");
+        static _pixels = shader_get_uniform(shd_papel_carta, "u_pixels");
+        static _gesto = shader_get_uniform(shd_papel_carta, "u_gesto");
+        var _uv = sprite_get_uvs(_sprite, floor(_frame) mod sprite_get_number(_sprite));
+        shader_set(shd_papel_carta);
+        shader_set_uniform_f(_recorte, _uv[0], _uv[1], _uv[2], _uv[3]);
+        var _tipo = 0, _dx = 0, _dy = 0;
+        if (_inspecao > 0 && (_sprite == spr_carta_gato_mago || _sprite == spr_carta_esqueleto)) {
+            shader_set_uniform_f(_pixels, _uv[4], _uv[5],
+                _uv[6] * sprite_get_width(_sprite), _uv[7] * sprite_get_height(_sprite));
+            var _intensidade = min(1, fator_efeitos_visuais());
+            if (_sprite == spr_carta_gato_mago) {
+                _tipo = 1;
+                var _olhos_y = _y + (128 - sprite_get_yoffset(_sprite)) * _sy;
+                _dx = clamp((device_mouse_x_to_gui(0) - _x) / (70 * _sx), -1, 1) * 2.2 * _intensidade;
+                _dy = clamp((device_mouse_y_to_gui(0) - _olhos_y) / (70 * _sy), -1, 1) * 1.1 * _intensidade;
+            } else {
+                _tipo = 2;
+                var _batida = clamp((_inspecao - 0.52) / 0.42, 0, 1);
+                _dy = sin(_batida * pi) * 2.4 * _intensidade;
+            }
+        }
+        shader_set_uniform_f(_gesto, _tipo, _dx, _dy);
+    }
+    draw_sprite_ext(_sprite, _frame, _x, _y, _sx, _sy, _rot, _cor, _alpha);
+    if (_papel) shader_reset();
+}
+
+function registrar_rastro_pagamento(_recurso, _destino, _ordem) {
+    if (!instance_exists(obj_controlador)) return;
+    var _ox = _recurso.x, _oy = _recurso.y;
+    // Efeitos sem alvo e ações ocultas deixam a marca junto ao próprio recurso.
+    var _fx = _ox, _fy = _oy - 21;
+    if (instance_exists(_destino)) {
+        var _dx = _ox - _destino.x, _dy = _oy - _destino.y;
+        var _borda = max(1, abs(_dx) / 21, abs(_dy) / 27);
+        _fx = _destino.x + _dx / _borda;
+        _fy = _destino.y + _dy / _borda;
+    }
+    array_push(obj_controlador.rastros_pagamento, {
+        ox: _ox, oy: _oy, fx: _fx, fy: _fy,
+        sprite: _recurso.sprite_index, tempo: -min(0.18, _ordem * 0.045)
+    });
+}
+
+function desenhar_rastros_pagamento(_rastros) {
+    if (array_length(_rastros) == 0) return;
+    var _a = draw_get_alpha(), _c = draw_get_color();
+    var _tinta = make_color_rgb(224, 214, 192);
+    var _forca = min(1, fator_efeitos_visuais());
+    for (var i = 0; i < array_length(_rastros); i++) {
+        var _r = _rastros[i];
+        if (_r.tempo < 0) continue;
+        var _p = clamp(_r.tempo / 0.48, 0, 1);
+        var _opacidade = min(1, _p * 12, (1 - _p) * 6) * _forca;
+        var _px = _r.ox, _py = _r.oy;
+        // Três pinceladas curtas seguem o símbolo, todas em coordenadas da mesa.
+        for (var j = 0; j <= 3; j++) {
+            var _t = max(0, _p - (3 - j) * 0.045);
+            var _suave = _t * _t * (3 - 2 * _t);
+            var _nx = lerp(_r.ox, _r.fx, _suave);
+            var _ny = lerp(_r.oy, _r.fy, _suave) - sin(_t * pi) * 9;
+            if (j > 0) {
+                draw_set_color(_tinta);
+                draw_set_alpha(_opacidade * j / 6);
+                draw_line(_px, _py, _nx, _ny);
+            }
+            _px = _nx; _py = _ny;
+        }
+        if (shader_is_compiled(shd_tinta_recurso)) {
+            // O miolo das quatro cartas contém o símbolo impresso na mesma área.
+            var _esc = 0.12 * (0.8 + 0.2 * sin(_p * pi));
+            shader_set(shd_tinta_recurso);
+            draw_sprite_part_ext(_r.sprite, 0, 72, 98, 144, 164,
+                _px - 72 * _esc + 0.7, _py - 82 * _esc + 1, _esc, _esc, c_black, _opacidade);
+            draw_sprite_part_ext(_r.sprite, 0, 72, 98, 144, 164,
+                _px - 72 * _esc, _py - 82 * _esc, _esc, _esc, _tinta, _opacidade);
+            shader_reset();
+        }
+    }
+    draw_set_alpha(_a); draw_set_color(_c);
 }

@@ -18,3 +18,14 @@ Instruções comuns das variações: Edit this background into a subtle terrain 
 
 
 Ajuste de cor: shd_mesa_cinza remove 92% da saturação dos quatro fundos e clareia 6% os tons. A correção acontece no desenho, também no F7; os PNGs originais ficam preservados.
+
+## Adereços dos terrenos
+
+O arquivo `aderecos_terrenos.png` contém a folha transparente gerada com o ImageGen integrado. Os seis quadros de `spr_aderecos_terreno` seguem a ordem de leitura da folha. O fundo das peças fica alinhado à fenda enquanto o recorte revela o desenho.
+
+<details>
+<summary>Prompt da folha de adereços</summary>
+
+Use case: stylized-concept. A single production terrain-prop sprite atlas for KARTHA, an ink-drawn dark fantasy tabletop card game. Transparent background. Precisely TWO equal columns and THREE equal rows on a square sheet, with SIX independent, centered, fully contained cutouts. Each cell has wide clear margins all around for slicing. Read by rows: TOP LEFT a fan of dark sage marsh grass with two bent cattails pushing through one short jagged wood fissure, TOP RIGHT low creeping broad swamp leaves with a fiddlehead unfurling from a split. MIDDLE LEFT a single chunky tilted arched headstone, incised simple small diamond, chipped face, two tiny weeds where stone rises through a fissure, MIDDLE RIGHT a broken shorter carved grave cross, three small stones and a stub of melted wax candle at its foot. BOTTOM LEFT a low twisting dead thorn bramble with prominent triangular thorns, BOTTOM RIGHT dry splintered thorn stump with two angular prongs and a curl of parched grass. Style a small medieval woodcut from an old grim storybook, irregular hand-inked black contours, a few deliberate hatch strokes, sparse flat muted gray washes. Muted sage for swamp, cool slate for stones, desaturated umber for dry thorn. Must read clearly at only 50px wide in game. Slight three-quarter overhead perspective with an upright silhouette and a narrow ground contact flush at its base. Transparent negative space around every prop, no scenery, ground tiles, paper backing, text, numbers, letters, labels, grid lines, bright colors, glows, realistic rendering or white sticker rim. All six marks distinct, consistent weight and scale.
+
+</details>

@@ -1,6 +1,9 @@
 ambiente_mesa = mesa_ambiente_criar();
 
 gravura_pronta=false;
+gravura_bases = [];
+turno_do_selo = "";
+tempo_piscada = 1;
 gravura_x=-10000;
 gravura_y=-10000;
 

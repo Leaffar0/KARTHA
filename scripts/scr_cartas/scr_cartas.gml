@@ -1906,7 +1906,7 @@ function pode_pagar_custo(_custo, _dono, _categoria = "") {
     return _selecao.sucesso;
 }
 
-function pagar_custo(_custo, _dono, _categoria = "") {
+function pagar_custo(_custo, _dono, _categoria = "", _destino_visual = noone) {
     if (_custo == noone) return true;
     var _selecao = selecionar_recursos_para_custo(_custo, _dono, _categoria);
     if (!_selecao.sucesso) return false;
@@ -1915,6 +1915,7 @@ function pagar_custo(_custo, _dono, _categoria = "") {
         if (!instance_exists(_recurso)) continue;
         _recurso.atraso_virada_visual = min(i * 3, 15);
         _recurso.virado = true;
+        registrar_rastro_pagamento(_recurso, _destino_visual, i);
     }
     return true;
 }
@@ -2095,7 +2096,7 @@ function evoluir_tropa(_carta) {
         debug_combate("Sem recurso suficiente pra evoluir.");
         return;
     }
-    pagar_custo(_dados_evo.custo, _carta.dono, "tropa");
+    pagar_custo(_dados_evo.custo, _carta.dono, "tropa", _carta);
     
     // transfere o dano já sofrido, não reseta a vida
     var _dano_sofrido = _carta.vida_maxima - _carta.vida;
@@ -2348,7 +2349,7 @@ function usar_grimorio_iniciante(_tropa, _magia) {
         }
     }
 
-    pagar_custo(_custo, _tropa.dono, "magica");
+    pagar_custo(_custo, _tropa.dono, "magica", _tropa);
     _tropa.grimorio_usado_este_turno = true;
     tocar_som_magia(_magia);
     if (_magia == "curazinha") {

@@ -56,11 +56,11 @@ if (compra_animando && esta_na_mao) {
     var _largura_virada = max(0.055, abs(cos(_virada * pi)));
     if (_virada < 0.5 || _largura_virada < 0.97) {
         var _verso = _virada < 0.5;
-        var _sprite_compra = _verso ? spr_deck : sprite_index;
+        var _sprite_compra = _verso ? spr_verso_kartha : sprite_index;
         var _escala_x_compra = _escala_final * sprite_get_width(sprite_index) / sprite_get_width(_sprite_compra);
         var _escala_y_compra = _escala_final * sprite_get_height(sprite_index) / sprite_get_height(_sprite_compra);
         draw_set_alpha(1);
-        draw_sprite_ext(_sprite_compra, _verso ? 0 : image_index, _x_desenho, _y_desenho,
+        desenhar_carta_mesa(_sprite_compra, _verso ? 0 : image_index, _x_desenho, _y_desenho,
             _escala_x_compra * _largura_virada, _escala_y_compra, _rotacao_total, c_white, _alpha_carta);
         draw_set_font(-1);
         exit;
@@ -71,9 +71,9 @@ if (compra_animando && esta_na_mao) {
 if (evoluindo && evolucao_progresso < 0.82) {
     var _fase = clamp(evolucao_progresso / 0.82, 0, 1);
     var _face = (_fase < 0.25 && evolucao_sprite_anterior != noone) ? evolucao_sprite_anterior
-        : (_fase < 0.75 ? spr_deck : sprite_index);
+        : (_fase < 0.75 ? spr_verso_kartha : sprite_index);
     var _largura_flip = max(0.035, abs(cos(_fase * pi * 2)));
-    draw_sprite_ext(_face, 0, _x_desenho, _y_desenho,
+    desenhar_carta_mesa(_face, 0, _x_desenho, _y_desenho,
         _escala_final * sprite_get_width(sprite_index) / sprite_get_width(_face) * _largura_flip,
         _escala_final * sprite_get_height(sprite_index) / sprite_get_height(_face),
         _rotacao_total, cor_evolucao, _alpha_carta);
@@ -186,7 +186,7 @@ if (travada && categoria == "tropa" && array_length(itens_equipados) > 0) {
             _equip_x=_encaixe_visual.x;_equip_y=_encaixe_visual.y;
         }
 
-        draw_sprite_ext(_sprite_equipamento, 0, _equip_x, _equip_y,
+        desenhar_carta_mesa(_sprite_equipamento, 0, _equip_x, _equip_y,
             _escala_equipamento, _escala_equipamento, _rotacao_total, _cor_final, _alpha_carta);
 
         // Cartas sem arte usam o placeholder; nesse caso o título é desenhado
@@ -216,7 +216,7 @@ if (travada && categoria == "tropa" && array_length(itens_equipados) > 0) {
     }
 }
 
-draw_sprite_ext(
+desenhar_carta_mesa(
     sprite_index,
     image_index,
     _x_desenho,
@@ -227,6 +227,13 @@ draw_sprite_ext(
     _cor_final,
     _alpha_carta
 );
+
+if (travada && !morrendo && tem_condicao(id,"congelado")) {
+    draw_sprite_ext(spr_congelado,0,_x_desenho,_y_desenho,
+        sprite_get_width(sprite_index)*_escala_final/sprite_get_width(spr_congelado),
+        sprite_get_height(sprite_index)*_escala_final/sprite_get_height(spr_congelado),
+        _rotacao_total,make_color_rgb(173,208,221),0.50*_alpha_carta);
+}
 
 if (morrendo) {
     var _brasa_alpha = (1 - _progresso_morte) * 0.85;
@@ -257,7 +264,7 @@ if (armadilha_estado == "vigiando" || armadilha_estado == "pronta") {
     var _cor_brilho = merge_color(c_white, _cor_base, 0.2); // suaviza a cor, não fica saturada
 
     draw_set_alpha(_pulso_brilho * 0.15); // era 0.5, bem mais discreto agora
-    draw_sprite_ext(sprite_index, image_index, _x_desenho, _y_desenho, _escala_final * 1.05, _escala_final * 1.05, _rotacao_total, _cor_brilho, 1);
+    desenhar_carta_mesa(sprite_index, image_index, _x_desenho, _y_desenho, _escala_final * 1.05, _escala_final * 1.05, _rotacao_total, _cor_brilho, 1);
     draw_set_alpha(1);
 }
 
@@ -294,7 +301,9 @@ if (!tem_arte_propria) {
 if (categoria == "tropa") {
     var _escala_texto_fallback = escala_atual * (travada ? escala_no_campo : 1) * global.ESCALA_TEXTO_CARTA;
 
-	desenhar_stat(self, vida, vida_pos_x, vida_pos_y, _x_desenho, _y_desenho, _rotacao_total, _escala_final, _escala_texto_fallback);
+	var _pulso = escala_pulso_vida(vida_pulso_inicio);
+    desenhar_stat(self, string(vida), vida_pos_x, vida_pos_y, _x_desenho, _y_desenho, _rotacao_total,
+        _escala_final * _pulso, _escala_texto_fallback * _pulso, true);
 	desenhar_stat(self, string(nivel_inteligencia), int_pos_x, int_pos_y, _x_desenho, _y_desenho, _rotacao_total, _escala_final, _escala_texto_fallback, true);
 	desenhar_stat(self, string(mochila), mochila_pos_x, mochila_pos_y, _x_desenho, _y_desenho, _rotacao_total, _escala_final, _escala_texto_fallback, true);
 	desenhar_stat(self, calcular_defesa_fisica_total(self), def_pos_x, def_pos_y, _x_desenho, _y_desenho, _rotacao_total, _escala_final, _escala_texto_fallback);
@@ -328,36 +337,6 @@ draw_set_valign(fa_top);
 // O escudo de defesa é desenhado no GUI, acima das cartas.
 desenhar_efeitos_identidade(id, _x_desenho, _y_desenho, _escala_final, _rotacao_total, _alpha_carta);
 
-// A aplicação deixa um vestígio breve na borda da carta.
-if (travada && efeito_timer > 0 && efeito_timer <= 18 && !morrendo) {
-    var _p_condicao = 1 - efeito_timer / 18;
-    var _canto_x = _x_desenho + sprite_get_width(sprite_index) * _escala_final * 0.40;
-    var _canto_y = _y_desenho - sprite_get_height(sprite_index) * _escala_final * 0.39;
-    draw_set_alpha(0.72 * sqr(1 - _p_condicao));
-    if (efeito_visual_tipo == "queimado") {
-        draw_set_color(make_color_rgb(240, 143, 70));
-        for (var _brasa_cond = 0; _brasa_cond < 3; _brasa_cond++) {
-            var _brasa_x = _canto_x - _brasa_cond * 5 + _p_condicao * 5;
-            var _brasa_y = _canto_y + _brasa_cond * 3 - _p_condicao * 12;
-            draw_rectangle(_brasa_x, _brasa_y, _brasa_x + 2, _brasa_y + 2, false);
-        }
-    } else if (efeito_visual_tipo == "congelado") {
-        draw_set_color(make_color_rgb(181, 222, 233));
-        draw_line(_canto_x - 17, _canto_y - 2, _canto_x - 6, _canto_y + 6);
-        draw_line(_canto_x - 6, _canto_y + 6, _canto_x, _canto_y + 15);
-        draw_line(_canto_x - 6, _canto_y + 6, _canto_x - 12, _canto_y + 14);
-    } else if (efeito_visual_tipo != "envenenado") {
-        draw_set_color(obter_config_condicao(efeito_visual_tipo).cor);
-        draw_line(_canto_x - 11, _canto_y, _canto_x, _canto_y);
-        draw_line(_canto_x, _canto_y, _canto_x, _canto_y + 10);
-    }
-    draw_set_alpha(1);
-    draw_set_color(c_white);
-}
-
-#region Indicadores compactos
-if (travada) desenhar_condicoes_compactas(id, _x_desenho, _y_desenho, _escala_final);
-#endregion
-
-
-
+// A faixa lateral acompanha a posição efetivamente desenhada, inclusive durante o recuo.
+condicoes_visual_x = _x_desenho;
+condicoes_visual_y = _y_desenho;

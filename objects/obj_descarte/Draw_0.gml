@@ -33,7 +33,7 @@ for (var _i = 0; _i < array_length(cartas_caindo); _i++) {
     var _encaixe = 28/max(1,sprite_get_width(_c.sprite));
     var _esc = lerp(_c.escala, _encaixe, _suave) * power(1-_queda, 1.5);
     var _angulo = lerp(_c.angulo, -12, _suave) + _queda*100;
-    draw_sprite_ext(_c.sprite,0,_px,_py,_esc,_esc*(1-_queda*0.5),_angulo,
+    desenhar_carta_mesa(_c.sprite,0,_px,_py,_esc,_esc*(1-_queda*0.5),_angulo,
         merge_color(c_white,c_black,_queda*0.95),1-power(_queda,2));
 }
 

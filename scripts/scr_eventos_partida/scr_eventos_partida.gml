@@ -70,6 +70,7 @@ function evento_partida_aplicar(_evento) {
                 tocar_som_variado("critico", 0.40, 0.90);
             if (instance_exists(_dados.alvo)) {
                 aplicar_flash_dano(_dados.alvo, 18, _dados.atacante, _dados.defesa, _dados.critico);
+                if (_dados.defesa <= 0) _dados.alvo.defesa_impacto_timer = 0;
                 if (_dados.defesa > 0) {
                     _dados.alvo.defesa_bloqueio_total = _dados.dano <= 0;
                     if (!_dados.critico || _dados.dano <= 0)
@@ -84,12 +85,15 @@ function evento_partida_aplicar(_evento) {
             } else if (_dados.dano > 0) {
                 mostrar_feedback("-" + string(_dados.dano), _dados.x, _dados.y, c_red, 42);
             }
-            if (_dados.texto != "")
+            if (_dados.texto != "" && !(_dados.defesa > 0 && _dados.dano == 0))
                 mostrar_feedback(_dados.texto, _dados.x, _dados.y - 55, _dados.cor, 82);
             return true;
 
         case "dano_tropa":
             if (!instance_exists(_dados.alvo)) return false;
+            if (instance_exists(_dados.atacante))
+                registrar_jogada_recente(_dados.atacante.dono, _dados.dano == 0 && _dados.defesa > 0
+                    ? "Ataque bloqueado" : "Tropa recebeu " + string(_dados.dano) + " de dano", _dados.alvo.lane_atual);
             apresentar_impacto_tropa(_dados.atacante, _dados.alvo, _dados.dano, _dados.defesa, _dados.texto, _dados.cor, _dados.critico, _dados.tipo_ataque == "magica");
             _dados.alvo.vida = max(0, _dados.alvo.vida - _dados.dano);
             debug_combate(_dados.alvo.nome_carta + " tomou " + string(_dados.dano)
@@ -105,9 +109,12 @@ function evento_partida_aplicar(_evento) {
 
         case "dano_construcao":
             if (!instance_exists(_dados.alvo)) return false;
+            if (instance_exists(_dados.atacante))
+                registrar_jogada_recente(_dados.atacante.dono, "Construção recebeu " + string(_dados.dano) + " de dano", _dados.alvo.lane_atual);
             var _atraso_construcao = iniciar_animacao_ataque(_dados.atacante, _dados.alvo,
                 _dados.critico ? 21 : 18, 18, _dados.critico);
             _dados.alvo.vida = max(0, _dados.alvo.vida - _dados.dano);
+            if (_dados.dano > 0) _dados.alvo.vida_pulso_inicio = current_time;
             var _texto_construcao = (_dados.texto != "") ? _dados.texto : "-" + string(_dados.dano);
             var _feedback_construcao = evento_feedback_criar(_texto_construcao, _dados.alvo.x,
                 _dados.alvo.y - 44, _dados.cor, 55);
@@ -119,6 +126,8 @@ function evento_partida_aplicar(_evento) {
             return true;
 
         case "dano_castelo":
+            if (instance_exists(_dados.atacante))
+                registrar_jogada_recente(_dados.atacante.dono, "Castelo recebeu " + string(_dados.dano) + " de dano", _dados.atacante.lane_atual);
             if (instance_exists(_dados.atacante)) iniciar_animacao_ataque(_dados.atacante, noone, 18, 18);
             causar_dano_castelo(_dados.lado, _dados.dano);
             if (_dados.texto != "") {

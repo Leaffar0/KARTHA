@@ -1,3 +1,4 @@
+desenhar_rastros_pagamento(rastros_pagamento);
 #region Tooltip compacto dos efeitos ativos
 // Os espaços são desenhados pelo obj_tabuleiro, atrás das cartas. Aqui fica apenas o tooltip.
 var _tooltip_efeito_entrada = noone;

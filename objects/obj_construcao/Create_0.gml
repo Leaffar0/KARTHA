@@ -19,3 +19,5 @@ usa_sprite_carta = false;
 escala_visual_base = 1;
 vida_pos_x = 0.16;
 vida_pos_y = 0.12;
+
+vida_pulso_inicio = -1000;

@@ -23,11 +23,19 @@ for (var _m = array_length(marcas_mesa)-1; _m >= 0; _m--) {
     marcas_mesa[_m].tempo++;
     if (marcas_mesa[_m].tempo >= 150) array_delete(marcas_mesa, _m, 1);
 }
+var _dt_tinta = min(delta_time / 1000000, 0.1);
+for (var _r = array_length(rastros_pagamento) - 1; _r >= 0; _r--) {
+    rastros_pagamento[_r].tempo += _dt_tinta;
+    if (rastros_pagamento[_r].tempo >= 0.48) array_delete(rastros_pagamento, _r, 1);
+}
 for(var _lv=array_length(ligacoes_visuais)-1;_lv>=0;_lv--) {
     ligacoes_visuais[_lv].t++;
     if(ligacoes_visuais[_lv].t>=54) array_delete(ligacoes_visuais,_lv,1);
 }
 var _painel_som=controlador_modal_atual(id);
+if (_painel_som == "" && !ui_modal.historico_aberto && carta_preview == noone
+    && painel_regras_animacao < 0.005)
+    jogada_recente_tempo = max(0, jogada_recente_tempo - _dt_tinta);
 if(_painel_som=="") _painel_som=ui_modal.historico_aberto?"historico":(instance_exists(carta_menu_aberto)?"acoes":"");
 if(_painel_som!=audio_painel_anterior) {
     if(_painel_som!="fim_partida") tocar_som_variado(_painel_som==""?"painel_fechar":"painel_abrir",0.22);

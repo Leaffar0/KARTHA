@@ -59,6 +59,8 @@ armadilha_visual_id = noone;
 
 efeito_timer = 0;
 efeito_visual_tipo = "";
+condicoes_visual_x = x;
+condicoes_visual_y = y;
 efeito_tipo = ""; // qual magia essa carta é: "bola_fogo", "veneno", "gelo", "choque"
 vezes_eletrocutado_seguidas = 0;
 eletrocutado_neste_ciclo = false;
@@ -229,3 +231,5 @@ leque_equipamento = 0;
 
 defesa_formacao = 0;
 defesa_presenca = 0;
+
+vida_pulso_inicio = -1000;

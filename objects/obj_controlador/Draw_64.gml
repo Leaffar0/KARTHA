@@ -1,11 +1,12 @@
 desenhar_cortina_nevoa();
 desenhar_escudos_bloqueio_gui();
+desenhar_condicoes_campo_gui();
 #region Informações da partida
 draw_set_font(Fontenil);
 desenhar_resumo_regras_turno();
 
-var _cor_vida_jogador = make_color_rgb(45, 125, 255);
-var _cor_vida_inimigo = make_color_rgb(225, 55, 55);
+var _cor_vida_jogador = make_color_rgb(58, 82, 92);
+var _cor_vida_inimigo = make_color_rgb(114, 62, 61);
 var _rotulo_vida_jogador = (modo_partida == "online") ? global.online_nome_jogador : ((modo_partida == "local") ? "Jogador 1" : "Jogador");
 var _rotulo_vida_inimigo = (modo_partida == "online") ? global.online_nome_inimigo : ((modo_partida == "local") ? "Jogador 2" : "Inimigo");
 var _tremor_castelo = (dano_castelo_impacto_timer > 0) ? sin(dano_castelo_impacto_timer * 4.7) * dano_castelo_impacto_timer * 0.55 : 0;
@@ -31,7 +32,7 @@ draw_roundrect(_barra_x1, _barra_jogador_y1,
 draw_set_color(_cor_vida_inimigo);
 draw_roundrect(_barra_x1, _barra_inimigo_y1,
     _barra_x1 + (_barra_x2 - _barra_x1) * _proporcao_inimigo, _barra_inimigo_y1 + _barra_altura, false);
-draw_set_color(c_white);
+draw_set_color(make_color_rgb(189, 177, 154));
 draw_roundrect(_barra_x1 - _pulso_jogador, _barra_jogador_y1 - _pulso_jogador,
     _barra_x2 + _pulso_jogador, _barra_jogador_y1 + _barra_altura + _pulso_jogador, true);
 draw_roundrect(_barra_x1 - _pulso_inimigo, _barra_inimigo_y1 - _pulso_inimigo,
@@ -68,6 +69,8 @@ draw_text(20, 82, (turno == "preparacao") ? "Disputa inicial"
     : ((turno == "jogador") ? "Seu turno" : "Turno do inimigo")));
 
 var _hud_largura = display_get_gui_width();
+desenhar_jogada_recente();
+
 var _hud_direita_x1 = _hud_largura - 205 + hud_deslocamento_direita;
 var _hud_direita_x2 = _hud_largura - 15 + hud_deslocamento_direita;
 desenhar_botao_hud_carta(_hud_direita_x1,152,_hud_direita_x2,184,"PAUSA","P");
@@ -385,7 +388,7 @@ if (instance_exists(previa_visual_carta) && previa_visual_progresso > 0 && contr
             var _es = min((_passo - 4) / sprite_get_width(_spr), 66 / sprite_get_height(_spr));
             var _ix = _painel_x + 14 + _eq * _passo;
             var _iy = _painel_y + 42;
-            draw_sprite_ext(_spr, 0, _ix + sprite_get_xoffset(_spr) * _es,
+            desenhar_carta_mesa(_spr, 0, _ix + sprite_get_xoffset(_spr) * _es,
                 _iy + sprite_get_yoffset(_spr) * _es, _es, _es, 0, c_white, _abertura_painel);
         }
     }
@@ -405,7 +408,7 @@ if (instance_exists(previa_visual_carta) && previa_visual_progresso > 0 && contr
         _centro_x+_largura_real*_escala_preview*0.5+8,
         _centro_y+_altura_real*_escala_preview*0.5+12,false);
     draw_set_alpha(1);draw_set_color(c_white);
-    draw_sprite_ext(
+    desenhar_carta_mesa(
         _carta.sprite_index,
         _carta.image_index,
         _centro_x + (sprite_get_xoffset(_carta.sprite_index) - _largura_real * 0.5) * _escala_preview,
@@ -414,7 +417,8 @@ if (instance_exists(previa_visual_carta) && previa_visual_progresso > 0 && contr
         _escala_preview,
         0,
         c_white,
-        1
+        1,
+        _carta == carta_preview ? previa_visual_progresso : 0
     );
 
     if (!_carta.tem_arte_propria) {
@@ -587,7 +591,7 @@ if (ui_modal.descarte_aberto) {
         var _escala_descartada = min(155 / sprite_get_width(_sprite_descartada), 210 / sprite_get_height(_sprite_descartada));
         var _descricao_descartada = variable_struct_exists(_carta_descartada, "descricao") ? _carta_descartada.descricao : "Informações da carta indisponíveis nesta partida.";
 
-        draw_sprite_ext(_sprite_descartada, 0, _descarte_x1 + 28, _descarte_y1 + 94, _escala_descartada, _escala_descartada, 0, c_white, 1);
+        desenhar_carta_mesa(_sprite_descartada, 0, _descarte_x1 + 28, _descarte_y1 + 94, _escala_descartada, _escala_descartada, 0, c_white, 1);
         draw_set_color(c_aqua);
         draw_text(_descarte_x1 + 205, _descarte_y1 + 94, _carta_descartada.nome);
         draw_set_color(c_white);

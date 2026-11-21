@@ -1,7 +1,7 @@
 // A mesa cobre toda a sala; a câmera e os slots mantêm suas posições.
 mesa_ambiente_desenhar(ambiente_mesa, 0, 0, room_width, room_height);
 tabuleiro_couro_desenhar(ambiente_mesa);
-tabuleiro_couro_gravuras();
+tabuleiro_couro_gravuras(tempo_piscada);
 mesa_ambiente_atmosfera(ambiente_mesa,0,0,room_width,room_height);
 
 #region Espaços de efeitos ativos
@@ -43,7 +43,7 @@ if (instance_exists(obj_controlador)) {
                 if (_efeito_sprite != noone) {
                     var _efeito_escala_sprite = min((_efeito_largura_slot - 5) / sprite_get_width(_efeito_sprite),
                         (_efeito_altura_slot - 5) / sprite_get_height(_efeito_sprite));
-                    draw_sprite_ext(_efeito_sprite, 0, (_efeito_x1 + _efeito_x2) / 2,
+                    desenhar_carta_mesa(_efeito_sprite, 0, (_efeito_x1 + _efeito_x2) / 2,
                         (_efeito_y1 + _efeito_y2) / 2, _efeito_escala_sprite, _efeito_escala_sprite, 0, c_white, 1);
                 }
 

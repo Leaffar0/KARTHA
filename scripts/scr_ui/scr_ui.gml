@@ -968,7 +968,7 @@ function alvos_previa_arrasto(_carta) {
                 if (!_aceita) continue;
             }
         }
-        array_push(_alvos, { x: _alvo.x, y: _alvo.y, raio: _raio, motivo: _motivo });
+        array_push(_alvos, { slot: _alvo.id, x: _alvo.x, y: _alvo.y, raio: _raio, motivo: _motivo });
     }
     if (_categoria == "magica" && _carta.efeito_tipo == "bola_fogo") {
         for (var i = 0; i < instance_number(obj_construcao); i++) {
@@ -1038,38 +1038,155 @@ function desenhar_ajuda_arrasto_gui() {
     draw_set_color(c_white);
 }
 
-function sigla_condicao(_tipo) {
-    switch (_tipo) {
-        case "queimado": return "QU"; case "envenenado": return "VE";
-        case "paralisado": return "PA"; case "congelado": return "GE";
-        case "confusao": return "CF"; case "adormecido": return "SO";
-        case "berserker": return "BE"; case "loucura": return "LO";
-        case "sangrando": return "SA"; case "corrosao": return "CO";
-        case "apodrecer": return "AP"; case "regeneracao": return "RE";
-        case "eletrocutado": return "EL";
+// Usa a área ocupada pelo desenho: a chama original fica no canto de um quadro transparente.
+function desenhar_sinal_condicao(_tipo, _config, _x, _y, _r) {
+    var _spr = _config.sprite;
+    draw_set_color(_config.cor);
+    if (sprite_exists(_spr)) {
+        var _left = sprite_get_bbox_left(_spr), _top = sprite_get_bbox_top(_spr);
+        var _w = sprite_get_bbox_right(_spr)-_left+1, _h = sprite_get_bbox_bottom(_spr)-_top+1;
+        // Centraliza o frasco, conservando uma parte das gotas dentro do selo.
+        if (_spr == spr_veneno) _h = min(_h,33);
+        var _esc = min(2*_r/_w, 2*_r/_h);
+        var _frame = floor(current_time * sprite_get_speed(_spr) / 1000) mod sprite_get_number(_spr);
+        var _ox = _x-_w*_esc/2, _oy = _y-_h*_esc/2;
+        // A faísca possui quadros de apagão. A silhueta continua identificável entre eles.
+        if (_spr == spr_eletrocutado && _frame != 0)
+            draw_sprite_part_ext(_spr,0,_left,_top,_w,_h,_ox,_oy,_esc,_esc,_config.cor,0.55);
+        draw_sprite_part_ext(_spr,_frame,_left,_top,_w,_h,_ox,_oy,_esc,_esc,_config.cor,1);
+        return;
     }
-    return "?";
+    var _traco = max(1, _r*0.24);
+    switch (_tipo) {
+        case "paralisado":
+            draw_line_width(_x-_r*0.44,_y-_r*0.72,_x-_r*0.44,_y+_r*0.72,_traco*1.5);
+            draw_line_width(_x+_r*0.44,_y-_r*0.72,_x+_r*0.44,_y+_r*0.72,_traco*1.5);
+            break;
+        case "sangrando":
+            draw_triangle(_x,_y-_r,_x-_r*0.62,_y+_r*0.2,_x+_r*0.62,_y+_r*0.2,false);
+            draw_circle(_x,_y+_r*0.22,_r*0.62,false);
+            break;
+        case "regeneracao":
+            draw_line_width(_x-_r*0.8,_y,_x+_r*0.8,_y,_traco*1.4);
+            draw_line_width(_x,_y-_r*0.8,_x,_y+_r*0.8,_traco*1.4);
+            break;
+        case "berserker":
+            for (var i=-1; i<=1; i++)
+                draw_line_width(_x+_r*(i*0.55-0.22),_y+_r*0.74,_x+_r*(i*0.55+0.22),_y-_r*0.74,_traco);
+            break;
+        case "loucura":
+            draw_ellipse(_x-_r,_y-_r*0.54,_x+_r,_y+_r*0.54,true);
+            draw_circle(_x,_y,_r*0.32,false);
+            break;
+        case "corrosao":
+            draw_circle(_x-_r*0.52,_y+_r*0.28,_r*0.43,true);
+            draw_circle(_x+_r*0.4,_y-_r*0.42,_r*0.39,true);
+            draw_circle(_x+_r*0.52,_y+_r*0.58,_r*0.18,false);
+            break;
+        case "apodrecer":
+            draw_triangle(_x-_r*0.7,_y+_r*0.65,_x-_r*0.48,_y-_r*0.48,_x+_r*0.83,_y-_r*0.78,true);
+            draw_line_width(_x-_r*0.9,_y+_r*0.85,_x+_r*0.37,_y-_r*0.32,_traco);
+            break;
+        default:
+            var _sinal = _tipo == "adormecido" ? "Zz" : "?";
+            var _esc_texto = min(_r*2/string_width(_sinal), _r*2.8/string_height(_sinal));
+            draw_text_transformed(_x,_y,_sinal,_esc_texto,_esc_texto,0);
+            break;
+    }
 }
 
-function desenhar_condicoes_compactas(_carta, _x, _y, _escala) {
-    var _total = array_length(_carta.condicoes);
-    if (_total == 0 || _carta.morrendo) return;
-    var _topo = _y - sprite_get_height(_carta.sprite_index) * _escala * 0.5 - 9;
-    draw_set_font(Fontenil); draw_set_halign(fa_center); draw_set_valign(fa_middle);
-    for (var i = 0; i < min(9, _total); i++) {
+function duracao_condicao_exibida(_turnos) {
+    if (_turnos < 0) return "sem duração fixa";
+    return string(_turnos) + (_turnos == 1 ? " turno" : " turnos");
+}
+
+function desenhar_lista_condicoes(_carta, _esquerda, _direita, _cy) {
+    var _linhas = [], _largura = 0;
+    var _esc = 0.56, _passo = ceil(string_height("Ag")*_esc)+4;
+    for (var i=0; i<array_length(_carta.condicoes); i++) {
         var _estado = _carta.condicoes[i];
-        var _config = obter_config_condicao(_estado.tipo);
-        var _bx = _x + ((i mod 3) - 1) * 27;
-        var _by = _topo - floor(i / 3) * 15;
-        draw_set_alpha(0.94); draw_set_color(make_color_rgb(14, 18, 24));
-        draw_roundrect(_bx - 13, _by - 6, _bx + 13, _by + 6, false);
-        draw_set_alpha(1); draw_set_color(_config.cor);
-        draw_roundrect(_bx - 13, _by - 6, _bx + 13, _by + 6, true);
-        var _texto = sigla_condicao(_estado.tipo) + (_estado.turnos > 0 ? string(_estado.turnos) : "-");
-        if (i == 8 && _total > 9) _texto = "+" + string(_total - 8);
-        draw_text_transformed(_bx, _by, _texto, 0.28, 0.28, 0);
+        var _linha = obter_config_condicao(_estado.tipo).nome + "  ·  " + duracao_condicao_exibida(_estado.turnos);
+        array_push(_linhas,_linha);
+        _largura = max(_largura, string_width(_linha)*_esc);
     }
-    draw_set_alpha(1); draw_set_color(c_white); draw_set_halign(fa_left); draw_set_valign(fa_top);
+    _largura += 42;
+    var _altura = array_length(_linhas)*_passo+10;
+    var _x = _esquerda-8-_largura;
+    if (_x < 4) _x = min(_direita+8, display_get_gui_width()-_largura-4);
+    var _y = clamp(_cy-_altura/2, 4, display_get_gui_height()-_altura-4);
+    draw_set_color(make_color_rgb(29,26,25));
+    draw_roundrect(_x,_y,_x+_largura,_y+_altura,false);
+    draw_set_color(make_color_rgb(150,132,104));
+    draw_roundrect(_x,_y,_x+_largura,_y+_altura,true);
+    for (var i=0; i<array_length(_linhas); i++) {
+        var _linha_y = _y+5+(i+0.5)*_passo;
+        var _tipo = _carta.condicoes[i].tipo;
+        draw_set_halign(fa_center);
+        desenhar_sinal_condicao(_tipo,obter_config_condicao(_tipo),_x+15,_linha_y,min(8,_passo*0.38));
+        draw_set_halign(fa_left);
+        draw_set_color(make_color_rgb(238,227,207));
+        draw_text_transformed(_x+30,_linha_y,_linhas[i],_esc,_esc,0);
+    }
+}
+
+// Uma única passagem depois do desenho do campo mantém os selos visíveis entre fileiras.
+function desenhar_condicoes_campo_gui() {
+    var _cam = view_camera[0];
+    var _sx = display_get_gui_width()/camera_get_view_width(_cam), _sy = display_get_gui_height()/camera_get_view_height(_cam);
+    var _vx = camera_get_view_x(_cam), _vy = camera_get_view_y(_cam);
+    var _mx = device_mouse_x_to_gui(0), _my = device_mouse_y_to_gui(0);
+    var _hover = noone, _esquerda = 0, _direita = 0, _hy = 0;
+    var _ctrl = obj_controlador;
+    if (controlador_modal_atual(_ctrl) != "" || _ctrl.carta_preview != noone || _ctrl.ui_modal.historico_aberto) return;
+    var _fonte = draw_get_font(), _ha = draw_get_halign(), _va = draw_get_valign();
+    var _cor = draw_get_color(), _alpha = draw_get_alpha();
+    draw_set_font(Fontenil); draw_set_halign(fa_center); draw_set_valign(fa_middle);
+    draw_set_alpha(1);
+    with (obj_carta) {
+        var _total = array_length(condicoes);
+        if (!_total || !travada || esta_na_mao || morrendo || tropa_oculta_nevoa(id)) continue;
+        var _hw = sprite_width*_sx*0.5, _h = sprite_height*_sy;
+        var _cx = (condicoes_visual_x-_vx)*_sx, _cy = (condicoes_visual_y-_vy)*_sy;
+        var _n = min(_total,4);
+        var _lado = min(24,_h*0.66/_n-1,_hw*0.52);
+        var _x = _cx-_hw+_lado*0.39;
+        var _passo = _lado+1, _topo = _cy-_n*_passo/2;
+        for (var i=0; i<_n; i++) {
+            var _y = _topo+(i+0.5)*_passo;
+            var _estado = condicoes[i], _config = obter_config_condicao(_estado.tipo);
+            var _resumo = i==_n-1 && _total>_n;
+            var _pulso = !_resumo && efeito_visual_tipo==_estado.tipo && efeito_timer<=18 ? max(0,efeito_timer/18) : 0;
+            var _r = _lado/2;
+            draw_set_color(make_color_rgb(32,29,28));
+            draw_roundrect(_x-_r,_y-_r,_x+_r,_y+_r,false);
+            draw_set_color(merge_color(make_color_rgb(134,117,92), c_white, _pulso));
+            draw_roundrect(_x-_r,_y-_r,_x+_r,_y+_r,true);
+            if (_resumo) {
+                var _mais = "+" + string(_total-i);
+                draw_set_color(make_color_rgb(234,224,201));
+                var _esc = min(_lado*0.81/string_width(_mais),_lado/string_height(_mais));
+                draw_text_transformed(_x,_y,_mais,_esc,_esc,0);
+            } else {
+                var _finito = _estado.turnos > 0;
+                desenhar_sinal_condicao(_estado.tipo,_config,_x-(_finito?_r*0.19:0),_y,_r*0.78);
+                if (_finito) {
+                    var _num = string(_estado.turnos);
+                    var _en = min(_lado*0.45/string_width(_num),_lado*0.61/string_height(_num));
+                    draw_set_color(make_color_rgb(32,29,28));
+                    draw_circle(_x+_r*0.55,_y+_r*0.36,_r*0.36,false);
+                    draw_set_color(make_color_rgb(255,242,210));
+                    draw_text_transformed(_x+_r*0.55,_y+_r*0.36,_num,_en,_en,0);
+                }
+            }
+        }
+        if (point_in_rectangle(_mx,_my,_x-_lado/2,_topo,_x+_lado/2,_topo+_n*_passo)) {
+            _hover = id; _esquerda = _cx-_hw; _direita = _cx+_hw; _hy = _cy;
+        }
+    }
+    if (instance_exists(_hover) && !instance_exists(_ctrl.carta_menu_aberto) && !mouse_sobre_painel_regras())
+        desenhar_lista_condicoes(_hover,_esquerda,_direita,_hy);
+    draw_set_font(_fonte); draw_set_halign(_ha); draw_set_valign(_va);
+    draw_set_color(_cor); draw_set_alpha(_alpha);
 }
 
 function disponibilidade_carta_mao(_carta) {
@@ -1244,9 +1361,9 @@ function desenhar_animacoes_cartas_mesa() {
         var _p = clamp(_anim.timer / _anim.duracao, 0, 1);
         if (_anim.tipo == "armadilha") {
             var _virada = clamp(_anim.timer / 12, 0, 1);
-            var _sprite = _virada < 0.5 ? spr_deck : _anim.sprite;
+            var _sprite = _virada < 0.5 ? spr_verso_kartha : _anim.sprite;
             var _esc = 51 / sprite_get_width(_sprite);
-            draw_sprite_ext(_sprite, 0, _anim.destino_x, _anim.destino_y - 9 * sin(_p * pi),
+            desenhar_carta_mesa(_sprite, 0, _anim.destino_x, _anim.destino_y - 9 * sin(_p * pi),
                 _esc * max(0.05, abs(cos(_virada * pi))), _esc, 0, c_white, min(1, (1 - _p) * 4));
         } else {
             // Equipamentos são desenhados no Draw da tropa, atrás dela.
@@ -1263,7 +1380,7 @@ function desenhar_animacoes_cartas_mesa() {
             var _esc = lerp(64, 76, _deslize) / sprite_get_width(_anim.sprite);
             // Some no encaixe para revelar a carta que já está na pilha.
             var _alpha = instance_exists(_anim.tropa) ? min(1, (1 - _p) * 5) : min(1, (1 - _p) * 3);
-            draw_sprite_ext(_anim.sprite, 0, _x, _y, _esc, _esc,
+            desenhar_carta_mesa(_anim.sprite, 0, _x, _y, _esc, _esc,
                 -9 * sin(_p * pi), merge_color(c_white, _anim.cor, 0.10 * sin(_p * pi)), _alpha);
         }
     }

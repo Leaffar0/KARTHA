@@ -2,7 +2,7 @@ var _escala_x_final = escala_base * pulso_x;
 var _escala_y_final = escala_base * pulso_y;
 
 desenhar_sombra_contato(sprite_index,image_index,x,y,_escala_x_final,_escala_y_final,image_angle,entrando?8:0,alpha_visual);
-draw_sprite_ext(sprite_index, image_index, x, y, _escala_x_final, _escala_y_final, image_angle, c_white, alpha_visual);
+desenhar_carta_mesa(sprite_index, image_index, x, y, _escala_x_final, _escala_y_final, image_angle, c_white, alpha_visual);
 // Terrenos ainda sem ilustração mantêm seu nome visível no campo.
 if(is_struct(dados_carta) && dados_carta.categoria=="terreno"
     && !sprite_exists(dados_carta.sprite_carta)) {

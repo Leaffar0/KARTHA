@@ -191,7 +191,7 @@ function ia_jogar_magias() {
 
     var _funcao_magia = obj_controlador.mao_inimigo[_melhor_indice];
     var _magia = _funcao_magia();
-    pagar_custo(_magia.custo, "inimigo", _magia.categoria);
+    pagar_custo(_magia.custo, "inimigo", _magia.categoria, _melhor_escolha.alvo);
     array_delete(obj_controlador.mao_inimigo, _melhor_indice, 1);
     registrar_descarte_dados(_magia, "inimigo");
     registrar_ultima_carta_jogada(_funcao_magia, "inimigo");
@@ -235,6 +235,7 @@ function ia_jogar_magias() {
         _nome_alvo = instance_exists(_melhor_escolha.alvo) ? _melhor_escolha.alvo.nome_carta : "tropa";
     else if (_melhor_escolha.tipo == "recurso") _nome_alvo = "recurso do jogador";
     obj_controlador.magias_usadas_este_turno += 1;
+    registrar_jogada_recente("inimigo", "Usou " + _magia.nome);
     debug_combate("IA usou " + _magia.nome + " em " + _nome_alvo + ".");
     return true;
 }
@@ -371,8 +372,8 @@ function ia_usar_habilidades_tropas() {
 }
 }
 
-function ia_consumir_carta_da_mao(_indice, _dados, _funcao) {
-    pagar_custo(_dados.custo, "inimigo", _dados.categoria);
+function ia_consumir_carta_da_mao(_indice, _dados, _funcao, _destino) {
+    pagar_custo(_dados.custo, "inimigo", _dados.categoria, _destino);
     array_delete(obj_controlador.mao_inimigo, _indice, 1);
     registrar_descarte_dados(_dados, "inimigo");
     registrar_ultima_carta_jogada(_funcao, "inimigo");
@@ -403,7 +404,7 @@ function ia_jogar_terreno() {
         var _dados = _funcao_terreno_ia();
         if (_dados.categoria != "terreno" || !pode_pagar_custo(_dados.custo, "inimigo", _dados.categoria)) continue;
 
-        pagar_custo(_dados.custo, "inimigo", _dados.categoria);
+        pagar_custo(_dados.custo, "inimigo", _dados.categoria, instance_find(obj_slot_terreno, 0));
         array_delete(obj_controlador.mao_inimigo, i, 1);
         registrar_ultima_carta_jogada(_funcao_terreno_ia, "inimigo");
         obj_controlador.terrenos_jogados_este_turno += 1;
@@ -506,13 +507,14 @@ function ia_jogar_itens() {
                     variable_struct_exists(_dados, "sinergias") ? _dados.sinergias : []);
                 equipar_item_dados(_alvo_equipar, _item_ia);
                 _alvo_equipar.troca_item_usada_este_turno = true;
-                pagar_custo(_dados.custo, "inimigo", _dados.categoria);
+                pagar_custo(_dados.custo, "inimigo", _dados.categoria, _alvo_equipar);
                 array_delete(obj_controlador.mao_inimigo, i, 1);
                 registrar_ultima_carta_jogada(_funcao_item_ia, "inimigo");
                 debug_combate("IA equipou " + _dados.nome + " em " + _alvo_equipar.nome_carta + ".");
                 _usou = true;
             } else {
                 var _efeito = variable_struct_exists(_dados, "efeito_tipo") ? _dados.efeito_tipo : "cura";
+                var _destino_item = noone;
                 var _executou = false;
                 if (variable_struct_exists(_dados, "efeitos") && is_array(_dados.efeitos)
                     && array_length(_dados.efeitos) > 0) {
@@ -535,6 +537,7 @@ function ia_jogar_itens() {
                             }
                         }
                     }
+                    _destino_item = _alvo_item_decl;
                     if (_modo_item_decl == "nenhum" || _alvo_item_decl != noone)
                         _executou = executar_efeitos_declarativos(_dados.efeitos, _alvo_item_decl, "inimigo");
                 } else if (string_pos("buscar_", _efeito) == 1) {
@@ -546,6 +549,7 @@ function ia_jogar_itens() {
                 } else if (_efeito == "aplicar_corrosao") {
                     var _alvo_corrosao = ia_melhor_alvo_corrosao();
                     if (_alvo_corrosao != noone) {
+                        _destino_item = _alvo_corrosao;
                         aplicar_corrosao(_alvo_corrosao);
                         _executou = true;
                     }
@@ -554,18 +558,20 @@ function ia_jogar_itens() {
                 } else if (_efeito == "aumentar_intelig") {
                     var _alvo_inteligencia = ia_melhor_tropa_propria();
                     if (_alvo_inteligencia != noone) {
+                        _destino_item = _alvo_inteligencia;
                         _alvo_inteligencia.nivel_inteligencia += _dados.quantidade_efeito;
                         _executou = true;
                     }
                 } else {
                     var _alvo_cura = ia_melhor_tropa_ferida();
                     if (_alvo_cura != noone) {
+                        _destino_item = _alvo_cura;
                         _alvo_cura.vida = min(_alvo_cura.vida_maxima, _alvo_cura.vida + _dados.cura);
                         _executou = true;
                     }
                 }
                 if (!_executou) continue;
-                ia_consumir_carta_da_mao(i, _dados, _funcao_item_ia);
+                ia_consumir_carta_da_mao(i, _dados, _funcao_item_ia, _destino_item);
                 debug_combate("IA usou " + _dados.nome + ".");
                 _usou = true;
             }
@@ -687,7 +693,7 @@ function ia_jogar_cartas() {
 				if (_dados.categoria != "tropa") continue;
 				if (!pode_pagar_custo(_dados.custo, "inimigo", _dados.categoria)) continue;
 
-                pagar_custo(_dados.custo, "inimigo", _dados.categoria);
+                pagar_custo(_dados.custo, "inimigo", _dados.categoria, id);
                 array_delete(obj_controlador.mao_inimigo, _indice_mao, 1);
 
                 var _carta = instance_create_layer(x, y, "Instances", obj_carta);
@@ -853,7 +859,7 @@ function ia_jogar_construcao() {
 
         if (!pode_pagar_custo(_dados.custo, "inimigo", _dados.categoria)) continue;
 
-        pagar_custo(_dados.custo, "inimigo", _dados.categoria);
+        pagar_custo(_dados.custo, "inimigo", _dados.categoria, _slot_livre);
         array_delete(obj_controlador.mao_inimigo, _indice_mao, 1);
         registrar_ultima_carta_jogada(_funcao_construcao_ia, "inimigo");
 
@@ -884,6 +890,7 @@ function ia_jogar_construcao() {
         _slot_livre.ocupado = true;
         _slot_livre.construcao_atual = _construcao.id;
         obj_controlador.construcoes_jogadas_este_turno += 1;
+        registrar_jogada_recente("inimigo", "Construção colocada", _slot_livre.lane);
         break; // já construiu, para de tentar
     }
 }

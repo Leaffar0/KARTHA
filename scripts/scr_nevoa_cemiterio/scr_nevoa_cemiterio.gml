@@ -7,15 +7,19 @@ function nevoa_iniciar_turno(_dono) {
         _c.nevoa_dono=lado_oposto(_dono);
 }
 
-function tropa_oculta_nevoa(_carta) {
-    if(!instance_exists(obj_controlador) || !instance_exists(_carta)) return false;
+function lado_oculto_nevoa(_lado) {
+    if (!instance_exists(obj_controlador)) return false;
     var _c=obj_controlador;
     if(!variable_instance_exists(_c,"nevoa_dono") || _c.terreno_ativo!="cemiterio"
         || !_c.partida_iniciada || _c.nevoa_dono=="") return false;
-    if(!variable_instance_exists(_carta,"categoria") || _carta.categoria!="tropa"
-        || !_carta.travada || _carta.esta_na_mao) return false;
     var _observador=_c.modo_partida=="local"?_c.turno:"jogador";
-    return _carta.dono==_c.nevoa_dono && _carta.dono!=_observador;
+    return _lado==_c.nevoa_dono && _lado!=_observador;
+}
+
+function tropa_oculta_nevoa(_carta) {
+    return instance_exists(_carta) && variable_instance_exists(_carta,"categoria")
+        && _carta.categoria=="tropa" && _carta.travada && !_carta.esta_na_mao
+        && lado_oculto_nevoa(_carta.dono);
 }
 
 function nevoa_atualizar_consulta() {
@@ -37,8 +41,8 @@ function desenhar_tropa_oculta_nevoa(_carta) {
         _w=sprite_get_width(_carta.slot_atual.sprite_index);
         _h=sprite_get_height(_carta.slot_atual.sprite_index);
     }
-    draw_sprite_ext(spr_deck,0,_carta.x,_carta.y,_w/sprite_get_width(spr_deck),
-        _h/sprite_get_height(spr_deck),0,make_color_rgb(80,84,88),0.85);
+    draw_sprite_ext(spr_verso_kartha,0,_carta.x,_carta.y,_w/sprite_get_width(spr_verso_kartha),
+        _h/sprite_get_height(spr_verso_kartha),0,make_color_rgb(155,158,161),0.85);
     draw_set_font(Fontenil); draw_set_halign(fa_center); draw_set_valign(fa_middle);
     draw_set_color(c_silver);draw_text_transformed(_carta.x,_carta.y,"?",0.55,0.55,0);
     draw_set_halign(fa_left);draw_set_valign(fa_top);draw_set_font(-1);draw_set_color(c_white);

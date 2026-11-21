@@ -15,6 +15,8 @@ function iniciar_pulo_tropa(_carta, _novo_x, _novo_y, _entrada_no_campo = false)
 	_carta.pulo_escala_origem = _entrada_no_campo ? (global.escala_interface / _carta.escala_no_campo) : 1;
 	_carta.escala_animacao = _carta.pulo_escala_origem;
 	_carta.pulo_poeira_ao_pousar = true;
+    if (_entrada_no_campo && obj_controlador.modo_partida != "online")
+        registrar_jogada_recente(_carta.dono, "Tropa convocada", _carta.lane_atual);
     _carta.pulo_som_ao_pousar = _entrada_no_campo;
     _carta.impacto_colocacao_timer = 0;
 }
@@ -84,6 +86,7 @@ function mover_tropa(_carta, _direcao) {
     if (_frente_olhar != noone && instance_exists(_frente_olhar.carta_atual))
         verificar_olhar_vazio(_frente_olhar.carta_atual);
 
+    registrar_jogada_recente(_carta.dono, _direcao == 1 ? "Tropa avançou" : "Tropa recuou", _carta.lane_atual, _carta);
     debug_combate(_carta.nome_carta + " avançou na fileira " + string(_carta.lane_atual + 1) + ".", [_carta]);
 
     return "movido";
@@ -184,6 +187,7 @@ function aplicar_flash_dano(_carta, _duracao = 18, _origem = noone, _defesa = 0,
 // Número de dano sobre a tropa, desenhado pelo HUD acima de todas as cartas.
 function mostrar_dano_tropa(_carta, _dano) {
     if (!instance_exists(_carta) || _dano <= 0) return;
+    _carta.vida_pulso_inicio = current_time;
     var _texto = instance_create_layer(_carta.x, _carta.y - _carta.sprite_height * 0.45, "Instances", obj_texto_flutuante);
     _texto.texto = "-" + string(_dano);
     _texto.cor_texto = c_red;
@@ -314,12 +318,12 @@ function rolar_dano_direto(_carta, _tipo_ataque) {
 // Versão visual do dano direto. Mantém grupos de Golpe Duplo afastados e
 // entrega ao callback o total dos dados já somado ao modificador.
 // Todo ataque direto contra construção ou castelo também exige o D20 de acerto.
-function rolar_ataque_direto_com_acerto(_carta, _tipo_ataque, _callback_final, _indice_ataque = 0, _total_ataques = 1) {
+function rolar_ataque_direto_com_acerto(_carta, _alvo, _tipo_ataque, _callback_final, _indice_ataque = 0, _total_ataques = 1) {
     if (!tentar_romper_imitacao(_carta)) return;
     var _resultado = irandom_range(1, 20);
     var _offset = (_indice_ataque - ((_total_ataques - 1) / 2)) * 110;
     var _atraso = (_indice_ataque == 0) ? 0 : _indice_ataque * irandom_range(68, 92);
-    var _contexto = { carta: _carta, tipo: _tipo_ataque, callback_final: _callback_final,
+    var _contexto = { carta: _carta, alvo: _alvo, tipo: _tipo_ataque, callback_final: _callback_final,
         indice: _indice_ataque, total: _total_ataques, bonus: bonus_cemiterio_acerto(_carta) };
     rolar_dado_visual(_carta.x + _offset * 0.22, _carta.y, _carta.x + _offset, _carta.y - 55,
         20, _resultado, method(_contexto, function(_d20) {
@@ -327,7 +331,9 @@ function rolar_ataque_direto_com_acerto(_carta, _tipo_ataque, _callback_final, _
             var _total_acerto = clamp(_d20 + bonus, 1, 20);
             if (_total_acerto <= 10) {
                 if (carta.carnica_estado_proximo_ataque == "bonus") carta.carnica_estado_proximo_ataque = "";
-                mostrar_feedback("ERROU — " + string(_total_acerto), carta.x, carta.y - 48, c_gray, 55);
+                if (instance_exists(alvo)) registrar_trajeto_erro(carta, alvo, "Errou · " + string(_total_acerto));
+                else mostrar_feedback("ERROU — " + string(_total_acerto), carta.x, carta.y - 48, c_gray, 55);
+                registrar_jogada_recente(carta.dono, "Ataque errou", carta.lane_atual);
                 debug_combate(carta.nome_carta + " errou o ataque direto no D20 (" + string(_d20) + ").");
                 return;
             }
@@ -573,7 +579,7 @@ function processar_combate(_lado_atacante) {
                 if (_construcao_alvo != noone) {
                     var _tipo_construcao = ia_escolher_tipo_ataque_direto(_atacante);
                     var _dados_construcao = { alvo: _construcao_alvo, atacante: _atacante };
-                    rolar_ataque_direto_com_acerto(_atacante, _tipo_construcao,
+                    rolar_ataque_direto_com_acerto(_atacante, _construcao_alvo, _tipo_construcao,
                         method(_dados_construcao, function(_dano_construcao, _critico = false) {
                             if (!instance_exists(alvo)) return;
                             evento_partida_aplicar(evento_dano_construcao_criar(
@@ -641,7 +647,7 @@ function processar_combate_tropa(_carta, _tipo_ataque, _indice_ataque = 0, _tota
 
         if (_construcao_alvo != noone) {
             var _dados_construcao = { alvo: _construcao_alvo, atacante: _carta };
-            rolar_ataque_direto_com_acerto(_carta, _tipo_ataque,
+            rolar_ataque_direto_com_acerto(_carta, _construcao_alvo, _tipo_ataque,
                 method(_dados_construcao, function(_dano_construcao, _critico = false) {
                     if (!instance_exists(alvo)) return;
                     evento_partida_aplicar(evento_dano_construcao_criar(
@@ -734,6 +740,7 @@ function rolar_combate(_atacante, _defensor, _tipo_ataque, _indice_ataque = 0, _
         && (is_struct(_atacante.item_ataque_atual)
             || !tem_habilidade(_atacante, _tipo_ataque == "magica" ? "alcance_magico" : "alcance"))) return;
     if (!tentar_romper_imitacao(_atacante, _defensor)) return;
+    registrar_jogada_recente(_atacante.dono, "Ataque declarado", _atacante.lane_atual);
     debug_combate("=== ATAQUE (" + _tipo_ataque + "): " + _atacante.nome_carta + " vs " + _defensor.nome_carta + " ===");
 
     // Resultado 4 da Loucura: não se defende e o próximo ataque acerta sem D20.
@@ -851,7 +858,8 @@ function aplicar_resultado_dano_tropa(_dados, _resultado, _bonus_extra = 0) {
     var _defesa_usada = _dados.ignora_defesa ? 0
         : ((_dados.tipo_ataque == "magica") ? calcular_defesa_magica_total(_defensor) : calcular_defesa_fisica_total(_defensor));
     var _dano_final = _dano_original + _dados.mod_usado + bonus_cemiterio_dano(_atacante);
-    _dano_final = max(0, _dano_final - _defesa_usada - (_dados.ignora_defesa ? 0 : obj_controlador.terreno_bonus_defesa));
+    _defesa_usada += _dados.ignora_defesa ? 0 : obj_controlador.terreno_bonus_defesa;
+    _dano_final = max(0, _dano_final - _defesa_usada);
     evento_partida_aplicar(evento_dano_tropa_criar(_atacante, _defensor,
         _dano_final, _dados.tipo_ataque, _defesa_usada, true, "", c_red, _dados.critico));
 }
@@ -976,10 +984,10 @@ function executar_contra_ataque(_atacante, _defensor) {
 
             var _original_contra = _resultado * ((tem_condicao(defensor, "berserker")) ? 2 : 1);
             var _dano_contra = _original_contra + defensor.mod_dano + bonus_cemiterio_dano(defensor);
-            _dano_contra = max(0, _dano_contra - calcular_defesa_fisica_total(atacante)
-                - obj_controlador.terreno_bonus_defesa);
+            var _defesa_contra = calcular_defesa_fisica_total(atacante) + obj_controlador.terreno_bonus_defesa;
+            _dano_contra = max(0, _dano_contra - _defesa_contra);
             atacante.vida -= _dano_contra;
-            apresentar_impacto_tropa(defensor, atacante, _dano_contra);
+            apresentar_impacto_tropa(defensor, atacante, _dano_contra, _defesa_contra);
             debug_combate(atacante.nome_carta + " tomou " + string(_dano_contra) + " de contra-ataque. Vida: " + string(atacante.vida), [defensor, atacante]);
             if (atacante.vida <= 0) {
                 if (tem_habilidade(defensor, "digestao")) defensor.digestao_cadaver_disponivel = true;
@@ -1020,13 +1028,17 @@ function processar_resultado_acerto(_dado_acerto, _atacante, _defensor, _tipo_at
 
     if (_dado_acerto <= 10 && _atacante.carnica_estado_proximo_ataque == "bonus")
         _atacante.carnica_estado_proximo_ataque = "";
+    if (_dado_acerto <= 10 || _dado_natural == 1)
+        registrar_trajeto_erro(_atacante, _defensor, _dado_natural == 1 ? "Erro crítico" : "Errou · " + string(_dado_acerto));
     if (_dado_natural == 1) {
+        registrar_jogada_recente(_atacante.dono, "Erro crítico", _atacante.lane_atual);
         debug_combate("Erro crítico! Defensor vai contra-atacar.");
         executar_contra_ataque(_atacante, _defensor);
         return;
     }
 
     if (_dado_acerto <= 10) {
+        registrar_jogada_recente(_atacante.dono, "Ataque errou", _atacante.lane_atual);
         debug_combate("Errou o ataque (1-10).");
         if (tem_condicao(_atacante, "confusao")) {
             debug_combate("Confusão concedeu um contra-ataque ao defensor.");
@@ -1373,33 +1385,23 @@ function criar_tropa_no_slot(_dados, _slot, _dono) {
 
 #region Condições especiais (queimado, veneno, paralisado, etc.)
 function obter_config_condicao(_tipo) {
-    switch (_tipo) {
-        case "queimado":
-            return { cor: c_red, sprite: spr_fogo, modo: "meio" };
-        case "eletrocutado":
-            return { cor: c_yellow, sprite: spr_eletrocutado, modo: "meio" };
-        case "envenenado":
-            return { cor: c_lime, sprite: spr_veneno, modo: "meio" };
-        case "congelado":
-            return { cor: c_aqua, sprite: spr_congelado, modo: "envolta" };
-        case "confusao":
-            return { cor: make_color_rgb(190, 95, 255), sprite: -1, modo: "meio" };
-        case "adormecido":
-            return { cor: make_color_rgb(110, 155, 255), sprite: -1, modo: "meio" };
-        case "berserker":
-            return { cor: make_color_rgb(255, 85, 35), sprite: -1, modo: "meio" };
-        case "loucura":
-            return { cor: make_color_rgb(210, 45, 190), sprite: -1, modo: "meio" };
-        case "sangrando":
-            return { cor: c_red, sprite: -1, modo: "meio" };
-        case "corrosao":
-            return { cor: make_color_rgb(115, 210, 65), sprite: -1, modo: "meio" };
-        case "apodrecer":
-            return { cor: make_color_rgb(105, 145, 55), sprite: -1, modo: "meio" };
-        case "regeneracao":
-            return { cor: c_lime, sprite: -1, modo: "meio" };
-    }
-    return { cor: c_white, sprite: -1, modo: "meio" };
+    static _estados = {
+        queimado: { nome: "Queimado", sprite: spr_fogo, cor: make_color_rgb(245,173,110) },
+        envenenado: { nome: "Envenenado", sprite: spr_veneno, cor: make_color_rgb(176,207,146) },
+        congelado: { nome: "Congelado", sprite: spr_congelado, cor: make_color_rgb(171,216,230) },
+        eletrocutado: { nome: "Eletrocutado", sprite: spr_eletrocutado, cor: make_color_rgb(242,218,151) },
+        paralisado: { nome: "Paralisado", sprite: -1, cor: make_color_rgb(234,207,143) },
+        confusao: { nome: "Confusão", sprite: -1, cor: make_color_rgb(211,176,231) },
+        adormecido: { nome: "Adormecido", sprite: -1, cor: make_color_rgb(184,196,231) },
+        berserker: { nome: "Berserker", sprite: -1, cor: make_color_rgb(239,164,122) },
+        loucura: { nome: "Loucura", sprite: -1, cor: make_color_rgb(224,165,197) },
+        sangrando: { nome: "Sangrando", sprite: -1, cor: make_color_rgb(245,156,149) },
+        corrosao: { nome: "Corrosão", sprite: -1, cor: make_color_rgb(184,211,138) },
+        apodrecer: { nome: "Apodrecer", sprite: -1, cor: make_color_rgb(174,186,132) },
+        regeneracao: { nome: "Regeneração", sprite: -1, cor: make_color_rgb(172,218,176) }
+    };
+    if (variable_struct_exists(_estados,_tipo)) return variable_struct_get(_estados,_tipo);
+    return { nome: string(_tipo), sprite: -1, cor: c_white };
 }
 
 // Cada tipo possui duração e dano próprios; os campos antigos espelham o primeiro.
@@ -1444,13 +1446,6 @@ function aplicar_condicao(_carta, _tipo, _turnos, _dano_por_turno, _disparar_arm
     _carta.efeito_visual_tipo = _tipo;
     _carta.efeito_timer = 18 + _atraso_visual;
     debug_combate(_carta.nome_carta + " recebeu " + _tipo + (_turnos < 0 ? " (sem duração fixa)." : " por " + string(_turnos) + " turno(s)."));
-    if (_atraso_visual > 0) {
-        apresentacao_enfileirar(evento_feedback_criar(string_upper(_tipo), _carta.x,
-            _carta.y - _carta.sprite_height / 2, obter_config_condicao(_tipo).cor), _atraso_visual);
-    } else {
-        mostrar_feedback(string_upper(_tipo), _carta.x, _carta.y - _carta.sprite_height / 2,
-            obter_config_condicao(_tipo).cor);
-    }
     if (_tipo == "loucura" && _disparar_armadilhas) ativar_loucura_mutua(_carta);
     return true;
 }
@@ -1822,7 +1817,7 @@ function descricao_carta_preview(_carta) {
             _texto += "\n\nCONDIÇÕES ATIVAS:";
             for (var _ci = 0; _ci < array_length(_carta.condicoes); _ci++) {
                 var _estado = _carta.condicoes[_ci];
-                _texto += "\n" + string_upper(_estado.tipo) + (_estado.turnos < 0 ? " (sem duração fixa)" : " (" + string(_estado.turnos) + " turno(s))");
+                _texto += "\n" + obter_config_condicao(_estado.tipo).nome + " (" + duracao_condicao_exibida(_estado.turnos) + ")";
             }
         }
         if (array_length(_carta.habilidades) > 0) {
@@ -1945,7 +1940,7 @@ function habilidade_sombra_translucida(_carta) {
         debug_combate("Sem mana suficiente pra Sombra Translúcida.");
         return;
     }
-    pagar_custo(_custo_mana, _carta.dono);
+    pagar_custo(_custo_mana, _carta.dono, "", _carta);
 
     _carta.sombra_ativa = true;
     _carta.sombra_cooldown = 2; // 1 turno ativo + 1 turno de recarga
@@ -2106,7 +2101,7 @@ function habilidade_carnica_frenetica(_carta) {
         mostrar_aviso_regra("Carniça Frenética exige 2 Sangues", _carta.x, _carta.y);
         return;
     }
-    pagar_custo(_custo, _carta.dono);
+    pagar_custo(_custo, _carta.dono, "", _carta);
     _carta.habilidade_usada_este_turno = true;
     var _dados_carnica = { carta: _carta };
     jogar_moeda_visual(_carta.x, _carta.y, _carta.x, _carta.y - 48, method(_dados_carnica, function(_resultado) {

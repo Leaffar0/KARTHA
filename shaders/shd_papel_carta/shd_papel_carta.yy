@@ -1,0 +1,9 @@
+{
+  "$GMShader":"",
+  "%Name":"shd_papel_carta",
+  "name":"shd_papel_carta",
+  "parent":{"name":"Script","path":"folders/Script.yy"},
+  "resourceType":"GMShader",
+  "resourceVersion":"2.0",
+  "type":1
+}

@@ -1,11 +1,21 @@
 mesa_ambiente_atualizar(ambiente_mesa, mesa_ambiente_terreno(), delta_time/1000000);
+tempo_piscada = min(1, tempo_piscada + min(delta_time / 1000000, 0.1) / 0.34);
+if (instance_exists(obj_controlador) && obj_controlador.partida_iniciada
+    && !obj_controlador.passagem_turno_ativa && obj_controlador.turno != turno_do_selo) {
+    turno_do_selo = obj_controlador.turno;
+    tempo_piscada = 0;
+}
 
 // A prévia só consulta a validação existente; não paga nem joga nenhuma carta.
 gravura_pronta=false;
+gravura_bases = [];
 var _arrasto=instance_exists(obj_controlador)?carta_arrastada_local():noone;
 var _efeito_arrasto_pronto=false;
 if(instance_exists(_arrasto)) {
     var _previa=estado_previa_arrasto(_arrasto);
+    if (_arrasto.categoria == "tropa" && _previa.motivo == "" && _previa.pagamento.sucesso) {
+        gravura_bases = _previa.alvos;
+    }
     if(_previa.pronta) {
         _efeito_arrasto_pronto=true;
         if(is_struct(_previa.perto)) {

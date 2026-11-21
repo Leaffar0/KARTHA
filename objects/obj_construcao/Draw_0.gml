@@ -14,7 +14,7 @@ if (entrada_visual_timer > 0) {
 // escala_visual_base também é aplicada ao image_xscale para manter a área de clique correta.
 var _escala_desenho = escala_visual_base * _escala_entrada;
 desenhar_sombra_contato(sprite_index,image_index,x,y,_escala_desenho,_escala_desenho,0);
-draw_sprite_ext(sprite_index, image_index, x, y, _escala_desenho, _escala_desenho, 0, c_white, 1);
+desenhar_carta_mesa(sprite_index, image_index, x, y, _escala_desenho, _escala_desenho, 0, c_white, 1);
 
 // Sprites genéricos ainda precisam do nome; artes completas já trazem o título impresso.
 if (!usa_sprite_carta) {
@@ -32,7 +32,7 @@ var _largura_visual = sprite_get_width(sprite_index) * escala_visual_base * _esc
 var _altura_visual = sprite_get_height(sprite_index) * escala_visual_base * _escala_entrada;
 var _vida_x = x - _largura_visual / 2 + _largura_visual * vida_pos_x;
 var _vida_y = y - _altura_visual / 2 + _altura_visual * vida_pos_y;
-var _escala_vida = usa_sprite_carta ? max(0.28, escala_visual_base * 1.55) : 0.65;
+var _escala_vida = (usa_sprite_carta ? max(0.28, escala_visual_base * 1.55) : 0.65) * escala_pulso_vida(vida_pulso_inicio);
 
 draw_set_font(Fontenil);
 draw_set_halign(fa_center);

@@ -1,0 +1,9 @@
+{
+  "$GMShader":"",
+  "%Name":"shd_piscar_selo",
+  "name":"shd_piscar_selo",
+  "parent":{"name":"Script","path":"folders/Script.yy"},
+  "resourceType":"GMShader",
+  "resourceVersion":"2.0",
+  "type":1
+}
