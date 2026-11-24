@@ -440,14 +440,18 @@ function online_escolher_primeiro(_assento) {
     }
 }
 
+function online_aguarda_animacao() {
+    return variable_global_exists("online_atraso_visual_frames")
+        && (global.online_atraso_visual_frames > 0 || is_struct(global.online_estado_publico_pendente));
+}
+
 function online_enviar_acao(_tipo, _dados = {}) {
     if (online_perspectiva_invertida()) {
         if (variable_struct_exists(_dados, "lane")) _dados.lane = online_lane_servidor(_dados.lane);
         if (variable_struct_exists(_dados, "position")) _dados.position = online_posicao_servidor(_dados.position);
     }
     if (!online_ativo()) return false;
-    if (_tipo != "choose_critical" && variable_global_exists("online_atraso_visual_frames")
-        && (global.online_atraso_visual_frames > 0 || is_struct(global.online_estado_publico_pendente))) {
+    if (_tipo != "choose_critical" && online_aguarda_animacao()) {
         if (instance_exists(obj_controlador)) mostrar_aviso_regra("Aguarde a animação terminar");
         return false;
     }
@@ -1296,6 +1300,13 @@ function online_aplicar_estado_publico(_estado) {
     var _acao = obj_controlador.online_acao_pagamento;
     if (!is_struct(_acao) || _acao.revision != _estado.revision
         || _estado.revision != obj_controlador.online_estado_aplicado_revisao + 1) _acao = noone;
+    if (_estado.phase == "finished" && variable_struct_exists(_estado, "finalBlow") && is_struct(_estado.finalBlow)) {
+        obj_controlador.golpe_final_origem = _estado.finalBlow.source;
+        obj_controlador.golpe_final_vida = _estado.finalBlow.lifeLost;
+    } else {
+        obj_controlador.golpe_final_origem = "";
+        obj_controlador.golpe_final_vida = 0;
+    }
     global.online_fase = _estado.phase;
     global.online_revisao = _estado.revision;
     obj_controlador.online_estado_aplicado_revisao = _estado.revision;

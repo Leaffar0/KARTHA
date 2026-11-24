@@ -38,6 +38,7 @@ function evento_dano_construcao_criar(_atacante, _alvo, _dano,
 function evento_dano_castelo_criar(_atacante, _lado, _dano, _texto = "", _cor = c_red) {
     return evento_partida_criar("dano_castelo", {
         atacante: _atacante,
+        origem: instance_exists(_atacante) ? _atacante.nome_carta : "",
         lado: _lado,
         dano: max(0, _dano),
         texto: _texto,
@@ -129,7 +130,7 @@ function evento_partida_aplicar(_evento) {
             if (instance_exists(_dados.atacante))
                 registrar_jogada_recente(_dados.atacante.dono, "Castelo recebeu " + string(_dados.dano) + " de dano", _dados.atacante.lane_atual);
             if (instance_exists(_dados.atacante)) iniciar_animacao_ataque(_dados.atacante, noone, 18, 18);
-            causar_dano_castelo(_dados.lado, _dados.dano);
+            causar_dano_castelo(_dados.lado, _dados.dano, _dados.origem);
             if (_dados.texto != "") {
                 var _y_castelo = (_dados.lado == "jogador") ? room_height - 92 : 92;
                 mostrar_feedback(_dados.texto, room_width / 2, _y_castelo, _dados.cor, 82);

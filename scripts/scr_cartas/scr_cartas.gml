@@ -1020,7 +1020,7 @@ function aplicar_efeitos_morte(_carta, _por_inimigo) {
         for (var i = 0; i < array_length(_maldicoes); i++) {
             var _efeito_maldicao = is_struct(_maldicoes[i]) ? _maldicoes[i].efeito : _maldicoes[i];
             if (_efeito_maldicao == "perde_vida_ao_morrer") {
-                causar_dano_castelo(_dono, 1);
+                causar_dano_castelo(_dono, 1, "Maldição da Perda");
                 debug_combate("Maldição da Perda causou 1 de dano!");
             }
         }
@@ -1858,7 +1858,16 @@ function ajustar_custo_por_terreno(_custo, _categoria) {
 function selecionar_recursos_para_custo(_custo, _dono, _categoria = "") {
     var _necessidades = ajustar_custo_por_terreno(_custo, _categoria);
     var _disponiveis = [];
-    with (obj_recurso) {
+    var _online = obj_controlador.modo_partida == "online";
+    if (_online) {
+        // O estado público conserva a ordem de pagamento do servidor.
+        var _recursos = _dono == "jogador" ? obj_controlador.recursos_jogador : obj_controlador.recursos_inimigo;
+        for (var r = 0; r < array_length(_recursos); r++) {
+            var _r = _recursos[r];
+            if (instance_exists(_r) && !_r.virado && _r.bloqueado_turnos <= 0)
+                array_push(_disponiveis, { recurso: _r, restante: max(1, _r.quantidade) });
+        }
+    } else with (obj_recurso) {
         if (!virado && dono == _dono && bloqueado_turnos <= 0)
             array_push(_disponiveis, { recurso: id, restante: max(1, quantidade) });
     }
@@ -1877,7 +1886,8 @@ function selecionar_recursos_para_custo(_custo, _dono, _categoria = "") {
                 if (!instance_exists(_recurso) || _entrada_recurso.restante <= 0) continue;
                 if (_eh_neutro || _recurso.tipo == _item.tipo) {
                     var _usar = min(_entrada_recurso.restante, _item.quantidade - _pagos);
-                    _entrada_recurso.restante -= _usar;
+                    // No servidor, cada recurso é reservado por inteiro para uma parte do custo.
+                    _entrada_recurso.restante = _online ? 0 : _entrada_recurso.restante - _usar;
                     _pagos += _usar;
                     if (array_get_index(_selecionados, _recurso) < 0) array_push(_selecionados, _recurso);
                     if (_pagos >= _item.quantidade) break;
@@ -1986,7 +1996,7 @@ function aplicar_efeito_bola_fogo(_alvo, _dado_efeito, _chance_queimar, _tipo_al
 
     if (_tipo_alvo == "castelo") {
         debug_combate("Bola de Fogo causou " + string(_dano) + " de dano ao castelo do " + _dono_castelo + "!");
-        causar_dano_castelo(_dono_castelo, _dano);
+        causar_dano_castelo(_dono_castelo, _dano, "Bola de Fogo");
         return;
     }
 

@@ -117,21 +117,21 @@ function mesa_ambiente_desenhar(_ambiente, _x, _y, _w, _h) {
     if (_cinza) shader_reset();
 }
 
-// Posições no couro de referência (690 × 580), nos intervalos livres entre os slots.
-// Cada peça tem quadro, pé no tabuleiro e largura. O mesmo mapa serve ao laboratório.
+// Coordenadas relativas ao recorte do couro, para alinhar os dois bolsões de
+// madeira exposta tanto na sala quanto no laboratório. A base de cada peça fica na tábua.
 function mesa_desenhar_aderecos(_ambiente, _x, _y, _w, _h) {
     static _grupos = [
         [],
-        [[1,158,175,43], [0,180,180,29], [1,226,321,29], [0,449,353,56],
-         [1,469,360,33], [0,-10,412,41], [1,619,452,58]],
-        [[3,144,212,40], [2,222,322,30], [2,450,353,58], [3,473,361,31],
-         [2,-12,417,43], [3,616,454,45]],
-        [[4,159,209,61], [5,220,322,30], [5,448,349,47], [4,465,358,44],
-         [4,-14,415,54], [5,617,451,43]]
+        [[0,137,154,45], [1,160,157,32], [0,578,392,46], [1,598,394,30], [1,509,526,38]],
+        [[3,148,154,33], [2,578,392,44], [3,600,395,25], [2,517,527,29]],
+        [[4,145,155,50], [5,577,390,34], [4,595,394,38], [4,510,526,42]]
     ];
     var _sx = _w/690, _sy = _h/580;
     var _sw = sprite_get_width(spr_aderecos_terreno), _sh = sprite_get_height(spr_aderecos_terreno);
     var _cor = draw_get_color(), _alpha = draw_get_alpha();
+    var _suavizar = shader_is_compiled(shd_aderecos_madeira);
+    static _u_uv = shader_get_uniform(shd_aderecos_madeira,"u_uv");
+    static _u_passo = shader_get_uniform(shd_aderecos_madeira,"u_passo");
     for (var _terreno=1; _terreno<array_length(_grupos); _terreno++) {
         var _peso = _ambiente.pesos[_terreno];
         if (_peso < 0.008) continue;
@@ -146,7 +146,7 @@ function mesa_desenhar_aderecos(_ambiente, _x, _y, _w, _h) {
             var _fenda = _largura*_sx*0.61*min(1,_p*3);
 
             // A fenda abre antes de a silhueta passar pela superfície.
-            draw_set_alpha(_alpha*min(1,_p*3));
+            draw_set_alpha(0.28*_alpha*min(1,_p*3));
             draw_set_color(make_color_rgb(26,23,22));
             draw_triangle(_base_x-_fenda,_base_y+2*_sy,_base_x-_fenda*0.16,_base_y-2*_sy,
                 _base_x+_fenda*0.75,_base_y,false);
@@ -162,9 +162,17 @@ function mesa_desenhar_aderecos(_ambiente, _x, _y, _w, _h) {
             var _ox = _base_x-_meia_w*dcos(_ang)-_altura*dsin(_ang);
             var _oy = _base_y+_meia_w*dsin(_ang)-_altura*dcos(_ang);
             draw_set_alpha(1);
-            var _tinta = make_color_rgb(217,211,200);
+            var _tinta = make_color_rgb(218,213,204);
+            if (_suavizar) {
+                shader_set(shd_aderecos_madeira);
+                var _textura = sprite_get_texture(spr_aderecos_terreno,_peca[0]);
+                var _uv = sprite_get_uvs(spr_aderecos_terreno,_peca[0]);
+                shader_set_uniform_f(_u_uv,_uv[0],_uv[1],_uv[2],_uv[3]);
+                shader_set_uniform_f(_u_passo,3.2*texture_get_texel_width(_textura),3.2*texture_get_texel_height(_textura));
+            }
             draw_sprite_general(spr_aderecos_terreno,_peca[0],0,0,_sw,_recorte,
-                _ox,_oy,_ex,_ey,_ang,_tinta,_tinta,_tinta,_tinta,_alpha*min(1,_p*2.4));
+                _ox,_oy,_ex,_ey,_ang,_tinta,_tinta,_tinta,_tinta,0.82*_alpha*min(1,_p*2.4));
+            if (_suavizar) shader_reset();
         }
     }
     draw_set_color(_cor);
@@ -173,6 +181,7 @@ function mesa_desenhar_aderecos(_ambiente, _x, _y, _w, _h) {
 
 // Coordenadas da peça física; os slots e suas áreas de interação não mudam.
 function tabuleiro_couro_desenhar(_ambiente, _x = 248, _y = -26, _w = 690, _h = 580) {
+    mesa_desenhar_aderecos(_ambiente,_x,_y,_w,_h);
     draw_sprite_stretched_ext(spr_tabuleiro_couro, 0, _x+3, _y+7, _w, _h, c_black, 0.28);
     var _papel = shader_is_compiled(shd_mesa_cinza);
     if (_papel) {
@@ -181,8 +190,6 @@ function tabuleiro_couro_desenhar(_ambiente, _x = 248, _y = -26, _w = 690, _h = 
     }
     draw_sprite_stretched_ext(spr_tabuleiro_couro, 0, _x, _y, _w, _h, c_white, 1);
     if (_papel) shader_reset();
-
-    mesa_desenhar_aderecos(_ambiente,_x,_y,_w,_h);
 }
 
 function tabuleiro_couro_gravuras(_piscada) {

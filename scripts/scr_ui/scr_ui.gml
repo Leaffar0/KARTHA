@@ -1130,6 +1130,81 @@ function desenhar_lista_condicoes(_carta, _esquerda, _direita, _cy) {
 }
 
 // Uma única passagem depois do desenho do campo mantém os selos visíveis entre fileiras.
+// Os dois sinais usam as opções da própria tropa e a prévia do submenu de ataque.
+function acoes_tropa_sob_cursor(_carta) {
+    var _movimento = sinalizar_bloqueios_menu(_carta, obter_opcoes_menu_movimento(_carta));
+    var _avanco = _movimento[0] == "Avançar" && !is_string(destino_movimento_tropa(_carta, 1));
+    var _ataques = sinalizar_bloqueios_menu(_carta, obter_opcoes_menu_ataque(_carta));
+    for (var i = 0; i < array_length(_ataques); i++) {
+        var _previa = dados_previa_ataque(_carta, _ataques[i]);
+        if (is_struct(_previa) && (_previa.castelo || instance_exists(_previa.alvo)))
+            return { avanco: _avanco, ataque: true };
+    }
+    return { avanco: _avanco, ataque: false };
+}
+
+function desenhar_indicadores_cursor_gui() {
+    var _c = obj_controlador;
+    if (!_c.partida_iniciada || !lado_controlado_localmente(_c.turno) || _c.rolagens_pendentes > 0
+        || !painel_regras_disponivel() || _c.carta_menu_aberto != noone || _c.ui_modal.historico_aberto
+        || mouse_sobre_painel_regras() || transicao_sala_ativa() || carta_arrastada_local() != noone
+        || (_c.modo_partida == "online" && (_c.online_aguardando_turno || online_aguarda_animacao()))) return;
+
+    var _cam = view_camera[0];
+    var _vx = camera_get_view_x(_cam), _vy = camera_get_view_y(_cam);
+    var _sx = display_get_gui_width() / camera_get_view_width(_cam);
+    var _sy = display_get_gui_height() / camera_get_view_height(_cam);
+    var _cor = draw_get_color(), _alpha = draw_get_alpha();
+    var _tinta = make_color_rgb(226, 202, 150);
+    var _mao = _c.hover_atual;
+    if (instance_exists(_mao) && _mao.esta_na_mao) {
+        if (_mao.dono != _c.turno || _mao.armadilha_estado != "" || motivo_bloqueio_arrasto(_mao) != "") return;
+        var _pago = selecionar_recursos_para_custo(_mao.custo, _mao.dono, _mao.categoria);
+        if (!_pago.sucesso) return;
+        draw_set_color(_tinta);
+        draw_set_alpha(0.77 + 0.10 * sin(current_time / 260));
+        for (var i = 0; i < array_length(_pago.recursos); i++) {
+            var _r = _pago.recursos[i];
+            var _rx = (_r.x - _vx) * _sx, _ry = (_r.y - _vy) * _sy;
+            var _esc = _r.escala_recurso * _r.escala_animacao;
+            var _w = sprite_get_width(_r.sprite_index) * _esc * _sx * 0.5 + 1;
+            var _h = sprite_get_height(_r.sprite_index) * _esc * _sy * 0.5 + 1;
+            for (var _lado = -1; _lado <= 1; _lado += 2) {
+                slot_traco(_rx, _ry, _w, _h, _r.rotacao_atual, _lado, _lado * 0.60, _lado, _lado);
+                slot_traco(_rx, _ry, _w, _h, _r.rotacao_atual, _lado, _lado, _lado * 0.48, _lado);
+            }
+        }
+    } else {
+        var _tropa = instance_position(mouse_x, mouse_y, obj_carta);
+        if (!instance_exists(_tropa) || !_tropa.travada || _tropa.categoria != "tropa" || _tropa.dono != _c.turno
+            || _tropa.evoluindo || _tropa.morrendo || _tropa.pulando || !instance_exists(_tropa.slot_atual)) return;
+        var _acoes = acoes_tropa_sob_cursor(_tropa);
+        var _raio = clamp(_tropa.sprite_width * _sx * 0.14, 5, 10);
+        var _x = (_tropa.x - _vx + _tropa.sprite_width * 0.5) * _sx;
+        var _y = (_tropa.y - _vy) * _sy;
+        draw_set_alpha(0.96);
+        for (var _icone = 0; _icone < 2; _icone++) {
+            if ((_icone == 0 && !_acoes.avanco) || (_icone == 1 && !_acoes.ataque)) continue;
+            var _cy = _y + (_acoes.avanco && _acoes.ataque ? (_icone * 2 - 1) * (_raio + 1) : 0);
+            draw_set_color(make_color_rgb(44, 37, 33));
+            draw_circle(_x, _cy, _raio, false);
+            draw_set_color(_tinta);
+            var _d = _raio * 0.55;
+            if (_icone == 0) {
+                var _dir = direcao_avanco(_tropa.dono);
+                draw_line_width(_x, _cy - _dir * _d, _x, _cy + _dir * _d, 1.6);
+                draw_triangle(_x, _cy + _dir * _d, _x - _d, _cy - _dir, _x + _d, _cy - _dir, false);
+            } else {
+                draw_triangle(_x + _d, _cy - _d, _x, _cy + _d * 0.52, _x - _d * 0.52, _cy, false);
+                draw_line_width(_x - _d * 0.8, _cy - _d * 0.1, _x + _d * 0.1, _cy + _d * 0.8, 1.5);
+                draw_line_width(_x - _d * 0.32, _cy + _d * 0.32, _x - _d, _cy + _d, 1.5);
+            }
+        }
+    }
+    draw_set_color(_cor);
+    draw_set_alpha(_alpha);
+}
+
 function desenhar_condicoes_campo_gui() {
     var _cam = view_camera[0];
     var _sx = display_get_gui_width()/camera_get_view_width(_cam), _sy = display_get_gui_height()/camera_get_view_height(_cam);

@@ -99,6 +99,7 @@
     {"id":{"name":"scr_tween","path":"scripts/scr_tween/scr_tween.yy",},},
     {"id":{"name":"scr_ui","path":"scripts/scr_ui/scr_ui.yy",},},
     {"id":{"name":"shd_mesa_cinza","path":"shaders/shd_mesa_cinza/shd_mesa_cinza.yy",},},
+    {"id":{"name":"shd_aderecos_madeira","path":"shaders/shd_aderecos_madeira/shd_aderecos_madeira.yy",},},
     {"id":{"name":"shd_piscar_selo","path":"shaders/shd_piscar_selo/shd_piscar_selo.yy",},},
     {"id":{"name":"shd_tinta_recurso","path":"shaders/shd_tinta_recurso/shd_tinta_recurso.yy",},},
     {"id":{"name":"shd_papel_carta","path":"shaders/shd_papel_carta/shd_papel_carta.yy",},},

@@ -21,10 +21,8 @@ function iniciar_pulo_tropa(_carta, _novo_x, _novo_y, _entrada_no_campo = false)
     _carta.impacto_colocacao_timer = 0;
 }
 
-// Move uma tropa 1 casa na direção dela. Retorna uma string dizendo o que aconteceu:
-// "movido", "ja_no_assalto", "fora_do_tabuleiro", "invalido", "bloqueado" (aliado no caminho)
-// ou "ataque_necessario" (tem inimigo na frente, precisa atacar em vez de mover).
-function mover_tropa(_carta, _direcao) {
+// Consulta o destino sem disparar armadilhas. Retorna o slot livre ou o motivo do bloqueio.
+function destino_movimento_tropa(_carta, _direcao) {
     // A tropa precisa sobreviver até o próximo turno do próprio dono antes de avançar.
     if (_carta.turnos_no_campo < 1) return "recem_colocada";
 
@@ -54,7 +52,6 @@ function mover_tropa(_carta, _direcao) {
                 var _slot_apos_voo = buscar_slot(_carta.lane_atual, _posicao_apos_voo);
                 if (_slot_apos_voo != noone && !_slot_apos_voo.ocupado && !_passou_do_assalto) {
                     _slot_destino = _slot_apos_voo;
-                    _nova_posicao = _posicao_apos_voo;
                 } else {
                     return "ataque_necessario";
                 }
@@ -64,6 +61,12 @@ function mover_tropa(_carta, _direcao) {
         }
     }
 
+    return _slot_destino;
+}
+
+function mover_tropa(_carta, _direcao) {
+    var _slot_destino = destino_movimento_tropa(_carta, _direcao);
+    if (is_string(_slot_destino)) return _slot_destino;
     // Só dispara após confirmar que existe um deslocamento válido.
     if (ativar_raizes_espinhosas_ao_mover(_carta)) {
         _carta.moveu_este_turno = true;
@@ -76,7 +79,7 @@ function mover_tropa(_carta, _direcao) {
     _slot_destino.ocupado = true;
     _slot_destino.carta_atual = _carta.id;
     _carta.slot_atual = _slot_destino;
-    _carta.posicao_atual = _nova_posicao;
+    _carta.posicao_atual = _slot_destino.posicao;
     _carta.defendendo_castelo = false;
 
     iniciar_pulo_tropa(_carta, _slot_destino.x, _slot_destino.y);
@@ -429,7 +432,7 @@ function rolar_dano_direto_visual(_carta, _tipo_ataque, _callback_final, _indice
 
 // O dano direto entra numa fila visual. A vida só é reduzida no momento em que
 // o número vermelho alcança o indicador no HUD.
-function causar_dano_castelo(_dono, _dano) {
+function causar_dano_castelo(_dono, _dano, _origem = "") {
     if (_dano <= 0) return;
     var _controle = instance_find(obj_controlador, 0);
     if (_controle == noone) return;
@@ -437,7 +440,7 @@ function causar_dano_castelo(_dono, _dano) {
     if (!variable_instance_exists(_controle, "fila_dano_castelo") || !is_array(_controle.fila_dano_castelo)) {
         _controle.fila_dano_castelo = [];
     }
-    array_push(_controle.fila_dano_castelo, { dono: _dono, valor: _dano });
+    array_push(_controle.fila_dano_castelo, { dono: _dono, valor: _dano, origem: _origem });
     debug_combate("Castelo do " + _dono + " recebeu " + string(_dano) + " de dano.");
 }
 
@@ -465,6 +468,7 @@ function atualizar_animacao_dano_castelo() {
         _controle.dano_castelo_ativo = true;
         _controle.dano_castelo_dono = _evento.dono;
         _controle.dano_castelo_valor = _evento.valor;
+        _controle.dano_castelo_origem = _evento.origem;
         _controle.dano_castelo_timer = _controle.dano_castelo_duracao;
         _controle.dano_castelo_aplicado = false;
         var _vida_final = _evento.dono == "jogador" ? _controle.vida_jogador : _controle.vida_inimigo;
@@ -479,6 +483,12 @@ function atualizar_animacao_dano_castelo() {
     _controle.dano_castelo_timer -= 1;
     // Os últimos 15 frames são o impacto: a vida diminui exatamente aqui.
     if (!_controle.dano_castelo_aplicado && _controle.dano_castelo_timer <= 15) {
+        var _vida_antes = _controle.dano_castelo_dono == "jogador" ? _controle.vida_jogador : _controle.vida_inimigo;
+        if (_controle.modo_partida != "online" && _vida_antes > 0 && _vida_antes <= _controle.dano_castelo_valor
+            && _controle.vida_jogador > 0 && _controle.vida_inimigo > 0) {
+            _controle.golpe_final_origem = _controle.dano_castelo_origem;
+            _controle.golpe_final_vida = _vida_antes;
+        }
         if (_controle.dano_castelo_dono == "jogador") {
             _controle.vida_jogador -= _controle.dano_castelo_valor;
         } else {
@@ -1565,9 +1575,9 @@ function processar_loucura(_carta) {
         }
     } else if (_resultado == 3) {
         if (_carta.posicao_atual == posicao_entrada(_carta.dono)) {
-            var _ctx_loucura = { dono_castelo: _carta.dono };
+            var _ctx_loucura = { dono_castelo: _carta.dono, origem: _carta.nome_carta };
             rolar_dano_direto_visual(_carta, "fisica", method(_ctx_loucura, function(_dano_loucura) {
-                causar_dano_castelo(dono_castelo, _dano_loucura);
+                causar_dano_castelo(dono_castelo, _dano_loucura, origem);
             }));
         } else {
             mover_tropa(_carta, -1);

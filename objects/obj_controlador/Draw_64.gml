@@ -1,5 +1,6 @@
 desenhar_cortina_nevoa();
 desenhar_escudos_bloqueio_gui();
+desenhar_indicadores_cursor_gui();
 desenhar_condicoes_campo_gui();
 #region Informações da partida
 draw_set_font(Fontenil);
@@ -43,14 +44,14 @@ draw_set_halign(fa_center);
 draw_set_valign(fa_middle);
 draw_set_color(c_black);
 draw_text_transformed((_barra_x1 + _barra_x2) / 2 + 1, _barra_jogador_y1 + _barra_altura / 2 + 1,
-    _rotulo_vida_jogador + "  " + string(vida_jogador) + "/20", 0.72, 0.72, 0);
+    _rotulo_vida_jogador + "  " + string(max(0, vida_jogador)) + "/20", 0.72, 0.72, 0);
 draw_text_transformed((_barra_x1 + _barra_x2) / 2 + 1, _barra_inimigo_y1 + _barra_altura / 2 + 1,
-    _rotulo_vida_inimigo + "  " + string(vida_inimigo) + "/20", 0.72, 0.72, 0);
+    _rotulo_vida_inimigo + "  " + string(max(0, vida_inimigo)) + "/20", 0.72, 0.72, 0);
 draw_set_color(c_white);
 draw_text_transformed((_barra_x1 + _barra_x2) / 2, _barra_jogador_y1 + _barra_altura / 2,
-    _rotulo_vida_jogador + "  " + string(vida_jogador) + "/20", 0.72, 0.72, 0);
+    _rotulo_vida_jogador + "  " + string(max(0, vida_jogador)) + "/20", 0.72, 0.72, 0);
 draw_text_transformed((_barra_x1 + _barra_x2) / 2, _barra_inimigo_y1 + _barra_altura / 2,
-    _rotulo_vida_inimigo + "  " + string(vida_inimigo) + "/20", 0.72, 0.72, 0);
+    _rotulo_vida_inimigo + "  " + string(max(0, vida_inimigo)) + "/20", 0.72, 0.72, 0);
 // Rachaduras rápidas atravessam a barra atingida no instante do impacto.
 if (dano_castelo_impacto_timer > 0) {
     var _rachadura_y = (dano_castelo_dono == "jogador") ? _barra_jogador_y1 : _barra_inimigo_y1;
@@ -809,7 +810,11 @@ if ((vida_jogador <= 0 || vida_inimigo <= 0) && fim_animacao_timer >= 55) {
     draw_set_alpha(1);
     draw_set_font(Fontenil);
     draw_set_color(c_white);
-    draw_text(_fim_x, _fim_y, _descricao_fim);
+    if (golpe_final_origem != "" && golpe_final_vida > 0) {
+        _descricao_fim = golpe_final_origem + (golpe_final_vida == 1 ? " tirou o último ponto" :
+            " tirou os últimos " + string(golpe_final_vida) + " pontos") + " de vida do castelo.";
+    }
+    desenhar_texto_ajustado_ui(_descricao_fim, _fim_x, _fim_y, _fim_largura - 32, 1);
     draw_text(_fim_x, _fim_y + 26, "Turnos completos: " + string(turnos_completos));
     draw_text(_fim_x, _fim_y + 50, _cemiterios_fim);
     draw_set_color(c_black);

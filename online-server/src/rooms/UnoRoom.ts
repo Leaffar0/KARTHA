@@ -85,7 +85,10 @@ interface PendingManipulatedAction {
   seat: number; kind: string; payload: Record<string, unknown>; revision: number;
   decisions: ManipulatedRollDecision[]; rolls: Array<{ sides: number; value: number }>; waiting?: Omit<ManipulatedRollDecision, "useAlternative">; snapshot: MatchSnapshot;
 }
+interface FinalBlow { source: string; lifeLost: number }
+
 interface MatchSnapshot {
+  finalBlow?: FinalBlow;
   state: Record<string, unknown>; players: Array<[string, Record<string, unknown>]>; cards: Array<[string, Record<string, unknown>]>;
   privatePlayers: PrivatePlayer[]; nextCardId: number; pendingCritical?: Record<string, unknown>;
   pendingMagnet: PendingMagnetChoice[][]; pendingMitosis: Array<PendingMitosisChoice | undefined>; rematchVotes: number[];
@@ -131,6 +134,7 @@ function decodeIncoming<T extends object>(message: T | string): T | undefined {
 export class KarthaRoom extends Room<{ state: RoomState }> {
   private privatePlayers: PrivatePlayer[] = [];
   private nextCardId = 1;
+  private finalBlow?: FinalBlow;
   private pendingCritical?: { seat: number; cardId: string; targetId?: string; targetSeat?: number; targetType: "card" | "castle"; attackType: "fisica" | "magica"; die: number; dice: number; modifier: number; defense: number; itemDefinitionId?: string; repeatAfter?: number; damageMultiplier: number };
   private pendingMagnet: PendingMagnetChoice[][] = [[], []];
   private pendingMitosis: Array<PendingMitosisChoice | undefined> = [undefined, undefined];
@@ -400,6 +404,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     this.state.phase = "drawing";
     this.state.turnNumber = 1;
     this.state.winner = -1;
+    this.finalBlow = undefined;
     this.bump("match_started");
     for (let seat = 0; seat < 2; seat++) this.sendPrivateState(seat);
     this.broadcastJson("match_started", {
@@ -422,7 +427,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
         winner: this.state.winner, revision: this.state.revision, seed: this.state.seed, turnNumber: this.state.turnNumber,
         terrainDefinitionId: this.state.terrainDefinitionId, fogProtectedSeat: this.state.fogProtectedSeat, discardCount0: this.state.discardCount0,
         discardCount1: this.state.discardCount1, lastAction: this.state.lastAction },
-      players, cards, privatePlayers: this.cloneData(this.privatePlayers), nextCardId: this.nextCardId,
+      finalBlow: this.finalBlow, players, cards, privatePlayers: this.cloneData(this.privatePlayers), nextCardId: this.nextCardId,
       pendingCritical: this.pendingCritical ? this.cloneData(this.pendingCritical) : undefined,
       pendingMagnet: this.cloneData(this.pendingMagnet), pendingMitosis: this.cloneData(this.pendingMitosis),
       rematchVotes: [...this.rematchVotes],
@@ -438,6 +443,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     for (const [key, data] of snapshot.cards) { const card = new PublicCardSchema(); Object.assign(card, data); this.state.cards.set(key, card); }
     this.privatePlayers = this.cloneData(snapshot.privatePlayers);
     this.nextCardId = snapshot.nextCardId;
+    this.finalBlow = snapshot.finalBlow;
     this.pendingCritical = snapshot.pendingCritical ? this.cloneData(snapshot.pendingCritical) as typeof this.pendingCritical : undefined;
     this.pendingMagnet = this.cloneData(snapshot.pendingMagnet);
     this.pendingMitosis = this.cloneData(snapshot.pendingMitosis);
@@ -917,8 +923,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       const coin = this.rollForSeat(seat, 2);
       if (targetType === "castle") {
         const defender = this.playerBySeat(1 - seat)!;
-        defender.life = Math.max(0, defender.life - roll);
-        if (defender.life <= 0) { this.state.winner = seat; this.state.phase = "finished"; }
+        this.damageCastle(defender, roll, found.definition.name);
         details = { ...details, target: "castle", damageRolls: [roll], damage: roll, coin };
       } else if (target) {
         target.life -= roll;
@@ -1724,8 +1729,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       const damageRolls = Array.from({ length: dice }, () => this.rollForSeat(seat, die));
       const damage = Math.max(0, damageRolls.reduce((sum, value) => sum + value, 0) * damageMultiplier + modifier);
       const defender = this.playerBySeat(1 - seat)!;
-      defender.life = Math.max(0, defender.life - damage);
-      if (defender.life <= 0) { this.state.winner = seat; this.state.phase = "finished"; }
+      this.damageCastle(defender, damage, attacker.name);
       return { ok: true, details: { ...illusionTest, cardId, target: "castle", attackType, direct: true, hit: true,
         die, dice, damageRolls, modifier, damage, defenderLife: defender.life, itemDefinitionId, frenzyBonus } };
     }
@@ -1817,9 +1821,8 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       }
     } else {
       const defender = this.playerBySeat(pending.targetSeat ?? (1 - seat))!;
-      defender.life = Math.max(0, defender.life - damage);
+      this.damageCastle(defender, damage, attacker?.name ?? "Ataque crítico");
       defenderLife = defender.life;
-      if (defender.life <= 0) { this.state.winner = seat; this.state.phase = "finished"; }
     }
     const repeatAfter = pending.repeatAfter ?? 0;
     this.pendingCritical = undefined;
@@ -1891,8 +1894,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
           const damageRolls = Array.from({ length: dice }, () => this.rollForSeat(seat, die));
           const damage = Math.max(0, damageRolls.reduce((sum, value) => sum + value, 0) + modifier);
           const owner = this.playerBySeat(seat)!;
-          owner.life = Math.max(0, owner.life - damage);
-          if (owner.life <= 0) { this.state.winner = 1 - seat; this.state.phase = "finished"; }
+          this.damageCastle(owner, damage, card.name);
           Object.assign(event, { kind: "castle", damageRolls, damage });
         } else {
           const destination = card.position + (seat === 0 ? 1 : -1);
@@ -2168,6 +2170,17 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     return undefined;
   }
 
+  private damageCastle(defender: PlayerState, damage: number, source: string) {
+    const lifeBefore = defender.life;
+    defender.life = Math.max(0, lifeBefore - damage);
+    if (lifeBefore > 0 && defender.life === 0 && this.state.phase !== "finished") {
+      this.state.winner = 1 - defender.seatIndex;
+      this.state.phase = "finished";
+      this.finalBlow = { source, lifeLost: lifeBefore };
+    }
+    return lifeBefore - defender.life;
+  }
+
   private destroyPublicCard(card: PublicCardState, causedByOpponent = true) {
     if (!this.state.cards.has(card.instanceId)) return;
     this.state.cards.delete(card.instanceId);
@@ -2195,11 +2208,8 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       }
       const damagingEffects = privatePlayer.effects.filter((effect) => effect === "perde_vida_ao_morrer").length;
       if (causedByOpponent && damagingEffects > 0 && owner) {
-        const lifeBefore = owner.life;
-        owner.life = Math.max(0, owner.life - damagingEffects);
-        const amount = lifeBefore - owner.life;
+        const amount = this.damageCastle(owner, damagingEffects, "Maldição da Perda");
         if (amount > 0) this.actionPassiveEvents.push({ kind: "curse_damage", seat: card.owner, cardId: card.instanceId, amount });
-        if (owner.life <= 0) { this.state.winner = 1 - card.owner; this.state.phase = "finished"; }
       }
     }
     if (card.category === "construcao") {
@@ -2355,7 +2365,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       terrainDefinitionId: this.state.terrainDefinitionId,
       fogProtectedSeat: this.state.fogProtectedSeat,
       discardCounts: [this.state.discardCount0, this.state.discardCount1],
-      cemetery, abyss, resources,
+      cemetery, abyss, resources, finalBlow: this.finalBlow,
       players, cards, traps,
     };
     this.sendJson(client, "public_state", payload);

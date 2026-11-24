@@ -46,6 +46,8 @@ mao_x_centro = room_width / 2;
 mao_y = room_height - 100;
 espaco_entre_cartas = 90;
 hover_atual = noone;
+golpe_final_origem = "";
+golpe_final_vida = 0;
 carta_preview = noone;
 
 mao_scroll_offset = 0;

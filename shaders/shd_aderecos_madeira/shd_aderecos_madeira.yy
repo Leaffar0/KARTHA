@@ -1,0 +1,9 @@
+{
+  "$GMShader":"",
+  "%Name":"shd_aderecos_madeira",
+  "name":"shd_aderecos_madeira",
+  "parent":{"name":"Script","path":"folders/Script.yy"},
+  "resourceType":"GMShader",
+  "resourceVersion":"2.0",
+  "type":1
+}
