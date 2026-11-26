@@ -41,12 +41,12 @@ if (opcoes_abertas) {
 #region Escolha do modo de partida
 if(modo_jogo_aberto) {
     var _cy=centro_painel_menu(id);
-    var _cw=min(190,(room_width-100)/3.3);
-    desenhar_painel_carta_menu(room_width/2-(_cw*3+64)/2,_cy-150,room_width/2+(_cw*3+64)/2,_cy+195);
-    desenhar_texto_ajustado_ui("ESCOLHA SUA PARTIDA",room_width/2,_cy-115,_cw*3+16,0.86);
-    var _nomes=["CONTRA IA","LOCAL","ONLINE"];
-    var _sub=["Você contra a máquina","Dois jogadores na mesa","Convide outro jogador"];
-    for(var _m=0;_m<3;_m++) {
+    var _cw=carta_modo_menu(0,_cy).w;
+    desenhar_painel_carta_menu(room_width/2-(_cw*2+64)/2,_cy-150,room_width/2+(_cw*2+64)/2,_cy+195);
+    desenhar_texto_ajustado_ui("ESCOLHA SUA PARTIDA",room_width/2,_cy-115,_cw*2+16,0.86);
+    var _nomes=["CONTRA IA","ONLINE"];
+    var _sub=["Você contra a máquina","Convide outro jogador"];
+    for(var _m=0;_m<array_length(_nomes);_m++) {
         var _c=carta_modo_menu(_m,_cy);
         var _h=ponto_carta_menu(_c,mouse_x,mouse_y);
         desenhar_carta_menu(_c,_nomes[_m],false,_h?1:0,_m,0.76);

@@ -32,28 +32,6 @@ with (obj_slot_construcao) {
 
 // organiza a lane das construções SEPARADAMENTE por dono
 // (senão a numeração ficava misturada entre jogador e inimigo, não batendo com as lanes do campo de batalha)
-function ordenar_lane_por_dono(_obj, _dono_alvo) {
-    var _lista = [];
-    with (_obj) {
-        if (dono == _dono_alvo) array_push(_lista, id);
-    }
-    
-    var _n = array_length(_lista);
-    for (var i = 0; i < _n - 1; i++) {
-        for (var j = 0; j < _n - i - 1; j++) {
-            if (_lista[j].x > _lista[j+1].x) {
-                var _temp = _lista[j];
-                _lista[j] = _lista[j+1];
-                _lista[j+1] = _temp;
-            }
-        }
-    }
-    
-    for (var i = 0; i < _n; i++) {
-        _lista[i].lane = i;
-    }
-}
-
 ordenar_lane_por_dono(obj_slot_construcao, "jogador");
 ordenar_lane_por_dono(obj_slot_construcao, "inimigo");
 #endregion

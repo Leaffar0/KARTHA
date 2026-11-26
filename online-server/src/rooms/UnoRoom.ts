@@ -232,7 +232,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       const message = decodeIncoming<{ useAlternative?: boolean }>(rawMessage) ?? {};
       const player = this.findPlayer(client.sessionId);
       const pending = this.pendingManipulated;
-      if (!player || !pending || !pending.waiting || pending.waiting.seat !== player.seatIndex) return;
+      if (this.state.phase !== "playing" || !player || !pending || !pending.waiting || pending.waiting.seat !== player.seatIndex) return;
       pending.decisions.push({ ...pending.waiting, useAlternative: message.useAlternative === true });
       pending.waiting = undefined;
       this.executeManipulatedAction(pending);
@@ -328,42 +328,47 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     this.sendJson(client, "seat", { seat, roomId: this.roomId, seed: this.state.seed });
   }
 
-  async onLeave(client: Client, code?: number) {
+  onDrop(client: Client) {
     const player = this.findPlayer(client.sessionId);
     if (!player) return;
     player.connected = false;
+    if (this.state.phase !== "waiting") this.allowReconnection(client, 20);
+  }
 
-    if (code === 1000) {
-      if (this.state.phase !== "waiting" && this.state.phase !== "finished") {
-        this.state.winner = 1 - player.seatIndex;
-        this.state.phase = "finished";
-        this.bump("voluntary_leave");
-        this.sendPublicState();
-      }
-      this.state.players.delete(client.sessionId);
-      return;
+  onReconnect(client: Client) {
+    const player = this.findPlayer(client.sessionId);
+    if (!player) return;
+    player.connected = true;
+    this.sendJson(client, "seat", { seat: player.seatIndex, roomId: this.roomId, seed: this.state.seed });
+    this.sendPrivateState(player.seatIndex);
+    this.sendPublicState(client);
+    if (this.state.phase !== "playing") return;
+    if (this.pendingManipulated?.waiting?.seat === player.seatIndex) {
+      this.sendJson(client, "manipulated_roll_choice", this.pendingManipulated.waiting);
+    } else if (this.pendingCritical?.seat === player.seatIndex) {
+      const { cardId, targetId, dice, die } = this.pendingCritical;
+      this.sendJson(client, "critical_choice", { cardId, targetId, dice, die });
+    } else {
+      this.sendNextMagnetChoice(player.seatIndex);
+      const mitosis = this.pendingMitosis[player.seatIndex];
+      if (mitosis) this.sendJson(client, "mitosis_choice", {
+        candidates: mitosis.candidates.map(([lane, position]) => ({ lane, position })),
+      });
     }
-    if (this.state.phase === "waiting") {
-      this.state.players.delete(client.sessionId);
-      return;
-    }
+  }
 
-    try {
-      const reconnected = await this.allowReconnection(client, 20);
-      this.state.players.delete(client.sessionId);
-      player.sessionId = reconnected.sessionId;
-      player.connected = true;
-      this.state.players.set(reconnected.sessionId, player);
-      this.sendJson(reconnected, "seat", { seat: player.seatIndex, roomId: this.roomId, seed: this.state.seed });
-      this.sendPrivateState(player.seatIndex);
-      this.sendPublicState(reconnected);
-      if (this.pendingManipulated?.waiting?.seat === player.seatIndex)
-        this.sendJson(reconnected, "manipulated_roll_choice", this.pendingManipulated.waiting);
-    } catch {
+  onLeave(client: Client) {
+    const player = this.findPlayer(client.sessionId);
+    if (!player) return;
+    this.state.players.delete(client.sessionId);
+    if (this.state.phase === "waiting") return;
+    if (this.state.phase !== "finished") {
       this.state.winner = 1 - player.seatIndex;
       this.state.phase = "finished";
+      this.pendingManipulated = undefined;
       this.bump("disconnect");
     }
+    this.sendPublicState();
   }
 
   private startMatch(firstSeat: number) {
@@ -547,6 +552,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     const type = found.definition.resourceType;
     const amount = Math.max(1, Math.floor(found.definition.resourceAmount ?? 1));
     data.resources.push({ instanceId: card.instanceId, definitionId: card.definitionId, type, amount, used: false });
+    data.lastNonTroopDefinitionId = card.definitionId;
     player.resourcePlaced = true;
     this.syncResourceTotals(seat);
     return {
@@ -614,6 +620,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     const publicCard = this.createPublicCard(found.card, found.definition, seat, lane, -1);
     this.state.cards.set(publicCard.instanceId, publicCard);
     this.removeHandCard(seat, found.index);
+    this.privatePlayers[seat].lastNonTroopDefinitionId = found.card.definitionId;
     player.constructionsPlayed += 1;
     return { ok: true, details: this.publicCardPayload(publicCard), privateSeats: [seat] };
   }
@@ -1124,9 +1131,8 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
 
     const effectOwnerSeat = found.definition.category === "maldicao" ? 1 - seat : seat;
     if (found.definition.category !== "terreno") {
-      const activeEffects = this.privatePlayers[effectOwnerSeat].effects;
-      const boardEffects = activeEffects.filter((effect) => !effect.startsWith("dados_manipulados:"));
-      if (boardEffects.length >= 2) return { ok: false, reason: "limite_efeitos_ativos" };
+      const sameCategory = this.privatePlayers[effectOwnerSeat].effectCards.filter(card => card.category === found.definition.category);
+      if (sameCategory.length >= 2) return { ok: false, reason: "limite_efeitos_ativos" };
     }
     if (!this.payCost(player, found.definition)) return { ok: false, reason: "recursos_insuficientes" };
 
@@ -1697,7 +1703,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     if (!target && attacker.position !== assaultPosition) return { ok: false, reason: "avance_para_assalto" };
     if (!this.tryBreakIllusion(attacker, illusionTest)) {
       attacker.attacked = true;
-      const counter = target?.instanceId === attackerState.illusionSourceId
+      const counter = target && target.instanceId === attackerState.illusionSourceId
         ? this.counterAttack(target, attacker) : undefined;
       return { ok: true, details: { ...illusionTest, cardId, targetId: target?.instanceId ?? "", attackType,
         illusion: true, hit: false, damageRolls: [], counter } };
@@ -2208,7 +2214,9 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       }
       const damagingEffects = privatePlayer.effects.filter((effect) => effect === "perde_vida_ao_morrer").length;
       if (causedByOpponent && damagingEffects > 0 && owner) {
-        const amount = this.damageCastle(owner, damagingEffects, "Maldição da Perda");
+        const curses = privatePlayer.effectCards.filter(card => card.effect === "perde_vida_ao_morrer");
+        const source = curses[Math.min(owner.life, damagingEffects) - 1]?.name ?? "Maldição da Perda";
+        const amount = this.damageCastle(owner, damagingEffects, source);
         if (amount > 0) this.actionPassiveEvents.push({ kind: "curse_damage", seat: card.owner, cardId: card.instanceId, amount });
       }
     }
@@ -2298,6 +2306,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
         };
       }),
       deckCount: data.deck.length,
+      lastNonTroopDefinitionId: data.lastNonTroopDefinitionId,
       discard: data.discard.map((card) => card.definitionId),
       activeTraps: data.traps.map((trap) => ({ ...trap, name: CARD_DEFINITIONS[trap.definitionId]?.name ?? "Armadilha" })),
       activeEffects: [
@@ -2365,7 +2374,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       terrainDefinitionId: this.state.terrainDefinitionId,
       fogProtectedSeat: this.state.fogProtectedSeat,
       discardCounts: [this.state.discardCount0, this.state.discardCount1],
-      cemetery, abyss, resources, finalBlow: this.finalBlow,
+      cemetery, abyss, resources, finalBlow: this.finalBlow, lastAction: this.state.lastAction,
       players, cards, traps,
     };
     this.sendJson(client, "public_state", payload);
@@ -2496,6 +2505,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     let allReady = true;
     this.state.players.forEach((player: PlayerState) => { if (!player.ready) allReady = false; });
     if (!allReady || this.state.phase !== "waiting") return;
+    void this.lock();
     this.startMatch(0);
   }
 

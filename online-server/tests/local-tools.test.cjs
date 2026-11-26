@@ -4,7 +4,7 @@ const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const root = path.resolve(__dirname, '../..');
 const source = fs.readFileSync(path.join(root, 'scripts/scr_ui/scr_ui.gml'), 'utf8');
-const control = { modo_partida: 'local', turno: 'jogador', rolagens_pendentes: 0, mao_y: 600,
+const control = { modo_partida: 'ia', turno: 'jogador', rolagens_pendentes: 0, mao_y: 600,
   monte: ['a', 'b'], monte_inimigo: ['enemy'], debug_montes_guardados: { jogador: null, inimigo: null } };
 let added = 0, created = 0, resources = 0, failures = 0;
 const slots = [];
@@ -28,7 +28,7 @@ const context = {
   motivo_bloqueio_arrasto: () => '', selecionar_recursos_para_custo: () => ({ sucesso: true, faltas: [] }),
 };
 vm.createContext(context);
-for (const name of ['debug_preparar_cenario', 'disponibilidade_carta_mao', 'sigla_condicao']) {
+for (const name of ['debug_preparar_cenario', 'disponibilidade_carta_mao', 'duracao_condicao_exibida']) {
   const a = source.indexOf(`function ${name}(`), b = source.indexOf('\nfunction ', a + 1);
   assert.ok(a >= 0);
   vm.runInContext(source.slice(a, b < 0 ? undefined : b), context);
@@ -45,7 +45,7 @@ assert.equal(context.debug_preparar_cenario(5), false, 'cannot restore twice');
 control.modo_partida = 'online';
 assert.equal(context.debug_preparar_cenario(1), false);
 assert.equal(added, 0);
-control.modo_partida = 'local';
+control.modo_partida = 'ia';
 context.global.DEBUG_COMBATE = false;
 assert.equal(context.debug_preparar_cenario(1), false);
 context.global.DEBUG_COMBATE = true;
@@ -64,8 +64,8 @@ assert.equal(context.disponibilidade_carta_mao(card).motivo, 'Primeiro turno');
 context.motivo_bloqueio_arrasto = () => '';
 context.selecionar_recursos_para_custo = () => ({ sucesso: false, faltas: ['2 Mana', '1 Osso'] });
 assert.equal(context.disponibilidade_carta_mao(card).motivo, 'Falta: 2 Mana, 1 Osso');
-const types = ['queimado', 'envenenado', 'paralisado', 'congelado', 'confusao', 'adormecido',
-  'berserker', 'loucura', 'sangrando', 'corrosao', 'apodrecer', 'regeneracao', 'eletrocutado'];
-assert.equal(new Set(types.map(context.sigla_condicao)).size, types.length);
+assert.equal(context.duracao_condicao_exibida(1), '1 turno');
+assert.equal(context.duracao_condicao_exibida(3), '3 turnos');
+assert.equal(context.duracao_condicao_exibida(-1), 'sem duração fixa');
 assert.ok(failures >= 3);
 console.log('OK: offline/debug guards, additive scenarios, deck backup/restore, atomic setup, hand status and condition labels');

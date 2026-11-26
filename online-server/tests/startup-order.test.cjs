@@ -10,7 +10,8 @@ const handlers={};
 
 r.onMessage=(name,fn)=>handlers[name]=fn;
 for(const name of ['draw_initial','choose_first']){const i=src.indexOf('    this.onMessage("'+name+'"');const j=src.indexOf('\n    });',i)+8;vm.runInNewContext(stripTypeScriptTypes('(function(){'+src.slice(i,j)+'})')).call(r);}
-r.startInitiativeWhenReady();assert.equal(r.state.phase,'drawing');assert.equal(messages.at(-1),'match_started');
+r.lock=()=>{r.locked=true;};
+r.startInitiativeWhenReady();assert.equal(r.locked,true);assert.equal(r.state.phase,'drawing');assert.equal(messages.at(-1),'match_started');
 handlers.choose_first({sessionId:'0'},{seat:1});assert.equal(r.state.phase,'drawing');
 handlers.draw_initial({sessionId:'0'});assert.equal(r.state.phase,'drawing');assert.equal(r.privatePlayers[0].hand.length,7);
 handlers.draw_initial({sessionId:'0'});assert.equal(r.privatePlayers[0].hand.length,7);
@@ -23,6 +24,6 @@ handlers.choose_first({sessionId:'0'},{seat:1});assert.equal(r.state.phase,'play
 for(let seat=0;seat<2;seat++){assert.equal(r.privatePlayers[seat].hand,hands[seat]);assert.equal(hands[seat].length,7);assert.equal(r.privatePlayers[seat].deck.length,13);}
 assert.match(read('objects/obj_controlador/Create_0.gml'),/disputa_inicial_estado = "aguardando_deck"/);
 const flow=read('scripts/scr_fluxo_partida/scr_fluxo_partida.gml');
-const deal=flow.slice(flow.indexOf('} else if (disputa_inicial_estado == "distribuindo")'),flow.indexOf('if (partida_local_ativa() && passagem_turno_ativa)'));
+const deal=flow.slice(flow.indexOf('} else if (disputa_inicial_estado == "distribuindo")'),flow.indexOf('    return true;', flow.indexOf('} else if (disputa_inicial_estado == "distribuindo")')));
 assert.match(deal,/disputa_inicial_estado = "preparando_dado"/);assert.doesNotMatch(deal,/finalizar_disputa_inicial/);
 console.log('Startup order: hands before initiative, duplicate draws, ties, winner choice and hand preservation passed.');

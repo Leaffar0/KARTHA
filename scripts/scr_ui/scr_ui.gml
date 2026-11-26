@@ -1600,8 +1600,8 @@ function desenhar_botao_hud_carta(_x1,_y1,_x2,_y2,_titulo,_nota="") {
     draw_set_alpha(_a);draw_set_color(_cor);
 }
 function carta_modo_menu(_i,_cy) {
-    var _w=min(190,(room_width-100)/3.3);
-    return {x:room_width/2+(_i-1)*(_w+16),y:_cy+5,w:_w,h:180,rot:0,alpha:1,pronto:true};
+    var _w=min(190,(room_width-80)/2);
+    return {x:room_width/2+(_i-0.5)*(_w+16),y:_cy+5,w:_w,h:180,rot:0,alpha:1,pronto:true};
 }
 
 // Conteúdo compacto exclusivo das opções; centros compartilhados com os controles.

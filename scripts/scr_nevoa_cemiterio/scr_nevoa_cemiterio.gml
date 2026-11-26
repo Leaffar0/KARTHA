@@ -12,8 +12,7 @@ function lado_oculto_nevoa(_lado) {
     var _c=obj_controlador;
     if(!variable_instance_exists(_c,"nevoa_dono") || _c.terreno_ativo!="cemiterio"
         || !_c.partida_iniciada || _c.nevoa_dono=="") return false;
-    var _observador=_c.modo_partida=="local"?_c.turno:"jogador";
-    return _lado==_c.nevoa_dono && _lado!=_observador;
+    return _lado==_c.nevoa_dono && _lado!="jogador";
 }
 
 function tropa_oculta_nevoa(_carta) {
@@ -51,8 +50,7 @@ function desenhar_tropa_oculta_nevoa(_carta) {
 function desenhar_cortina_nevoa() {
     if(!instance_exists(obj_controlador) || obj_controlador.nevoa_dono==""
         || obj_controlador.terreno_ativo!="cemiterio") return;
-    var _observador=obj_controlador.modo_partida=="local"?obj_controlador.turno:"jogador";
-    if(obj_controlador.nevoa_dono==_observador) return;
+    if(obj_controlador.nevoa_dono=="jogador") return;
     var _cam=view_camera[0];
     var _sx=display_get_gui_width()/camera_get_view_width(_cam);
     var _sy=display_get_gui_height()/camera_get_view_height(_cam);

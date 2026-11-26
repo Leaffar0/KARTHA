@@ -1,7 +1,7 @@
 mesa_ambiente_atualizar(ambiente_mesa, mesa_ambiente_terreno(), delta_time/1000000);
 tempo_piscada = min(1, tempo_piscada + min(delta_time / 1000000, 0.1) / 0.34);
 if (instance_exists(obj_controlador) && obj_controlador.partida_iniciada
-    && !obj_controlador.passagem_turno_ativa && obj_controlador.turno != turno_do_selo) {
+    && obj_controlador.turno != turno_do_selo) {
     turno_do_selo = obj_controlador.turno;
     tempo_piscada = 0;
 }

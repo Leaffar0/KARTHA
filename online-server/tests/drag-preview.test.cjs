@@ -23,7 +23,7 @@ const context = {
   variable_instance_get: (obj, key) => obj[key], variable_global_exists: () => false,
   mouse_y: 100, mouse_na_faixa_da_mao: () => false,
   resumo_usos_turno: () => ({ troops: 0, items: 0, spells: 0, constructions: 0, terrain: 0, resourcePlaced: 0 }),
-  obj_controlador: { turno: 'jogador', modo_partida: 'local', rolagens_pendentes: 0, terreno_ativo: '' },
+  obj_controlador: { turno: 'jogador', modo_partida: 'ia', rolagens_pendentes: 0, terreno_ativo: '' },
 };
 vm.createContext(context);
 function load(file, names) {

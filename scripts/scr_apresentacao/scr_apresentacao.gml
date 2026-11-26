@@ -38,10 +38,9 @@ function apresentacao_atualizar(_controle) {
 }
 
 function apresentacao_tem_pendencias() {
-    return instance_exists(obj_controlador)
-        && variable_instance_exists(obj_controlador, "apresentacao")
-        && is_struct(obj_controlador.apresentacao)
-        && array_length(obj_controlador.apresentacao.fila) > 0;
+    if (!instance_exists(obj_controlador)) return false;
+    return array_length(obj_controlador.apresentacao.fila) > 0 || array_length(obj_controlador.fila_dano_castelo) > 0
+        || (obj_controlador.dano_castelo_ativo && !obj_controlador.dano_castelo_aplicado);
 }
 
 function apresentacao_evento_impacto(_atacante, _alvo, _dano, _tipo_ataque,
@@ -109,6 +108,7 @@ function apresentacao_animar_ataque_confirmado(_tipo_mensagem, _dados) {
             var _prefixo = (modo == "") ? "" : modo + " — ";
             if (abrir_critico && instance_exists(atacante)) {
                 mostrar_feedback(_prefixo + "ACERTO CRÍTICO!", px, py - 58, c_yellow, 78);
+                if (atacante.dono != online_lado_local()) return;
                 obj_controlador.ui_modal.critico_contexto = {
                     atacante: atacante, defensor: alvo, qtd_usada: qtd, dado_usado: dado, online: true
                 };
@@ -546,7 +546,7 @@ function desenhar_ligacoes_visuais() {
 // O aviso guarda apenas informação pública e continua legível se a carta sair de campo.
 function registrar_jogada_recente(_lado, _texto, _lane = -1, _tropa_movida = noone) {
     var _c = obj_controlador;
-    if (_lado != "inimigo" && _c.modo_partida != "local") return;
+    if (_lado != "inimigo") return;
     _c.jogada_recente_lado = _lado;
     _c.jogada_recente_tropa = instance_exists(_tropa_movida) && !tropa_oculta_nevoa(_tropa_movida)
         ? _tropa_movida.nome_carta : "";

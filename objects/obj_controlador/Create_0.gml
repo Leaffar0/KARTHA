@@ -18,11 +18,7 @@ global.DEBUG_COMBATE = true;
 
 
 depth = -10000; // desenha o menu de ação por cima de absolutamente tudo
-modo_partida = variable_global_exists("modo_partida") ? global.modo_partida : "ia";
-passagem_turno_ativa = false;
-passagem_turno_destino = "jogador";
-mao_oculta = [];
-iniciativa_rolador = "jogador";
+modo_partida = (variable_global_exists("modo_partida") && global.modo_partida == "online") ? "online" : "ia";
 vida_pos_x = 0.11; // pode ser sobrescrito por carta específica
 vida_pos_y = 0.07;
 
@@ -116,6 +112,9 @@ disputa_inicial_primeiro_escolhido = "";
 disputa_inicial_vencedor = "";
 partida_iniciada = false;
 online_aguardando_turno = false;
+online_vencedor = "";
+online_fim_saida = false;
+online_oponente_saiu = false;
 online_recursos_assinatura = "";
 online_estado_aplicado_revisao = -1;
 if (modo_partida == "online") {

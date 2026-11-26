@@ -8,8 +8,8 @@ desenhar_resumo_regras_turno();
 
 var _cor_vida_jogador = make_color_rgb(58, 82, 92);
 var _cor_vida_inimigo = make_color_rgb(114, 62, 61);
-var _rotulo_vida_jogador = (modo_partida == "online") ? global.online_nome_jogador : ((modo_partida == "local") ? "Jogador 1" : "Jogador");
-var _rotulo_vida_inimigo = (modo_partida == "online") ? global.online_nome_inimigo : ((modo_partida == "local") ? "Jogador 2" : "Inimigo");
+var _rotulo_vida_jogador = (modo_partida == "online") ? global.online_nome_jogador : "Jogador";
+var _rotulo_vida_inimigo = (modo_partida == "online") ? global.online_nome_inimigo : "Inimigo";
 var _tremor_castelo = (dano_castelo_impacto_timer > 0) ? sin(dano_castelo_impacto_timer * 4.7) * dano_castelo_impacto_timer * 0.55 : 0;
 var _barra_x1 = 20 + _tremor_castelo;
 var _barra_x2 = 250 + _tremor_castelo;
@@ -66,7 +66,7 @@ if (dano_castelo_impacto_timer > 0) {
 draw_set_halign(fa_left);
 draw_set_valign(fa_top);
 draw_text(20, 82, (turno == "preparacao") ? "Disputa inicial"
-    : (partida_local_ativa() ? nome_jogador_lado(turno) + " — turno"
+    : (modo_partida == "online" ? nome_jogador_lado(turno) + " — turno"
     : ((turno == "jogador") ? "Seu turno" : "Turno do inimigo")));
 
 var _hud_largura = display_get_gui_width();
@@ -217,35 +217,6 @@ if (terreno_anuncio_timer > 0) {
     terreno_anuncio_timer -= 1;
 }
 #endregion
-
-#region Passagem segura no modo de dois jogadores
-if (partida_local_ativa() && passagem_turno_ativa) {
-    var _passagem_largura = display_get_gui_width();
-    var _passagem_altura = display_get_gui_height();
-    var _passagem_cor = (passagem_turno_destino == "jogador") ? c_aqua : c_red;
-    draw_set_alpha(0.96);
-    draw_set_color(c_black);
-    draw_rectangle(0, 0, _passagem_largura, _passagem_altura, false);
-    draw_set_alpha(1);
-    draw_set_halign(fa_center);
-    draw_set_valign(fa_middle);
-    draw_set_font(fnt_vitoria);
-    draw_set_color(_passagem_cor);
-    draw_text(_passagem_largura / 2, _passagem_altura / 2 - 35,
-        "VEZ DO " + nome_jogador_lado(passagem_turno_destino));
-    draw_set_font(Fontenil);
-    draw_set_color(c_white);
-    draw_text(_passagem_largura / 2, _passagem_altura / 2 + 25,
-        "Passe o computador e clique para revelar sua mão");
-    draw_set_color(c_gray);
-    draw_text(_passagem_largura / 2, _passagem_altura / 2 + 62,
-        "ESPAÇO ou ENTER também continua");
-    draw_set_halign(fa_left);
-    draw_set_valign(fa_top);
-    draw_set_color(c_white);
-}
-#endregion
-
 
 #region Dano do castelo - camada final do HUD
 // Fica no fim do Draw GUI para não ser coberto por cartas, menus ou prévias.
@@ -769,28 +740,26 @@ if (ui_modal.pausa_ativa) {
 #endregion
 
 #region Tela final da partida
-if ((vida_jogador <= 0 || vida_inimigo <= 0) && fim_animacao_timer < 55) {
+if (partida_encerrada(id) && fim_animacao_timer < 55) {
     draw_set_color(c_black); draw_set_alpha(0.55);
     draw_rectangle(0,0,display_get_gui_width(),display_get_gui_height(),false);
     draw_set_alpha(1);
     desenhar_quebra_castelo(display_get_gui_width()/2, display_get_gui_height()/2, fim_animacao_timer, 2);
 }
-if ((vida_jogador <= 0 || vida_inimigo <= 0) && fim_animacao_timer >= 55) {
+if (partida_encerrada(id) && fim_animacao_timer >= 55) {
     var _fim_largura = display_get_gui_width();
     var _fim_altura = display_get_gui_height();
     var _fim_x = _fim_largura / 2;
     var _fim_y = _fim_altura / 2;
-    var _venceu = vida_inimigo <= 0 && vida_jogador > 0;
+    var _venceu = modo_partida == "online" ? online_vencedor == "jogador" : vida_inimigo <= 0 && vida_jogador > 0;
     var _titulo_fim = _venceu ? "VOCÊ VENCEU" : "VOCÊ PERDEU";
     var _descricao_fim = "O castelo " + (_venceu ? "inimigo caiu." : "foi destruído.");
     var _cemiterios_fim = "Tropas derrotadas — Você: " + string(array_length(cemiterio_jogador))
         + " | Inimigo: " + string(array_length(cemiterio_inimigo));
-    if (partida_local_ativa()) {
-        var _vencedor_local = (vida_inimigo <= 0) ? "jogador" : "inimigo";
-        _titulo_fim = nome_jogador_lado(_vencedor_local) + " VENCEU";
-        _descricao_fim = "O castelo do " + nome_jogador_lado(lado_oposto(_vencedor_local)) + " foi destruído.";
-        _cemiterios_fim = "Tropas derrotadas — J1: " + string(array_length(cemiterio_jogador))
-            + " | J2: " + string(array_length(cemiterio_inimigo));
+    if (modo_partida == "online") {
+        _titulo_fim = nome_jogador_lado(online_vencedor) + " VENCEU";
+        _descricao_fim = "O castelo do " + nome_jogador_lado(lado_oposto(online_vencedor)) + " foi destruído.";
+        if (online_fim_saida) _descricao_fim = nome_jogador_lado(lado_oposto(online_vencedor)) + " saiu da partida.";
     }
 
     draw_set_alpha(0.78);
@@ -800,8 +769,8 @@ if ((vida_jogador <= 0 || vida_inimigo <= 0) && fim_animacao_timer >= 55) {
     draw_set_font(fnt_vitoria);
     draw_set_halign(fa_center);
     draw_set_valign(fa_middle);
-    draw_set_color(partida_local_ativa()
-        ? ((vida_inimigo <= 0) ? c_aqua : c_red)
+    draw_set_color(modo_partida == "online"
+        ? (_venceu ? c_aqua : c_red)
         : (_venceu ? c_yellow : c_red));
     var _fim_p = clamp((fim_animacao_timer - 55) / 28, 0, 1);
     var _fim_escala = 1 + (1 - _fim_p) * 1.4 + sin(_fim_p * pi) * 0.10;
@@ -821,7 +790,15 @@ if ((vida_jogador <= 0 || vida_inimigo <= 0) && fim_animacao_timer >= 55) {
     draw_roundrect(_fim_x - 120, _fim_y + 85, _fim_x + 120, _fim_y + 130, false);
     draw_set_color(c_white);
     draw_roundrect(_fim_x - 120, _fim_y + 85, _fim_x + 120, _fim_y + 130, true);
-    draw_text(_fim_x, _fim_y + 107, (modo_partida == "online" && global.online_revanche_solicitada) ? "AGUARDANDO OPONENTE" : "JOGAR NOVAMENTE");
+    var _botao_fim = "JOGAR NOVAMENTE";
+    if (modo_partida == "online") {
+        if (online_oponente_saiu || !online_ativo()) _botao_fim = "VOLTAR AO MENU";
+        else {
+            if (global.online_revanche_solicitada) _botao_fim = "AGUARDANDO OPONENTE";
+            draw_text(_fim_x, _fim_y + 150, "Esc para voltar ao menu");
+        }
+    }
+    draw_text(_fim_x, _fim_y + 107, _botao_fim);
     draw_set_font(-1);
     draw_set_halign(fa_left);
     draw_set_valign(fa_top);
@@ -831,30 +808,7 @@ if ((vida_jogador <= 0 || vida_inimigo <= 0) && fim_animacao_timer >= 55) {
 
 #region Escolha de iniciativa
 // O painel só entra depois que os dois D20 terminaram; o voo e o resultado sobre a mesa ficam livres.
-if (disputa_inicial_estado == "troca_dado_local" && !ui_modal.tutorial_ativo) {
-    var _troca_ini_w = display_get_gui_width();
-    var _troca_ini_h = display_get_gui_height();
-    draw_set_alpha(0.97);
-    draw_set_color(c_black);
-    draw_rectangle(0, 0, _troca_ini_w, _troca_ini_h, false);
-    draw_set_alpha(1);
-    draw_set_halign(fa_center);
-    draw_set_valign(fa_middle);
-    desenhar_painel_carta_menu(_troca_ini_w/2-285,_troca_ini_h/2-100,_troca_ini_w/2+285,_troca_ini_h/2+110);
-    draw_set_font(fnt_vitoria);
-    draw_set_color(c_yellow);
-    draw_text(_troca_ini_w / 2, _troca_ini_h / 2 - 34, "PASSE PARA O JOGADOR 2");
-    draw_set_font(Fontenil);
-    draw_set_color(c_white);
-    draw_text(_troca_ini_w / 2, _troca_ini_h / 2 + 25, "Clique para colocar o segundo D20 na mesa");
-    draw_set_color(c_gray);
-    draw_text(_troca_ini_w / 2, _troca_ini_h / 2 + 60, "ESPAÇO ou ENTER também continua");
-    draw_set_halign(fa_left);
-    draw_set_valign(fa_top);
-}
-
 var _mostrar_painel_iniciativa = (disputa_inicial_estado == "online_iniciativa" || disputa_inicial_estado == "resultado"
-    || disputa_inicial_estado == "escolha_local"
     || disputa_inicial_estado == "escolha_jogador"
     || disputa_inicial_estado == "escolha_inimigo");
 if (_mostrar_painel_iniciativa && !ui_modal.tutorial_ativo && !(instance_exists(obj_livro) && obj_livro.preview_ativo)) {
@@ -896,16 +850,13 @@ if (_mostrar_painel_iniciativa && !ui_modal.tutorial_ativo && !(instance_exists(
         var _texto_resultado_ini = (disputa_inicial_resultado_jogador == disputa_inicial_resultado_inimigo)
             ? "EMPATE — NOVA ROLAGEM" : "O maior resultado escolhe quem começa";
         draw_text(_ini_cx, _ini_cy + 25, _texto_resultado_ini);
-    } else if (disputa_inicial_estado == "escolha_jogador" || disputa_inicial_estado == "escolha_local") {
+    } else if (disputa_inicial_estado == "escolha_jogador") {
         draw_set_color(c_yellow);
-        var _texto_vencedor_ini = (disputa_inicial_estado == "escolha_local")
-            ? nome_jogador_lado(disputa_inicial_vencedor) + " VENCEU. QUEM COMEÇA?"
-            : "VOCÊ VENCEU. QUEM COMEÇA?";
-        draw_text(_ini_cx, _ini_cy + 18, _texto_vencedor_ini);
+        draw_text(_ini_cx, _ini_cy + 18, "VOCÊ VENCEU. QUEM COMEÇA?");
         botao_carta_painel(_ini_cx-215,_ini_cy+55,_ini_cx-15,_ini_cy+105,
-            partida_local_ativa()?"JOGADOR 1 COMEÇA":"EU COMEÇO",true);
+            "EU COMEÇO",true);
         botao_carta_painel(_ini_cx+15,_ini_cy+55,_ini_cx+215,_ini_cy+105,
-            partida_local_ativa()?"JOGADOR 2 COMEÇA":"INIMIGO COMEÇA",true);
+            "INIMIGO COMEÇA",true);
     } else if (disputa_inicial_estado == "escolha_inimigo") {
         draw_set_color(c_red);
         draw_text(_ini_cx, _ini_cy + 25, "O INIMIGO VENCEU E ESTÁ ESCOLHENDO...");

@@ -39,8 +39,7 @@ if (instance_exists(obj_controlador)
     && obj_controlador.disputa_inicial_estado != "aguardando_deck"
     && obj_controlador.disputa_inicial_estado != "online_aguardando_mao") {
     var _quantidade_contador = (obj_controlador.modo_partida == "online") ? global.online_deck_count
-        : array_length((partida_local_ativa() && obj_controlador.turno == "inimigo")
-            ? obj_controlador.monte_inimigo : obj_controlador.monte);
+        : array_length(obj_controlador.monte);
     desenhar_legenda_mesa(x,y-sprite_height/2-34,
         "BARALHO · "+string(_quantidade_contador)+(_quantidade_contador==1?" carta":" cartas"),legenda_alpha);
 }

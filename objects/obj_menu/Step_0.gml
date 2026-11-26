@@ -1,3 +1,4 @@
+if (os_type == os_linux) kartha_clipboard_poll();
 var _painel_atual=tipo_painel_menu(id);
 if(_painel_atual!=painel_menu_anterior) {
     painel_menu_abertura=0;
@@ -43,21 +44,24 @@ if (online_aberto) {
     }
 
     if (!_online_conectado && !_online_ocupado) {
-        if (online_foco == 0) online_nome_input = string_copy(keyboard_string, 1, 24);
-        else if (online_foco == 1) online_codigo_input = string_copy(keyboard_string, 1, 64);
-        else if (online_foco == 2) online_servidor_input = string_copy(keyboard_string, 1, 200);
+        var _atalho_colar = (keyboard_check(vk_control) && keyboard_check_pressed(ord("V")))
+            || (keyboard_check(vk_shift) && keyboard_check_pressed(vk_insert));
+        if (!_atalho_colar || online_foco == 0) {
+            if (online_foco == 0) online_nome_input = string_copy(keyboard_string, 1, 24);
+            else if (online_foco == 1) online_codigo_input = string_copy(keyboard_string, 1, 64);
+            else online_servidor_input = string_copy(keyboard_string, 1, 200);
+        }
+        var _botao_colar = false;
         if (mouse_check_button_pressed(mb_left)) {
             if (point_in_rectangle(mouse_x, mouse_y, _online_cx + 125, _online_cy - 55, _online_cx + 190, _online_cy - 19)) {
                 online_foco = 1;
-                var _codigo_clicado = online_colar_codigo_sala();
-                if (_codigo_clicado != "") { online_codigo_input = _codigo_clicado; keyboard_string = online_codigo_input; global.online_erro = ""; }
-                else global.online_erro = "Não há código para colar.";
+                _botao_colar = true;
             } else if (point_in_rectangle(mouse_x, mouse_y, _online_cx - 190, _online_cy - 105, _online_cx + 190, _online_cy - 69)) {
-                online_foco = 0; keyboard_string = online_nome_input;
+                online_foco = 0;
             } else if (point_in_rectangle(mouse_x, mouse_y, _online_cx - 190, _online_cy - 55, _online_cx + 190, _online_cy - 19)) {
-                online_foco = 1; keyboard_string = online_codigo_input;
+                online_foco = 1;
             } else if (point_in_rectangle(mouse_x, mouse_y, _online_cx - 190, _online_cy - 5, _online_cx + 190, _online_cy + 31)) {
-                online_foco = 2; keyboard_string = online_servidor_input;
+                online_foco = 2;
             } else if (point_in_rectangle(mouse_x, mouse_y, _online_cx - 190, _online_cy + 55, _online_cx - 10, _online_cy + 101)) {
                 online_salvar_endpoint(online_servidor_input);
                 online_conectar(true, "", online_nome_input, online_servidor_input);
@@ -73,47 +77,20 @@ if (online_aberto) {
 
         if (keyboard_check_pressed(vk_tab)) {
             online_foco = (online_foco + 1) mod 3;
-            keyboard_string = (online_foco == 0) ? online_nome_input
-                : ((online_foco == 1) ? online_codigo_input : online_servidor_input);
         }
 
-       if (online_foco == 0) {
-    online_nome_input = string_copy(keyboard_string, 1, 24);
-    keyboard_string = online_nome_input;
-
-} else if (online_foco == 1) {
-    var _atalho_colar_codigo = keyboard_check(vk_control) && keyboard_check_pressed(ord("V"));
-    var _atalho_inserir_codigo = keyboard_check(vk_shift) && keyboard_check_pressed(vk_insert);
-    if (_atalho_colar_codigo || _atalho_inserir_codigo) {
-        var _codigo_da_area = online_colar_codigo_sala();
-        if (_codigo_da_area != "") {
-            online_codigo_input = _codigo_da_area;
-            keyboard_string = online_codigo_input;
-            global.online_erro = "";
-        } else global.online_erro = "Não há código para colar.";
-    } else {
-        online_codigo_input = string_copy(keyboard_string, 1, 64);
-        keyboard_string = online_codigo_input;
-    }
-
-	} else if (online_foco == 2) {
-
-	    if (keyboard_check_pressed(ord("V")) && keyboard_check(vk_control)) {
-
-	        var _tem_clip = clipboard_has_text();
-
-	        var _clip = clipboard_get_text();
-
-	        if (_clip != "") {
-	            online_servidor_input = string_copy(_clip, 1, 200);
-	            keyboard_string = online_servidor_input;
-	        }
-
-	    } else {
-	        online_servidor_input = string_copy(keyboard_string, 1, 200);
-	        keyboard_string = online_servidor_input;
-	    }
-	}
+        if (online_foco == 1 && (_botao_colar || _atalho_colar)) {
+            var _codigo = online_colar_codigo_sala();
+            if (_codigo != "") {
+                online_codigo_input = _codigo;
+                global.online_erro = "";
+            } else global.online_erro = "Não há código para colar.";
+        } else if (online_foco == 2 && _atalho_colar) {
+            var _servidor = string_trim(online_ler_area_transferencia());
+            if (_servidor != "") online_servidor_input = string_copy(_servidor, 1, 200);
+        }
+        keyboard_string = (online_foco == 0) ? online_nome_input
+            : ((online_foco == 1) ? online_codigo_input : online_servidor_input);
     } else if (_online_conectado) {
         if (mouse_check_button_pressed(mb_left)) {
             if (global.online_fase == "waiting"
@@ -185,12 +162,21 @@ if (modo_jogo_aberto) {
     var _cy=centro_painel_menu(id);
     if(keyboard_check_pressed(vk_escape)) modo_jogo_aberto=false;
     else if(mouse_check_button_pressed(mb_left)) {
-        for(var _m=0;_m<3;_m++) {
+        for(var _m=0;_m<2;_m++) {
             var _c=carta_modo_menu(_m,_cy);
             if(ponto_carta_menu(_c,mouse_x,mouse_y)) {
                 tocar_som_variado("clique",0.20);
-                if(_m<2) {global.modo_partida=_m==0?"ia":"local";trocar_sala_suave(rm_jogo);}
-                else {modo_jogo_aberto=false;online_aberto=true;online_foco=0;keyboard_string=online_nome_input;painel_menu_abertura=0;}
+                if (_m == 0) {
+                    global.modo_partida = "ia";
+                    trocar_sala_suave(rm_jogo);
+                } else {
+                    modo_jogo_aberto = false;
+                    online_aberto = true;
+                    online_foco = 0;
+                    keyboard_string = online_nome_input;
+                    painel_menu_abertura = 0;
+                }
+                break;
             }
         }
         if(point_in_rectangle(mouse_x,mouse_y,room_width/2-100,_cy+135,room_width/2+100,_cy+175)) modo_jogo_aberto=false;

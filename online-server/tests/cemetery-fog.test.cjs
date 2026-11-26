@@ -12,7 +12,7 @@ vm.runInContext(source.slice(0, source.indexOf('function nevoa_atualizar_consult
 for (const roll of [1, 20, 21, 100]) {
   let calls = 0;
   c.irandom_range = () => { calls++; return roll; };
-  c.obj_controlador = { modo_partida: 'local', turno: 'jogador', terreno_ativo: 'cemiterio', partida_iniciada: true, nevoa_turno_sorteado: '', nevoa_dono: '' };
+  c.obj_controlador = { modo_partida: 'ia', turno: 'jogador', terreno_ativo: 'cemiterio', partida_iniciada: true, nevoa_turno_sorteado: '', nevoa_dono: '' };
   c.nevoa_iniciar_turno('jogador');
   assert.equal(c.obj_controlador.nevoa_dono, roll <= 20 ? 'inimigo' : '');
   c.nevoa_iniciar_turno('jogador');
@@ -31,7 +31,7 @@ troop.esta_na_mao = true;
 assert.equal(c.tropa_oculta_nevoa(troop), false);
 troop.esta_na_mao = false;
 c.obj_controlador.turno = 'inimigo';
-assert.equal(c.tropa_oculta_nevoa(troop), false, 'owner can see own troops');
+assert.equal(c.tropa_oculta_nevoa(troop), true, 'bot turn preserves player perspective');
 c.obj_controlador.modo_partida = 'online';
 assert.equal(c.tropa_oculta_nevoa(troop), true, 'online observer is local jogador');
 c.irandom_range = () => { throw Error('client cannot roll online fog'); };

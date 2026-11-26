@@ -50,6 +50,7 @@
   "name":"KARTHA",
   "resources":[
     {"id":{"name":"tween_curves","path":"animcurves/tween_curves/tween_curves.yy",},},
+    {"id":{"name":"KarthaClipboard","path":"extensions/KarthaClipboard/KarthaClipboard.yy",},},
     {"id":{"name":"Colyseus_SDK","path":"extensions/Colyseus_SDK/Colyseus_SDK.yy",},},
     {"id":{"name":"fnt_botao","path":"fonts/fnt_botao/fnt_botao.yy",},},
     {"id":{"name":"fnt_vitoria","path":"fonts/fnt_vitoria/fnt_vitoria.yy",},},

@@ -77,7 +77,7 @@ if (arrastando && mouse_check_button_released(mb_left)) {
         exit;
     }
     
-    if (obj_controlador.vida_jogador <= 0 || obj_controlador.vida_inimigo <= 0) {
+    if (partida_encerrada(obj_controlador)) {
         iniciar_retorno_carta(id);
         esta_na_mao = true;
         exit;

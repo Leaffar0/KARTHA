@@ -975,7 +975,7 @@ function lista_maldicoes(_dono) {
 
 function adicionar_bencao(_dono, _efeito, _nome = "", _sprite = noone) {
     var _lista = lista_bencaos(_dono);
-    if (array_length(lista_bencaos(_dono)) + array_length(lista_maldicoes(_dono)) >= obj_controlador.max_bencaos_maldicoes) return false;
+    if (array_length(_lista) >= obj_controlador.max_bencaos_maldicoes) return false;
     array_push(_lista, {
         categoria: "bencao",
         efeito: _efeito,
@@ -987,7 +987,7 @@ function adicionar_bencao(_dono, _efeito, _nome = "", _sprite = noone) {
 
 function adicionar_maldicao(_dono, _efeito, _nome = "", _sprite = noone) {
     var _lista = lista_maldicoes(_dono);
-    if (array_length(lista_bencaos(_dono)) + array_length(lista_maldicoes(_dono)) >= obj_controlador.max_bencaos_maldicoes) return false;
+    if (array_length(_lista) >= obj_controlador.max_bencaos_maldicoes) return false;
     array_push(_lista, {
         categoria: "maldicao",
         efeito: _efeito,
@@ -1020,8 +1020,9 @@ function aplicar_efeitos_morte(_carta, _por_inimigo) {
         for (var i = 0; i < array_length(_maldicoes); i++) {
             var _efeito_maldicao = is_struct(_maldicoes[i]) ? _maldicoes[i].efeito : _maldicoes[i];
             if (_efeito_maldicao == "perde_vida_ao_morrer") {
-                causar_dano_castelo(_dono, 1, "Maldição da Perda");
-                debug_combate("Maldição da Perda causou 1 de dano!");
+                var _nome = is_struct(_maldicoes[i]) ? _maldicoes[i].nome : "Maldição da Perda";
+                causar_dano_castelo(_dono, 1, _nome);
+                debug_combate(_nome + " causou 1 de dano!");
             }
         }
     }
@@ -1338,13 +1339,13 @@ function buscar_recurso_no_deck(_tipo_recurso, _dono) {
     var _indice = array_get_index(_monte, _funcao_alvo);
     if (_indice == -1) {
         debug_combate("Busca: nenhum recurso de " + _tipo_recurso + " restou no deck.");
-        if (_dono == "jogador" || partida_local_ativa()) mostrar_aviso_regra("Não há mais " + nome_recurso_exibicao(_tipo_recurso, 1) + " no baralho");
+        if (_dono == "jogador") mostrar_aviso_regra("Não há mais " + nome_recurso_exibicao(_tipo_recurso, 1) + " no baralho");
         return false;
     }
 
     array_delete(_monte, _indice, 1);
 
-    if (_dono == "jogador" || partida_local_ativa()) {
+    if (_dono == "jogador") {
         comprar_carta_do_deck_por_funcao(_funcao_alvo, obj_deck.x, obj_deck.y, _dono);
     } else {
         array_push(obj_controlador.mao_inimigo, _funcao_alvo);
@@ -1356,7 +1357,7 @@ function buscar_recurso_no_deck(_tipo_recurso, _dono) {
 
 // Mesma lógica de sempre, mas recebe a função da carta já escolhida
 // (compra normal E efeitos de busca tipo Sangue Suga usam essa mesma função).
-function comprar_carta_do_deck_por_funcao(_funcao_sorteada, _x_inicial, _y_inicial, _dono = "jogador") {
+function comprar_carta_do_deck_por_funcao(_funcao_sorteada, _x_inicial, _y_inicial, _dono = "jogador", _inserir_na_mao = true) {
     var _dados = _funcao_sorteada();
 
     var _carta = instance_create_layer(_x_inicial, _y_inicial, "Instances", obj_carta);
@@ -1482,12 +1483,7 @@ function comprar_carta_do_deck_por_funcao(_funcao_sorteada, _x_inicial, _y_inici
     _carta.compra_origem_y = _y_inicial;
     _carta.depth = -5000;
 
-    var _destino_mao_oculta = partida_local_ativa()
-        && ((_dono == "jogador" && obj_controlador.turno == "inimigo")
-        || (_dono == "inimigo" && obj_controlador.turno != "inimigo"));
-    if (_destino_mao_oculta) {
-        array_push(obj_controlador.mao_oculta, _carta);
-    } else {
+    if (_inserir_na_mao) {
         array_push(obj_controlador.mao, _carta);
         organizar_mao();
     }
@@ -1536,8 +1532,7 @@ function comprar_varias_cartas(_quantidade, _dono) {
             comprar_carta_do_deck(obj_deck.x, obj_deck.y);
         } else {
             if (array_length(obj_controlador.monte_inimigo) == 0) break;
-            if (partida_local_ativa()) comprar_carta_do_deck(obj_deck.x, obj_deck.y, "inimigo");
-            else comprar_carta_do_deck_ia();
+            comprar_carta_do_deck_ia();
         }
     }
 }
@@ -1567,17 +1562,6 @@ function comprar_mao_inicial_ia() {
     obj_controlador.mao_inimigo_inicial_comprada = true;
 }
 #endregion
-
-function comprar_mao_inicial_segundo_jogador() {
-    if (obj_controlador.mao_inimigo_inicial_comprada) return;
-
-    for (var i = 0; i < obj_controlador.quantidade_inicial; i++) {
-        if (array_length(obj_controlador.monte_inimigo) == 0) break;
-        var _carta = comprar_carta_do_deck(obj_deck.x, obj_deck.y, "inimigo");
-        if (instance_exists(_carta)) _carta.compra_atraso = i * 7;
-    }
-    obj_controlador.mao_inimigo_inicial_comprada = true;
-}
 
 #region Mão — leque, arco e scroll horizontal
 function organizar_mao() {
@@ -1905,7 +1889,7 @@ function selecionar_recursos_para_custo(_custo, _dono, _categoria = "") {
 function pode_pagar_custo(_custo, _dono, _categoria = "") {
     if (_custo == noone) return true;
     var _selecao = selecionar_recursos_para_custo(_custo, _dono, _categoria);
-    if (!_selecao.sucesso && (_dono == "jogador" || partida_local_ativa())) {
+    if (!_selecao.sucesso && (_dono == "jogador")) {
         var _texto = "Falta ";
         for (var i = 0; i < array_length(_selecao.faltas); i++) {
             if (i > 0) _texto += (i == array_length(_selecao.faltas) - 1) ? " e " : ", ";

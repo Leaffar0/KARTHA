@@ -18,6 +18,7 @@ function online_salvar_endpoint(_endpoint) {
 function online_inicializar() {
     if (variable_global_exists("online_inicializado")) return;
     global.online_inicializado = true;
+    global.online_reabrir_lobby = false;
     global.net_client = 0;
     global.net_room = 0;
     global.net_connected = false;
@@ -37,6 +38,7 @@ function online_inicializar() {
     global.online_seed = 0;
     global.online_revisao = 0;
     global.online_mao_privada = [];
+    global.online_ultima_nao_tropa = "";
     global.online_armadilhas_privadas = [];
     global.online_efeitos_privados = [];
     global.online_estado_publico = noone;
@@ -97,7 +99,7 @@ function online_atualizar_atraso_visual() {
     if (!variable_global_exists("online_atraso_visual_frames")) return;
     if (global.online_atraso_visual_frames > 0) global.online_atraso_visual_frames -= 1;
     if (global.online_atraso_visual_frames > 0 || !instance_exists(obj_controlador)
-        || obj_controlador.rolagens_pendentes > 0 || !is_struct(global.online_estado_publico_pendente)) return;
+        || obj_controlador.rolagens_pendentes > 0 || apresentacao_tem_pendencias() || !is_struct(global.online_estado_publico_pendente)) return;
     var _estado = global.online_estado_publico_pendente;
     global.online_estado_publico_pendente = noone;
     online_aplicar_estado_visual(_estado);
@@ -153,14 +155,25 @@ function online_atualizar_nomes(_jogadores) {
 }
 function online_copiar_codigo_sala() {
     if (!variable_global_exists("net_room_id") || string_trim(global.net_room_id) == "") return false;
-    clipboard_set_text(string(global.net_room_id));
+    var _codigo = string_trim(global.net_room_id);
+    if (os_type == os_linux) {
+        if (!kartha_clipboard_write(_codigo)) {
+            if (instance_exists(obj_menu)) obj_menu.online_copiado_timer = 0;
+            global.online_erro = "Falha ao copiar o código da sala.";
+            return false;
+        }
+    } else clipboard_set_text(_codigo);
+    global.online_erro = "";
     if (instance_exists(obj_menu)) obj_menu.online_copiado_timer = 120;
     return true;
 }
 
+function online_ler_area_transferencia() {
+    return os_type == os_linux ? kartha_clipboard_read() : clipboard_get_text();
+}
+
 function online_colar_codigo_sala() {
-    if (!clipboard_has_text()) return "";
-    var _codigo_colado = string_trim(clipboard_get_text());
+    var _codigo_colado = string_trim(online_ler_area_transferencia());
     _codigo_colado = string_replace_all(_codigo_colado, "\r", "");
     var _quebra_codigo = string_pos("\n", _codigo_colado);
     if (_quebra_codigo > 0) _codigo_colado = string_copy(_codigo_colado, 1, _quebra_codigo - 1);
@@ -176,6 +189,7 @@ function online_configurar_callbacks(_sala) {
     });
 
     colyseus_on_drop(_sala, function(_codigo, _motivo) {
+        global.net_connected = false;
         global.online_status = "reconectando";
         global.online_erro = "Conexão perdida. Tentando voltar...";
     });
@@ -184,7 +198,15 @@ function online_configurar_callbacks(_sala) {
         global.net_connected = true;
         global.online_status = "na_sala";
         global.online_erro = "";
-        colyseus_send(_sala, "request_private_state", {});
+        // O servidor reenvia mão, tabuleiro e escolhas ao recuperar o assento.
+        if (instance_exists(obj_controlador)) {
+            obj_controlador.ui_modal.critico_escolha_ativa = false;
+            obj_controlador.ui_modal.mitose_selecao_ativa = false;
+            obj_controlador.ui_modal.maquina_ima_escolha_ativa = false;
+            obj_controlador.ui_modal.dados_manipulados_escolha_ativa = false;
+            obj_controlador.dados_manipulados_escolhas = [];
+            obj_controlador.maquina_ima_pendencias = [];
+        }
     });
 
     colyseus_on_leave(_sala, function(_codigo, _motivo) {
@@ -299,6 +321,16 @@ function online_configurar_callbacks(_sala) {
                 }
                 break;
 
+            case "critical_choice":
+                if (instance_exists(obj_controlador)) {
+                    obj_controlador.ui_modal.critico_contexto = {
+                        atacante: online_encontrar_carta_campo(_dados.cardId),
+                        defensor: variable_struct_exists(_dados, "targetId") ? online_encontrar_carta_campo(_dados.targetId) : noone,
+                        qtd_usada: _dados.dice, dado_usado: _dados.die, online: true
+                    };
+                    obj_controlador.ui_modal.critico_escolha_ativa = true;
+                }
+                break;
             case "manipulated_roll_choice":
                 if (instance_exists(obj_controlador)) {
                     array_push(obj_controlador.dados_manipulados_escolhas, {
@@ -311,6 +343,8 @@ function online_configurar_callbacks(_sala) {
                 global.online_mao_privada = variable_struct_exists(_dados, "hand") && is_array(_dados.hand) ? _dados.hand : [];
                 global.online_armadilhas_privadas = variable_struct_exists(_dados, "activeTraps") && is_array(_dados.activeTraps) ? _dados.activeTraps : [];
                 global.online_efeitos_privados = variable_struct_exists(_dados, "activeEffects") && is_array(_dados.activeEffects) ? _dados.activeEffects : [];
+                global.online_ultima_nao_tropa = variable_struct_exists(_dados, "lastNonTroopDefinitionId")
+                    ? _dados.lastNonTroopDefinitionId : "";
                 global.online_mao_pendente = true;
                 global.online_deck_count = _dados.deckCount;
                 global.online_descarte_privado = variable_struct_exists(_dados, "discard") && is_array(_dados.discard) ? _dados.discard : [];
@@ -323,7 +357,7 @@ function online_configurar_callbacks(_sala) {
                 global.online_revisao = _dados.revision;
                 if (instance_exists(obj_controlador)) {
                     if (global.online_mao_pendente) online_reconstruir_mao_privada();
-                    if (global.online_atraso_visual_frames > 0 || obj_controlador.rolagens_pendentes > 0)
+                    if (global.online_atraso_visual_frames > 0 || obj_controlador.rolagens_pendentes > 0 || apresentacao_tem_pendencias())
                         global.online_estado_publico_pendente = _dados;
                     else online_aplicar_estado_visual(_dados);
                 }
@@ -365,6 +399,7 @@ function online_configurar_callbacks(_sala) {
                 break;
             case "action_rejected":
                 global.online_revisao = _dados.revision;
+                if (instance_exists(obj_controlador)) obj_controlador.online_aguardando_turno = false;
                 global.online_erro = online_mensagem_erro(_dados.reason);
                 if (instance_exists(obj_controlador)) mostrar_aviso_regra(global.online_erro);
                 if (_dados.reason == "revisao" && online_ativo()) colyseus_send(_ref, "request_private_state", {});
@@ -378,7 +413,7 @@ function online_configurar_callbacks(_sala) {
             global.online_fase = colyseus_schema_get(_estado, "phase");
             global.online_vencedor_iniciativa = colyseus_schema_get(_estado, "initiativeWinner");
             global.online_primeiro = colyseus_schema_get(_estado, "currentPlayer");
-            global.online_revisao = colyseus_schema_get(_estado, "revision");
+            global.online_revisao = max(global.online_revisao, colyseus_schema_get(_estado, "revision"));
         }
     });
 }
@@ -404,6 +439,7 @@ function online_conectar(_criar, _codigo, _nome, _endpoint = "wss://doily-pointy
     global.online_status = "conectando";
     global.online_estado_publico = noone;
     global.online_mao_privada = [];
+    global.online_ultima_nao_tropa = "";
     global.online_armadilhas_privadas = [];
     global.online_efeitos_privados = [];
     global.online_revanche_solicitada = false;
@@ -411,6 +447,10 @@ function online_conectar(_criar, _codigo, _nome, _endpoint = "wss://doily-pointy
     global.online_estado_publico_pendente = noone;
     global.online_atraso_visual_frames = 0;
     global.online_erro = "";
+    global.online_assento = -1;
+    global.online_revisao = 0;
+    global.online_fase = "waiting";
+    global.online_iniciativa = [-1, -1];
     global.online_criou_sala = _criar;
     global.net_client = colyseus_client_create(_endpoint);
     global.net_room = _criar
@@ -745,15 +785,11 @@ function online_reconstruir_mao_privada() {
         }
     }
 
-    // Troca imediatamente pela lista limpa: criar uma carta chama organizar_mao().
-    obj_controlador.mao = _nova_mao;
-    obj_controlador.mao_oculta = [];
+    obj_controlador.ultima_carta_nao_tropa_jogador = online_funcao_carta_por_id(global.online_ultima_nao_tropa);
     var _mao_online = is_array(global.online_mao_privada) ? global.online_mao_privada : [];
     var _armadilhas_online = is_array(global.online_armadilhas_privadas) ? global.online_armadilhas_privadas : [];
     var _registros_visiveis = array_concat(_mao_online, _armadilhas_online);
-    var _turno_anterior = obj_controlador.turno;
     var _lado = online_lado_local();
-    obj_controlador.turno = _lado;
     for (var r = 0; r < array_length(_registros_visiveis); r++) {
         var _registro = _registros_visiveis[r];
         var _carta = online_encontrar_carta_mao(_registro.instanceId);
@@ -762,16 +798,12 @@ function online_reconstruir_mao_privada() {
             if (_funcao == noone) continue;
             var _comprada = obj_controlador.mao_inicial_comprada;
             obj_controlador.mao_inicial_comprada = false;
-            _carta = comprar_carta_do_deck_por_funcao(_funcao, obj_deck.x, obj_deck.y, _lado);
+            _carta = comprar_carta_do_deck_por_funcao(_funcao, obj_deck.x, obj_deck.y, _lado, false);
             obj_controlador.mao_inicial_comprada = _comprada;
             if (!instance_exists(_carta)) continue;
             _carta.online_instance_id = _registro.instanceId;
             _carta.dono = _lado;
             _carta.compra_atraso = r * 4;
-            var _indice = array_get_index(obj_controlador.mao, _carta);
-            if (_indice >= 0) array_delete(obj_controlador.mao, _indice, 1);
-            _indice = array_get_index(obj_controlador.mao_oculta, _carta);
-            if (_indice >= 0) array_delete(obj_controlador.mao_oculta, _indice, 1);
         }
         if (variable_struct_exists(_registro, "lane")) {
             _carta.armadilha_lane = online_lane_local(_registro.lane);
@@ -780,9 +812,7 @@ function online_reconstruir_mao_privada() {
         }
         if (array_get_index(_nova_mao, _carta) < 0) array_push(_nova_mao, _carta);
     }
-    obj_controlador.turno = _turno_anterior;
     obj_controlador.mao = _nova_mao;
-    obj_controlador.mao_oculta = [];
     obj_controlador.mao_inicial_comprada = true;
     global.online_mao_pendente = false;
     organizar_mao();
@@ -946,12 +976,8 @@ function online_criar_carta_publica(_registro) {
         if (_slot == noone) return noone;
         var _comprada = obj_controlador.mao_inicial_comprada;
         obj_controlador.mao_inicial_comprada = false;
-        var _carta = comprar_carta_do_deck_por_funcao(_funcao, _slot.x, _slot.y, _dono);
+        var _carta = comprar_carta_do_deck_por_funcao(_funcao, _slot.x, _slot.y, _dono, false);
         obj_controlador.mao_inicial_comprada = _comprada;
-        var _indice = array_get_index(obj_controlador.mao, _carta);
-        if (_indice >= 0) array_delete(obj_controlador.mao, _indice, 1);
-        _indice = array_get_index(obj_controlador.mao_oculta, _carta);
-        if (_indice >= 0) array_delete(obj_controlador.mao_oculta, _indice, 1);
         _carta.online_instance_id = _registro.instanceId;
         _carta.online_presente = true;
         _carta.esta_na_mao = false;
@@ -1300,6 +1326,12 @@ function online_aplicar_estado_publico(_estado) {
     var _acao = obj_controlador.online_acao_pagamento;
     if (!is_struct(_acao) || _acao.revision != _estado.revision
         || _estado.revision != obj_controlador.online_estado_aplicado_revisao + 1) _acao = noone;
+    obj_controlador.online_vencedor = _estado.phase == "finished" && _estado.winner >= 0
+        ? online_lado_do_assento(_estado.winner) : "";
+    obj_controlador.online_fim_saida = obj_controlador.online_vencedor != ""
+        && variable_struct_exists(_estado, "lastAction") && (_estado.lastAction == "concede" || _estado.lastAction == "disconnect");
+    obj_controlador.online_oponente_saiu = array_length(_estado.players) < 2;
+    obj_controlador.turnos_completos = max(0, (_estado.turnNumber - 1) div 2);
     if (_estado.phase == "finished" && variable_struct_exists(_estado, "finalBlow") && is_struct(_estado.finalBlow)) {
         obj_controlador.golpe_final_origem = _estado.finalBlow.source;
         obj_controlador.golpe_final_vida = _estado.finalBlow.lifeLost;
@@ -1308,10 +1340,11 @@ function online_aplicar_estado_publico(_estado) {
         obj_controlador.golpe_final_vida = 0;
     }
     global.online_fase = _estado.phase;
-    global.online_revisao = _estado.revision;
+    global.online_revisao = max(global.online_revisao, _estado.revision);
     obj_controlador.online_estado_aplicado_revisao = _estado.revision;
     obj_controlador.turno = online_lado_do_assento(_estado.currentPlayer);
     obj_controlador.partida_iniciada = (_estado.phase == "playing");
+    if (obj_controlador.online_vencedor != "") obj_controlador.disputa_inicial_estado = "concluida";
     if (obj_controlador.partida_iniciada) obj_controlador.disputa_inicial_estado = "concluida";
     if (_estado.phase == "drawing") {
         var _mao_inicial_comprada = false;

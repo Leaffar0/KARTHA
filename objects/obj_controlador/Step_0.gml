@@ -1,3 +1,4 @@
+if (os_type == os_linux) kartha_clipboard_poll();
 // Mantém a conexão ativa durante o fade, sem aceitar ações sob a cortina.
 if (transicao_sala_ativa()) {
     if (modo_partida == "online" && colyseus_is_ready()) colyseus_process();
@@ -56,7 +57,15 @@ if (instance_exists(carta_preview)) {
     if (previa_visual_progresso == 0) previa_visual_carta = noone;
 }
 if (modo_partida == "online" && colyseus_is_ready()) colyseus_process();
-if (modo_partida == "online") online_atualizar_atraso_visual();
+if (modo_partida == "online") {
+    if (global.online_status == "desconectado" && !partida_encerrada(id)) {
+        if (global.online_erro == "") global.online_erro = "A conexão com a sala foi encerrada.";
+        global.online_reabrir_lobby = true;
+        trocar_sala_suave(rm_menu);
+        exit;
+    }
+    online_atualizar_atraso_visual();
+}
 apresentacao_atualizar(id);
 if (carta_preview != noone && instance_exists(carta_preview)) {
     if (detalhes_carta != carta_preview) {
@@ -79,7 +88,8 @@ if (mouse_sobre_historico()) historico_pagina = clamp(historico_pagina + mouse_w
 #region Watchdog de segurança
 // Se rolagens_pendentes ficar travado (algum dado/moeda não decrementou por bug),
 // força o reset depois de 10 segundos pra nunca deixar o "Passar Turno" travado pra sempre.
-if (rolagens_pendentes > 0) {
+if (rolagens_pendentes > 0 && !instance_exists(obj_dado) && !instance_exists(obj_moeda)
+    && !instance_exists(obj_bola_fogo_projetil)) {
     rolagens_pendentes_timer += 1;
     if (rolagens_pendentes_timer > 600) {
         show_debug_message("AVISO: rolagens_pendentes travado em " + string(rolagens_pendentes) + ", forçando reset.");
@@ -108,7 +118,7 @@ for (var _i_anim_item = array_length(animacoes_item) - 1; _i_anim_item >= 0; _i_
         array_delete(animacoes_item, _i_anim_item, 1);
     }
 }
-if (vida_jogador <= 0 || vida_inimigo <= 0) {
+if (partida_encerrada(id)) {
     fim_animacao_timer = min(fim_animacao_duracao, fim_animacao_timer + 1);
     if (fim_animacao_timer == 12) tocar_som_variado("metal", 0.48, 0.8);
 }

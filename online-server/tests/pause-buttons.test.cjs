@@ -3,7 +3,7 @@ const src=fs.readFileSync(path.resolve(__dirname,'../../scripts/scr_fluxo_partid
 const a=src.indexOf('    var _clicou_continuar ='),b=src.indexOf('    return true;',a);
 function click(x,y,online=false){
  const calls=[];const c={_tutorial_gui_x:x,_tutorial_gui_y:y,_pausa_cx:640,_pausa_cy:360,
- ui_modal:{pausa_ativa:true,opcoes_pausa_ativa:false},modo_partida:online?'online':'local',global:{net_room:1},rm_menu:2,mb_left:1,vk_escape:27,vk_f1:112,
+ ui_modal:{pausa_ativa:true,opcoes_pausa_ativa:false},modo_partida:online?'online':'ia',global:{net_room:1},rm_menu:2,mb_left:1,vk_escape:27,vk_f1:112,
  mouse_check_button_pressed:()=>true,keyboard_check_pressed:()=>false,ord:s=>s.charCodeAt(0),
  point_in_rectangle:(x,y,a,b,d,e)=>x>=a&&x<=d&&y>=b&&y<=e,
  online_ativo:()=>online,colyseus_send:()=>calls.push('concede'),online_desconectar:()=>calls.push('disconnect'),trocar_sala_suave:r=>calls.push(r)};

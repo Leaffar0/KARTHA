@@ -31,8 +31,7 @@ por isso essa execução precisa ser feita pela IDE instalada localmente.
 
 ## Cenários locais de teste
 
-Com DEBUG_COMBATE ativo, pressione **F6** durante seu turno numa partida contra IA
-ou local. Escolha um dos cinco cenários: cartas/recursos para custos e alvos,
+Com DEBUG_COMBATE ativo, pressione **F6** durante seu turno numa partida contra a IA. Escolha um dos cinco cenários: cartas/recursos para custos e alvos,
 uma tropa com três condições, duas tropas equipadas, esvaziar o baralho com
 cópia temporária ou restaurá-lo. A preparação preserva os limites do turno.
 Os cenários de tropas precisam de colunas livres; não removem tropas existentes.

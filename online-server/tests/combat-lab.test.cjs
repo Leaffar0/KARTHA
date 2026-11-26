@@ -17,7 +17,7 @@ for(const [i,k] of ['escape','f7','space','left','right','up','down'].entries())
 Object.assign(ctx,{clamp:(v,a,b)=>Math.max(a,Math.min(b,v)),exp:Math.exp,
  lerp:(a,b,t)=>a+(b-a)*t,delta_time:1000000/60,terreno_previa:0});
 vm.createContext(ctx);
-vm.runInContext(fs.readFileSync(path.join(root,'scripts/scr_mesa_ambiente/scr_mesa_ambiente.gml'),'utf8').replace(/\bmod\b/g,'%'),ctx);
+vm.runInContext(fs.readFileSync(path.join(root,'scripts/scr_mesa_ambiente/scr_mesa_ambiente.gml'),'utf8').replace(/\bmod\b/g,'%').replace(/\bstatic (?=_)/g,'let '),ctx);
 ctx.ambiente_mesa=ctx.mesa_ambiente_criar();
 for(let i=0;i<31;i++)vm.runInContext(step,ctx);
 assert.equal(hits.length,0);vm.runInContext(step,ctx);assert.equal(hits.length,1);

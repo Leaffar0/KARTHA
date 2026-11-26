@@ -98,8 +98,8 @@ function mover_tropa(_carta, _direcao) {
 // Move todas as tropas de um lado que ainda não chegaram à posição de assalto.
 function mover_tropas_automatico(_dono) {
     with (obj_carta) {
-        if (dono == _dono && travada && turnos_no_campo >= 1 && posicao_atual != posicao_assalto(_dono) && tropa_pode_agir(id)) {
-            mover_tropa(id, 1);
+        if (dono == _dono && travada && !moveu_este_turno && turnos_no_campo >= 1 && posicao_atual != posicao_assalto(_dono) && tropa_pode_agir(id)) {
+            if (mover_tropa(id, 1) == "movido") moveu_este_turno = true;
         }
     }
 }
@@ -359,7 +359,7 @@ function rolar_ataque_direto_com_acerto(_carta, _alvo, _tipo_ataque, _callback_f
                 var _crit_direto = { atacante: carta, defensor: noone, tipo_ataque: tipo,
                     dado_usado: _dado_crit, qtd_usada: _qtd_crit, mod_usado: _mod_crit,
                     direto: true, callback_final: callback_final, indice: indice, total: total };
-                if (carta.dono == "jogador" || partida_local_ativa()) enfileirar_escolha_critico(_crit_direto);
+                if (carta.dono == "jogador") enfileirar_escolha_critico(_crit_direto);
                 else resolver_critico_direto(_crit_direto, "dobrar_resultado");
                 return;
             }
@@ -950,9 +950,9 @@ function resolver_escolha_critico(_modo) {
     var _contexto = obj_controlador.ui_modal.critico_contexto;
     if (obj_controlador.modo_partida == "online" && is_struct(_contexto)
         && variable_struct_exists(_contexto, "online") && _contexto.online) {
+        if (!online_enviar_acao("choose_critical", { choice: _modo })) return;
         obj_controlador.ui_modal.critico_escolha_ativa = false;
         obj_controlador.ui_modal.critico_contexto = noone;
-        online_enviar_acao("choose_critical", { choice: _modo });
         mostrar_feedback(_modo == "dobrar_dados" ? "CRÍTICO: +DADOS" : "CRÍTICO: RESULTADO ×2",
             _contexto.atacante.x, _contexto.atacante.y - 45, c_yellow, 55);
         return;
@@ -1082,7 +1082,7 @@ function processar_resultado_acerto(_dado_acerto, _atacante, _defensor, _tipo_at
 
     if (_dado_natural == 20) {
         debug_combate("ACERTO CRÍTICO! Escolhendo como dobrar o dano original.");
-        if (_atacante.dono == "jogador" || partida_local_ativa()) {
+        if (_atacante.dono == "jogador") {
             enfileirar_escolha_critico(_contexto_dano);
         } else {
             var _modo_ia = ia_escolher_modo_critico(_contexto_dano);
@@ -1120,7 +1120,7 @@ function processar_maquina_ima_na_morte(_carta) {
     if (array_length(_itens) <= 0) return false;
     if (!tem_maquina_ima_na_fileira(_carta.dono, _carta.lane_atual)) return false;
 
-    if (_carta.dono == "jogador" || partida_local_ativa()) {
+    if (_carta.dono == "jogador") {
         array_push(obj_controlador.maquina_ima_pendencias,
             { itens: _itens, x: _carta.x, y: _carta.y, dono: _carta.dono });
     } else {
@@ -1233,8 +1233,7 @@ function registrar_descarte(_carta) {
     if (_carta.dono == "jogador") obj_controlador.descarte_jogador = _destino;
     else obj_controlador.descarte_inimigo = _destino;
     // Apenas uma cópia visual: a carta e as regras do descarte já foram resolvidas.
-    if ((_carta.dono == "jogador" || (obj_controlador.modo_partida == "local"
-        && _carta.dono == obj_controlador.turno)) && instance_exists(obj_descarte)) {
+    if (_carta.dono == "jogador" && instance_exists(obj_descarte)) {
         var _cesto = instance_find(obj_descarte, 0);
         array_push(_cesto.cartas_caindo, {sprite: _carta.sprite_index,
             x: _carta.x, y: _carta.y, escala: abs(_carta.image_xscale),
@@ -1244,30 +1243,6 @@ function registrar_descarte(_carta) {
 }
 
 function consumir_carta_de_funcao(_funcao, _dono) {
-    if (partida_local_ativa()) {
-        var _usar_mao_oculta = ((_dono == "jogador" && obj_controlador.turno == "inimigo")
-            || (_dono == "inimigo" && obj_controlador.turno != "inimigo"));
-        var _mao_lado = _usar_mao_oculta ? obj_controlador.mao_oculta : obj_controlador.mao;
-        for (var i = 0; i < array_length(_mao_lado); i++) {
-            var _carta_local = _mao_lado[i];
-            if (instance_exists(_carta_local) && _carta_local.funcao_dados_origem == _funcao) {
-                if (_usar_mao_oculta) array_delete(obj_controlador.mao_oculta, i, 1);
-                else array_delete(obj_controlador.mao, i, 1);
-                instance_destroy(_carta_local);
-                if (!_usar_mao_oculta) organizar_mao();
-                return true;
-            }
-        }
-        var _monte_lado = (_dono == "jogador") ? obj_controlador.monte : obj_controlador.monte_inimigo;
-        var _indice_monte_local = array_get_index(_monte_lado, _funcao);
-        if (_indice_monte_local >= 0) {
-            if (_dono == "jogador") array_delete(obj_controlador.monte, _indice_monte_local, 1);
-            else array_delete(obj_controlador.monte_inimigo, _indice_monte_local, 1);
-            return true;
-        }
-        return false;
-    }
-
     if (_dono == "jogador") {
         for (var i = 0; i < array_length(obj_controlador.mao); i++) {
             var _carta_mao = obj_controlador.mao[i];
@@ -1318,7 +1293,7 @@ function executar_mitose(_carta) {
     var _slots_livres = slots_adjacentes_livres(_slot_morte);
 
     if (array_length(_slots_livres) > 0 && consumir_carta_de_funcao(_funcao_filhote, _carta.dono)) {
-        if (_carta.dono == "jogador" || partida_local_ativa()) {
+        if (_carta.dono == "jogador") {
             obj_controlador.ui_modal.mitose_selecao_ativa = true;
             obj_controlador.ui_modal.mitose_dados_pendentes = _dados_filhote;
             obj_controlador.ui_modal.mitose_funcao_pendente = _funcao_filhote;
@@ -2143,14 +2118,7 @@ function resolver_visao_veu_escolha(_indice_opcao) {
         mostrar_feedback("PROTEGIDA DA PRÓXIMA ARMADILHA", _carta.x, _carta.y - 45, c_aqua, 60);
     } else if (_indice_opcao < array_length(obj_controlador.ui_modal.visao_veu_opcoes)) {
         var _opcao = obj_controlador.ui_modal.visao_veu_opcoes[_indice_opcao];
-        if (_opcao.armadilha && partida_local_ativa() && instance_exists(_opcao.instancia)) {
-            var _indice_local = array_get_index(obj_controlador.mao_oculta, _opcao.instancia);
-            if (_indice_local >= 0) {
-                registrar_descarte(_opcao.instancia);
-                array_delete(obj_controlador.mao_oculta, _indice_local, 1);
-                instance_destroy(_opcao.instancia);
-            }
-        } else if (_opcao.armadilha) {
+        if (_opcao.armadilha) {
             var _pos = array_get_index(obj_controlador.mao_inimigo, _opcao.funcao);
             if (_pos >= 0) {
                 var _dados = obj_controlador.mao_inimigo[_pos]();
@@ -2174,7 +2142,7 @@ function habilidade_visao_do_veu(_carta) {
     }
     _carta.visao_do_veu_usada = true;
     _carta.habilidade_usada_este_turno = true;
-    if (_carta.dono == "inimigo" && !partida_local_ativa()) {
+    if (_carta.dono == "inimigo") {
         var _armadilha = noone;
         with (obj_carta) if (esta_na_mao && dono == "jogador" && categoria == "armadilha") { _armadilha = id; break; }
         if (instance_exists(_armadilha)) {
@@ -2190,12 +2158,11 @@ function habilidade_visao_do_veu(_carta) {
         return;
     }
     obj_controlador.ui_modal.visao_veu_opcoes = [];
-    var _mao_revelada = partida_local_ativa() ? obj_controlador.mao_oculta : obj_controlador.mao_inimigo;
+    var _mao_revelada = obj_controlador.mao_inimigo;
     for (var i = 0; i < array_length(_mao_revelada); i++) {
-        var _instancia_veu = partida_local_ativa() ? _mao_revelada[i] : noone;
-        var _funcao = partida_local_ativa() ? _instancia_veu.funcao_dados_origem : _mao_revelada[i];
+        var _funcao = _mao_revelada[i];
         var _dados = _funcao();
-        array_push(obj_controlador.ui_modal.visao_veu_opcoes, { nome: _dados.nome, funcao: _funcao, instancia: _instancia_veu, armadilha: _dados.categoria == "armadilha" });
+        array_push(obj_controlador.ui_modal.visao_veu_opcoes, { nome: _dados.nome, funcao: _funcao, armadilha: _dados.categoria == "armadilha" });
     }
     obj_controlador.ui_modal.visao_veu_origem = _carta;
     obj_controlador.visao_veu_revelacao_timer = 0;

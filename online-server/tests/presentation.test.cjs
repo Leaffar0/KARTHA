@@ -26,7 +26,7 @@ ctx.obj_controlador={modo_partida:'online',ui_modal:{pausa_ativa:false},vida_jog
 const labStart=source.indexOf('function abrir_laboratorio_visual(');
 vm.runInContext(source.slice(labStart,source.indexOf('\nfunction ',labStart+1)),ctx);
 ctx.abrir_laboratorio_visual();assert.equal(ctx.destination,undefined);assert.equal(ctx.room_persistent,false);
-ctx.obj_controlador.modo_partida='local';ctx.abrir_laboratorio_visual();
+ctx.obj_controlador.modo_partida='ia';ctx.abrir_laboratorio_visual();
 assert.equal(ctx.destination,44);assert.equal(ctx.global.laboratorio_origem,12);
 assert.equal(ctx.global.laboratorio_persistencia,false);assert.equal(ctx.room_persistent,true);
 assert.equal(ctx.obj_controlador.vida_jogador,13);assert.equal(ctx.obj_controlador.ui_modal.pausa_ativa,true);

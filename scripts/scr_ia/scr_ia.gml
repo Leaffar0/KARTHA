@@ -254,7 +254,7 @@ function ia_evoluir_tropa() {
     with (obj_carta) {
         if (!travada || dono != "inimigo" || funcao_evolucao == noone || turnos_no_campo < 1) continue;
         var _dados_evolucao = funcao_evolucao();
-        if (!pode_pagar_custo(_dados_evolucao.custo, "inimigo")) continue;
+        if (!pode_pagar_custo(_dados_evolucao.custo, "inimigo", "tropa")) continue;
 
         var _ganho = ia_valor_tropa_dados(_dados_evolucao) - ia_valor_tropa_campo(id);
         if (_ganho > _melhor_ganho) {

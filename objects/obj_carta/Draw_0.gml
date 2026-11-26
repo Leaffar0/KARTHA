@@ -1,14 +1,9 @@
 if(tropa_oculta_nevoa(id)) { desenhar_tropa_oculta_nevoa(id); exit; }
-// No modo local, somente a mão do jogador ativo pode ser vista.
-if (esta_na_mao && partida_local_ativa()
-    && (obj_controlador.passagem_turno_ativa || dono != obj_controlador.turno)) exit;
-
 #region Preparação e desenho base da carta
 draw_set_font(Fontenil)
 
 
-var _rotacao_extra = (dono == "inimigo"
-    && !(partida_local_ativa() && esta_na_mao && obj_controlador.turno == "inimigo")) ? 180 : 0;
+var _rotacao_extra = (dono == "inimigo") ? 180 : 0;
 var _rotacao_total = rotacao_atual + rotacao_animacao + rotacao_evolucao + arrasto_rotacao + _rotacao_extra;
 
 var _x_desenho = x + ataque_offset_x + arrasto_offset_visual_x + recuo_dano_x;

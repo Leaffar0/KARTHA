@@ -168,8 +168,10 @@ export function defaultDeck(): string[] {
   return result;
 }
 
+const deckCards = new Set<string>(CARD_ORDER);
+
 export function validateDeck(deck: unknown): string[] | undefined {
   if (!Array.isArray(deck) || deck.length !== 50) return undefined;
-  if (!deck.every((id) => typeof id === "string" && CARD_DEFINITIONS[id])) return undefined;
+  if (!deck.every((id) => typeof id === "string" && deckCards.has(id))) return undefined;
   return [...deck];
 }

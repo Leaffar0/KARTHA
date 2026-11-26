@@ -10,13 +10,13 @@ const context = vm.createContext({
   clamp: (n,a,b)=>Math.max(a,Math.min(b,n)), floor:Math.floor, exp:Math.exp,
   lerp:(a,b,t)=>a+(b-a)*t, noone:null, c_white:0xffffff, spr_mesa_madeira:1,
   obj_controlador:controller, obj_slot_terreno:'slot',
-  shd_mesa_cinza:2, shader_is_compiled:()=>true, shader_set(){}, shader_reset(){},
+  shd_mesa_cinza:2, shader_is_compiled:()=>true, shader_set(){}, shader_reset(){}, shader_get_uniform:()=>0, shader_set_uniform_f(){}, make_color_rgb:()=>0,
   instance_exists:x=>x!==null, instance_find:()=>slot,
   is_struct:x=>x!==null && typeof x==='object',
   variable_struct_exists:(x,k)=>Object.hasOwn(x,k),
   draw_sprite_stretched_ext:(...args)=>calls.push(args),
 });
-vm.runInContext(fs.readFileSync(path.join(root,'scripts/scr_mesa_ambiente/scr_mesa_ambiente.gml'),'utf8').replace(/\bmod\b/g,'%'),context);
+vm.runInContext(fs.readFileSync(path.join(root,'scripts/scr_mesa_ambiente/scr_mesa_ambiente.gml'),'utf8').replace(/\bmod\b/g,'%').replace(/\bstatic (?=_)/g,'let '),context);
 assert.equal(context.mesa_ambiente_terreno(),0);
 slot={ocupado:true,terreno_atual:{dados_carta:{nome:'Pântano Sombrio'}}};
 assert.equal(context.mesa_ambiente_terreno(),1);

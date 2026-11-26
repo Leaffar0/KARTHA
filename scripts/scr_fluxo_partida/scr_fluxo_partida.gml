@@ -40,6 +40,11 @@ function controlador_criar_estado_modal() {
     };
 }
 
+function partida_encerrada(_controle) {
+    if (_controle.modo_partida == "online") return _controle.online_vencedor != "";
+    return _controle.vida_jogador <= 0 || _controle.vida_inimigo <= 0;
+}
+
 function controlador_modal_atual(_controle) {
     if (!instance_exists(_controle) || !variable_instance_exists(_controle, "ui_modal")
         || !is_struct(_controle.ui_modal)) return "";
@@ -47,10 +52,9 @@ function controlador_modal_atual(_controle) {
 
     // Esta lista é a regra de prioridade. Adicionar um modal novo exige colocá-lo
     // aqui, em vez de depender acidentalmente da posição de um if no Step.
-    if (_controle.vida_jogador <= 0 || _controle.vida_inimigo <= 0) return "fim_partida";
+    if (partida_encerrada(_controle)) return "fim_partida";
     if (_ui.tutorial_ativo) return "tutorial";
     if (_controle.disputa_inicial_estado != "concluida") return "iniciativa";
-    if (_controle.passagem_turno_ativa) return "passagem_turno";
     if (_ui.dados_manipulados_escolha_ativa) return "dados_manipulados";
     if (_ui.maquina_ima_escolha_ativa) return "maquina_ima";
     if (_ui.visao_veu_ativa) return "visao_veu";
@@ -75,7 +79,7 @@ function controlador_atualizar_fluxo(_controle) {
 function controlador_processar_fluxo_e_modais(_controle) {
     var _processar = method(_controle, function() {
 // Tela final: bloqueia a partida e permite recomeçar sem fechar o jogo.
-if (vida_jogador <= 0 || vida_inimigo <= 0) {
+if (partida_encerrada(id)) {
     if (fim_animacao_timer < 55) return true;
     var _fim_gui_x = device_mouse_x_to_gui(0);
     var _fim_gui_y = device_mouse_y_to_gui(0);
@@ -83,7 +87,12 @@ if (vida_jogador <= 0 || vida_inimigo <= 0) {
     var _fim_centro_y = display_get_gui_height() / 2;
     var _clicou_reiniciar = point_in_rectangle(_fim_gui_x, _fim_gui_y, _fim_centro_x - 120, _fim_centro_y + 85, _fim_centro_x + 120, _fim_centro_y + 130);
     if (keyboard_check_pressed(vk_enter) || keyboard_check_pressed(ord("R")) || (mouse_check_button_pressed(mb_left) && _clicou_reiniciar)) {
-        if (modo_partida == "online") online_solicitar_revanche(); else room_restart();
+        if (modo_partida != "online") room_restart();
+        else if (!online_oponente_saiu && online_ativo()) online_solicitar_revanche();
+        else { online_desconectar(); trocar_sala_suave(rm_menu); }
+    } else if (modo_partida == "online" && keyboard_check_pressed(vk_escape)) {
+        online_desconectar();
+        trocar_sala_suave(rm_menu);
     }
     return true;
 }
@@ -131,14 +140,6 @@ if (disputa_inicial_estado != "concluida") {
     } else if (disputa_inicial_estado == "preparando_dado") {
         disputa_inicial_timer--;
         if (disputa_inicial_timer <= 0 && rolagens_pendentes <= 0) preparar_dado_disputa_inicial();
-    } else if (disputa_inicial_estado == "troca_dado_local" && rolagens_pendentes <= 0) {
-        if (keyboard_check_pressed(vk_space) || keyboard_check_pressed(vk_enter)
-            || mouse_check_button_pressed(mb_left)) {
-            iniciativa_rolador = "inimigo";
-            disputa_inicial_estado = "preparando_dado";
-            disputa_inicial_timer = 18;
-            dado_iniciativa_id = noone;
-        }
     } else if (disputa_inicial_estado == "resultado" && rolagens_pendentes <= 0) {
         disputa_inicial_timer--;
         if (disputa_inicial_timer <= 0) {
@@ -147,14 +148,11 @@ if (disputa_inicial_estado != "concluida") {
                 disputa_inicial_timer = 35;
                 disputa_inicial_resultado_jogador = -1;
                 disputa_inicial_resultado_inimigo = -1;
-                iniciativa_rolador = "jogador";
                 dado_iniciativa_id = noone;
             } else {
                 disputa_inicial_vencedor = (disputa_inicial_resultado_jogador > disputa_inicial_resultado_inimigo)
                     ? "jogador" : "inimigo";
-                if (partida_local_ativa()) {
-                    disputa_inicial_estado = "escolha_local";
-                } else if (disputa_inicial_vencedor == "jogador") {
+                if (disputa_inicial_vencedor == "jogador") {
                     disputa_inicial_estado = "escolha_jogador";
                 } else {
                     disputa_inicial_estado = "escolha_inimigo";
@@ -162,8 +160,7 @@ if (disputa_inicial_estado != "concluida") {
                 }
             }
         }
-    } else if (disputa_inicial_estado == "escolha_local"
-        || disputa_inicial_estado == "escolha_jogador") {
+    } else if (disputa_inicial_estado == "escolha_jogador") {
         var _escolher_jogador = mouse_check_button_pressed(mb_left)
             && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _iniciativa_cx - 215, _iniciativa_cy + 55, _iniciativa_cx - 15, _iniciativa_cy + 105);
         var _escolher_inimigo = mouse_check_button_pressed(mb_left)
@@ -188,7 +185,7 @@ if (disputa_inicial_estado != "concluida") {
                 }
             } else {
                 comprar_mao_inicial();
-                if (partida_local_ativa()) comprar_mao_inicial_segundo_jogador(); else comprar_mao_inicial_ia();
+                comprar_mao_inicial_ia();
                 disputa_inicial_estado = "distribuindo";
                 disputa_inicial_timer = quantidade_inicial * 7 + 45;
             }
@@ -199,18 +196,6 @@ if (disputa_inicial_estado != "concluida") {
             disputa_inicial_estado = "preparando_dado";
             disputa_inicial_timer = 18;
         }
-    }
-    return true;
-}
-
-if (partida_local_ativa() && passagem_turno_ativa) {
-    carta_preview = noone;
-    carta_menu_aberto = noone;
-    hover_atual = noone;
-    if (keyboard_check_pressed(vk_space) || keyboard_check_pressed(vk_enter)
-        || mouse_check_button_pressed(mb_left)) {
-        passagem_turno_ativa = false;
-        anunciar_turno(turno);
     }
     return true;
 }
@@ -321,7 +306,7 @@ if (ui_modal.confirmacao_recurso_ativa) {
 
 // Armadilhas preparadas pela IA continuam secretas e são resolvidas assim que
 // uma tropa do jogador entra no espaço vigiado. As armadilhas do jogador permanecem manuais.
-if (!partida_local_ativa() && partida_iniciada && turno == "jogador" && ia_ativar_armadilhas_prontas()) return true;
+if (modo_partida == "ia" && partida_iniciada && turno == "jogador" && ia_ativar_armadilhas_prontas()) return true;
 
 // Confirmação do descarte manual: a carta só sai da mão após a escolha do jogador.
 if (ui_modal.confirmacao_descarte_ativa) {
