@@ -242,11 +242,6 @@ function lancar_dado_disputa_inicial(_dado, _velocidade_arremesso) {
     _dado_ia.offset_texto_resultado = 2;
 }
 
-// Compatibilidade com chamadas antigas: agora apenas coloca o D20 sobre a mesa.
-function rolar_disputa_inicial() {
-    preparar_dado_disputa_inicial();
-}
-
 function finalizar_disputa_inicial(_primeiro) {
     if (!obj_controlador.mao_inicial_comprada) return;
 
@@ -444,4 +439,3 @@ function reiniciar_acoes_tropas(_lado) {
     }
 }
 #endregion
-

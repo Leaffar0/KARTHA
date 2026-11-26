@@ -87,3 +87,21 @@ assert.equal(context.selecionar_recursos_para_custo(eyeCost,'jogador','tropa').s
 context.obj_controlador.terreno_ativo='';groups.resource.push(resource('mana'));
 assert.equal(context.selecionar_recursos_para_custo(eyeCost,'jogador','tropa').sucesso,true);
 console.log('OK: Demon Eye requires mana and blood, except the active Plains mana discount');
+
+// The client previews the same two payments on either side of an online match.
+context.obj_controlador.modo_partida = 'online';
+context.obj_controlador.terreno_ativo = 'planicies_profanas';
+const printedCost = { tipo: 'mana', quantidade: 2 };
+for (const side of ['jogador', 'inimigo']) {
+  const resources = [resource('mana'), resource('mana')];
+  context.obj_controlador['recursos_' + side] = resources;
+  for (const category of ['tropa', 'magica']) {
+    const payment = context.selecionar_recursos_para_custo(printedCost, side, category);
+    assert.equal(payment.sucesso, true);
+    assert.equal(payment.recursos.length, 1);
+    payment.recursos[0].virado = true;
+  }
+}
+const mixedCost = [{ tipo: 'mana', quantidade: 1 }, { tipo: 'mana', quantidade: 1 }, { tipo: 'qualquer', quantidade: 1 }];
+assert.equal(JSON.stringify(context.ajustar_custo_por_terreno(mixedCost, 'magica')), JSON.stringify(mixedCost.slice(1)));
+assert.equal(context.ajustar_custo_por_terreno(printedCost, '')[0].quantidade, 2);

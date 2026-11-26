@@ -162,16 +162,10 @@ export const CARD_ORDER = [
   "pantano_sombrio", "cemiterio", "planicies_profanas", "espada_quebrada",
 ] as const;
 
+export const COPIES_PER_CARD = 2;
+export const STARTING_DECK_SIZE = CARD_ORDER.length * COPIES_PER_CARD;
+export const OPENING_HAND_SIZE = 7;
+
 export function defaultDeck(): string[] {
-  const result: string[] = [];
-  for (let i = 0; i < 50; i++) result.push(CARD_ORDER[i % CARD_ORDER.length]);
-  return result;
-}
-
-const deckCards = new Set<string>(CARD_ORDER);
-
-export function validateDeck(deck: unknown): string[] | undefined {
-  if (!Array.isArray(deck) || deck.length !== 50) return undefined;
-  if (!deck.every((id) => typeof id === "string" && deckCards.has(id))) return undefined;
-  return [...deck];
+  return CARD_ORDER.flatMap(id => Array<string>(COPIES_PER_CARD).fill(id));
 }

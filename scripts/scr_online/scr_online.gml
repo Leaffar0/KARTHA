@@ -42,7 +42,7 @@ function online_inicializar() {
     global.online_armadilhas_privadas = [];
     global.online_efeitos_privados = [];
     global.online_estado_publico = noone;
-    global.online_deck_count = 50;
+    global.online_deck_count = array_length(online_catalogo_ids()) * COPIAS_POR_CARTA;
     global.online_descarte_privado = [];
     global.online_mao_pendente = false;
     global.online_revanche_solicitada = false;
@@ -222,7 +222,7 @@ function online_configurar_callbacks(_sala) {
         global.online_status = "na_sala";
         global.online_erro = "";
         if (global.online_criou_sala) online_copiar_codigo_sala();
-        colyseus_send(_ref, "ready", json_stringify({ name: global.online_nome, deck: online_montar_deck_ids() }));
+        colyseus_send(_ref, "ready", json_stringify({ name: global.online_nome }));
     });
 
     colyseus_on_message(_sala, function(_ref, _tipo, _dados) {
@@ -525,21 +525,6 @@ function online_catalogo_ids() {
         "sangue_por_sangue","bau","frasco_sangue","vitamina_cerebro","elmo_ferro","frasco_acido","pantano_sombrio",
         "cemiterio","planicies_profanas","espada_quebrada"
     ];
-}
-
-function online_montar_deck_ids() {
-    var _ids = online_catalogo_ids();
-    var _deck = [];
-    if (variable_global_exists("deck_contagens") && is_array(global.deck_contagens)
-        && array_length(global.deck_contagens) == array_length(_ids)) {
-        for (var i = 0; i < array_length(_ids); i++)
-            for (var c = 0; c < global.deck_contagens[i]; c++) array_push(_deck, _ids[i]);
-    }
-    if (array_length(_deck) != 50) {
-        _deck = [];
-        for (var j = 0; j < 50; j++) array_push(_deck, _ids[j mod array_length(_ids)]);
-    }
-    return _deck;
 }
 
 function online_funcao_carta_por_id(_definition_id) {
@@ -983,6 +968,7 @@ function online_criar_carta_publica(_registro) {
         _carta.esta_na_mao = false;
         _carta.compra_animando = false;
         _carta.travada = true;
+        _carta.depth = -100; // Camada das tropas no campo, atrás dos dados de combate.
         _carta.dono = _dono;
         _carta.lane_atual = online_lane_local(_registro.lane);
         _carta.posicao_atual = online_posicao_local(_registro.position);
@@ -1374,11 +1360,6 @@ function online_aplicar_estado_publico(_estado) {
         && array_length(_estado.abyss) >= 2) {
         obj_controlador.abismo_jogador = _estado.abyss[global.online_assento];
         obj_controlador.abismo_inimigo = _estado.abyss[1 - global.online_assento];
-        obj_controlador.abismo = [];
-        for (var _aj = 0; _aj < array_length(obj_controlador.abismo_jogador); _aj++)
-            array_push(obj_controlador.abismo, obj_controlador.abismo_jogador[_aj]);
-        for (var _ai = 0; _ai < array_length(obj_controlador.abismo_inimigo); _ai++)
-            array_push(obj_controlador.abismo, obj_controlador.abismo_inimigo[_ai]);
     }
     for (var p = 0; p < array_length(_estado.players); p++) {
         var _jogador = _estado.players[p];

@@ -307,7 +307,7 @@ Nesses casos, use uma chave única em `efeito_tipo`/ `effect` e trate essa chave
 4. Adicionar o ID na mesma posição de `online_catalogo_ids()`.
 5. Criar a entrada em `CARD_DEFINITIONS`.
 6. Adicionar o ID a `CARD_ORDER` se a carta puder entrar no baralho.
-7. Confirmar que o baralho continua com 50 cartas.
+7. Confirmar que o baralho local e o online incluem duas cópias da carta nova.
 8. Executar a compilação do GameMaker.
 9. Executar `npm run typecheck` dentro de `online-server`.
 10. Testar a carta em partida local e em uma sala online com dois clientes.

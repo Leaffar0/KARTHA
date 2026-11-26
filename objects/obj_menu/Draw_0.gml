@@ -173,7 +173,7 @@ if (online_aberto) {
 }
 #endregion
 
-#region Montagem de baralho
+#region Consulta do baralho
 if (deck_aberto) {
     var _deck_cx = room_width / 2;
     var _deck_cy = centro_painel_menu(id);
@@ -182,12 +182,10 @@ if (deck_aberto) {
     botao_carta_painel(_deck_cx-220,_deck_cy+150,_deck_cx-80,_deck_cy+185,"");
     botao_carta_painel(_deck_cx-70,_deck_cy+150,_deck_cx+70,_deck_cy+185,"");
     botao_carta_painel(_deck_cx+80,_deck_cy+150,_deck_cx+220,_deck_cy+185,"");
-    desenhar_texto_interface(_deck_cx, _deck_cy - 178, "MONTAGEM DE BARALHO");
+    desenhar_texto_interface(_deck_cx, _deck_cy - 178, "BARALHO");
 
-    var _total_deck = 0;
-    for (var _dt = 0; _dt < array_length(global.deck_contagens); _dt++) _total_deck += global.deck_contagens[_dt];
-    draw_set_color(_total_deck == 50 ? c_lime : c_yellow);
-    desenhar_texto_interface(_deck_cx, _deck_cy - 150, "CARTAS: " + string(_total_deck) + "/50");
+    var _total_deck = array_length(deck_catalogo_menu) * COPIAS_POR_CARTA;
+    desenhar_texto_interface(_deck_cx, _deck_cy - 150, string(_total_deck) + " CARTAS");
 
     var _deck_inicio = deck_pagina * deck_por_pagina;
     var _deck_inicio_y = _deck_cy - 115;
@@ -199,20 +197,12 @@ if (deck_aberto) {
         draw_set_halign(fa_left); draw_set_color(c_white);
         desenhar_texto_ajustado_ui(_dados_deck.nome,_deck_cx-275,_deck_y,360,0.58);
         draw_set_halign(fa_center);
-        botao_carta_painel(_deck_cx+105,_deck_y-12,_deck_cx+145,_deck_y+12,"");
-        botao_carta_painel(_deck_cx+190,_deck_y-12,_deck_cx+230,_deck_y+12,"");
-        desenhar_texto_interface(_deck_cx + 125, _deck_y, "-");
-        desenhar_texto_interface(_deck_cx + 167, _deck_y, string(global.deck_contagens[_deck_indice]));
-        desenhar_texto_interface(_deck_cx + 210, _deck_y, "+");
+        desenhar_texto_interface(_deck_cx + 167, _deck_y, "×" + string(COPIAS_POR_CARTA));
     }
     draw_set_halign(fa_center); draw_set_color(c_white);
     desenhar_texto_ajustado_ui("< ANTERIOR",_deck_cx-150,_deck_cy+167,124,0.48);
-    desenhar_texto_interface(_deck_cx, _deck_cy + 167, "CONCLUIR");
+    desenhar_texto_interface(_deck_cx, _deck_cy + 167, "VOLTAR");
     desenhar_texto_ajustado_ui("PRÓXIMA >",_deck_cx+150,_deck_cy+167,124,0.48);
-    if (deck_aviso_timer > 0) {
-        draw_set_color(c_red);
-        desenhar_texto_ajustado_ui("O BARALHO PRECISA TER EXATAMENTE 50 CARTAS",_deck_cx,_deck_cy+200,560,0.44);
-    }
 }
 #endregion
 

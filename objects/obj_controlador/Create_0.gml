@@ -29,11 +29,9 @@ else randomize(); // partidas offline continuam variadas
 #region Baralho e deck
 baralho = catalogo_cartas();
 
-monte = (variable_global_exists("deck_contagens") && validar_contagens_baralho(baralho, global.deck_contagens))
-    ? montar_deck_personalizado(baralho, global.deck_contagens) : montar_deck();
-monte_inimigo = montar_deck();
-if (modo_partida == "online") { monte = []; monte_inimigo = []; }
-quantidade_inicial = 7;;
+monte = (modo_partida == "online") ? [] : montar_deck(baralho);
+monte_inimigo = (modo_partida == "online") ? [] : montar_deck(baralho);
+quantidade_inicial = TAMANHO_MAO_INICIAL;
 #endregion
 
 #region Mão do jogador
@@ -190,7 +188,6 @@ max_bencaos_maldicoes = 2;
 #endregion
 
 #region Abismo
-abismo = []; // lista combinada, mantida para consultas de regras
 abismo_jogador = [];
 abismo_inimigo = [];
 cemiterio_jogador = []; // descarte lógico; a visualização pode ser adicionada depois
@@ -212,7 +209,7 @@ debug_montes_guardados = { jogador: noone, inimigo: noone };
 #region Tutorial opcional
 tutorial_paginas = [
     { titulo: "BEM-VINDO A KARTHA", texto: "O objetivo é reduzir a vida do castelo inimigo a zero. Use suas cartas para formar tropas, criar recursos e controlar as três fileiras." },
-    { titulo: "QUEM COMEÇA", texto: "No início, pegue o D20 sobre a mesa, mova e solte para arremessá-lo. O inimigo joga o dele automaticamente. Em caso de empate, arremesse novamente. Quem vencer escolhe qual lado começa; depois, clique no deck para receber sua mão e iniciar a partida." },
+    { titulo: "QUEM COMEÇA", texto: "Clique no baralho para comprar 7 cartas: 1 tropa, 2 recursos e 4 cartas aleatórias. Depois, role o D20 para disputar a iniciativa. Em caso de empate, role novamente. Quem vencer escolhe qual lado começa." },
     { titulo: "INTERAÇÃO E SEU TURNO", texto: "Você pode inspecionar o campo, abrir os painéis e reorganizar a mão mesmo durante o turno inimigo. Arraste uma carta entre as outras para mudar sua posição. Jogar cartas e executar ações continua permitido apenas no seu turno." },
     { titulo: "TROPAS E MOVIMENTO", texto: "Cada jogador pode ter no máximo 1 tropa em cada coluna. Se tentar colocar outra na mesma coluna, a carta volta para a mão e aparece o aviso COLUNA OCUPADA. Uma tropa recém-colocada só pode se mover no próximo turno dela. Depois, escolha Avançar ou Recuar; ambos consomem a ação de movimento." },
     { titulo: "COMBATE E CASTELO", texto: "Chegar ao centro não permite atingir o castelo. No centro, a tropa combate inimigos à frente; para atacar uma construção, o castelo ou a vida adversária, precisa avançar mais uma casa até a posição de assalto. Em um 20 natural, escolha entre dobrar os dados originais ou dobrar o resultado deles; modificadores são aplicados depois." },

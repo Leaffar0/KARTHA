@@ -7,15 +7,27 @@ const { test } = require('node:test');
 const read = name => fs.readFileSync(path.join(__dirname, '../src', name), 'utf8');
 const catalog = read('game/cards.ts').replace(/^export /gm, '');
 const room = read('rooms/UnoRoom.ts').replace(/^import [\s\S]*?from "[^"]+";/gm, '').replace('export class', 'class');
-const { RoomType, validateDeck, defaultDeck } = vm.runInNewContext(
-  stripTypeScriptTypes(catalog + '\n' + room) + '\n({ RoomType: KarthaRoom, validateDeck, defaultDeck })',
-  { Room: class {} },
+const { RoomType, CARD_ORDER, CARD_DEFINITIONS } = vm.runInNewContext(
+  stripTypeScriptTypes(catalog + '\n' + room) + '\n({ RoomType: KarthaRoom, CARD_ORDER, CARD_DEFINITIONS })',
+  { Room: class {}, PublicCardSchema: class {} },
 );
 
-test('starting decks accept the editor catalog and reserve evolved forms for evolution', () => {
-  assert.equal(validateDeck(defaultDeck()).length, 50);
-  assert.equal(validateDeck(Array(50).fill('esquilo_gigante')), undefined);
-  assert.equal(validateDeck(Array(50).fill('esquilo')).length, 50);
+test('both opening hands keep two of every starting card across deals', () => {
+  const r = new RoomType();
+  r.nextCardId = 1;
+  for (let deal = 0; deal < 50; deal++) {
+    for (const seat of [0, 1]) {
+      const deck = r.buildStartingDeck(seat);
+      assert.equal(deck.length, CARD_ORDER.length * 2);
+      assert.equal(new Set(deck.map(card => card.instanceId)).size, deck.length);
+      const counts = new Map();
+      for (const card of deck) counts.set(card.definitionId, (counts.get(card.definitionId) ?? 0) + 1);
+      for (const id of CARD_ORDER) assert.equal(counts.get(id), 2);
+      const opening = deck.slice(0, 7).map(card => CARD_DEFINITIONS[card.definitionId].category);
+      assert.ok(opening.includes('tropa'));
+      assert.ok(opening.filter(category => category === 'recurso').length >= 2);
+    }
+  }
 });
 
 function match() {
@@ -75,4 +87,31 @@ test('a side can hold two blessings and two curses independently', () => {
   assert.equal(play(0, 'bencao_vida').reason, 'limite_efeitos_ativos');
   assert.equal(play(1, 'sangue_por_sangue').reason, 'limite_efeitos_ativos');
   assert.equal(r.privatePlayers[0].effectCards.length, 4);
+});
+
+test('Shadow Mage then Fireball use one mana each on Profane Plains for either seat', () => {
+  for (const seat of [0, 1]) {
+    const r = match();
+    const player = r.playerBySeat(seat);
+    Object.assign(player, { hasTakenTurn: true, troopsPlayed: 0, spellsUsed: 0 });
+    const data = r.privatePlayers[seat];
+    Object.assign(data, {
+      hand: [{ instanceId: 'mage', definitionId: 'mago_sombra' }, { instanceId: 'fire', definitionId: 'bola_fogo' }],
+      deck: [], discard: [],
+      resources: ['m1', 'm2'].map(instanceId => ({ instanceId, type: 'mana', amount: 1, used: false })),
+    });
+    r.state.terrainDefinitionId = 'planicies_profanas';
+    assert.equal(r.playTroop(seat, { cardId: 'mage', lane: 1 }).ok, true);
+    assert.equal(player.mana - player.manaUsed, 1);
+    // Replacing the terrain restores the spell's printed cost without spending the remaining mana.
+    r.state.terrainDefinitionId = 'cemiterio';
+    const cast = () => r.playSpell(seat, { cardId: 'fire', targetType: 'castle' });
+    assert.equal(cast().reason, 'recursos_insuficientes');
+    assert.equal(player.mana - player.manaUsed, 1);
+    r.state.terrainDefinitionId = 'planicies_profanas';
+    assert.equal(cast().ok, true);
+    assert.equal(player.mana - player.manaUsed, 0);
+    assert.equal(data.hand.length, 0);
+    assert.ok(r.playerBySeat(1 - seat).life < 20);
+  }
 });

@@ -302,22 +302,6 @@ function ia_escolher_tipo_ataque_direto(_carta) {
     return "fisica";
 }
 
-// Rola todos os dados do ataque escolhido. É usado quando o alvo é o castelo,
-// pois não existe uma tropa para aplicar defesas.
-function rolar_dano_direto(_carta, _tipo_ataque) {
-    var _usando_item = (_tipo_ataque == "fisica" && is_struct(_carta.item_ataque_atual) && _carta.item_ataque_atual.dado > 0);
-    var _dado = _usando_item ? _carta.item_ataque_atual.dado : ((_tipo_ataque == "magica") ? _carta.dado_dano_magico : _carta.dado_dano);
-    var _quantidade = _usando_item ? 1 : ((_tipo_ataque == "magica") ? _carta.qtd_dados_dano_magico : _carta.qtd_dados_dano);
-    var _modificador = _usando_item ? modificador_item_ataque(_carta, _carta.item_ataque_atual) : ((_tipo_ataque == "magica") ? _carta.mod_dano_magico : _carta.mod_dano);
-
-    var _dano_original = 0;
-    for (var i = 0; i < _quantidade; i++) {
-        _dano_original += irandom_range(1, _dado);
-    }
-    if (tem_condicao(_carta, "berserker")) _dano_original *= 2;
-    return max(0, _dano_original + _modificador);
-}
-
 // Versão visual do dano direto. Mantém grupos de Golpe Duplo afastados e
 // entrega ao callback o total dos dados já somado ao modificador.
 // Todo ataque direto contra construção ou castelo também exige o D20 de acerto.
@@ -1699,7 +1683,7 @@ function obter_nome_exibicao_habilidade(_chave) {
 // Texto usado na prévia ampliada. Centraliza as explicações das regras que já
 // estão implementadas, para que cartas novas também recebam informações úteis.
 function texto_custo_exibicao(_custo) {
-    if (_custo == noone) return "Sem custo";
+    if (_custo == noone || (is_array(_custo) && array_length(_custo) == 0)) return "Sem custo";
 
     var _lista = is_array(_custo) ? _custo : [_custo];
     var _texto = "";
@@ -1771,7 +1755,10 @@ function descricao_efeito_preview(_carta) {
 }
 
 function descricao_carta_preview(_carta) {
-    var _texto = "TIPO: " + categoria_exibicao(_carta.categoria) + "\nCUSTO: " + texto_custo_exibicao(_carta.custo);
+    var _custo = _carta.custo;
+    if (_carta.object_index == obj_carta && _carta.esta_na_mao)
+        _custo = ajustar_custo_por_terreno(_custo, _carta.categoria);
+    var _texto = "TIPO: " + categoria_exibicao(_carta.categoria) + "\nCUSTO: " + texto_custo_exibicao(_custo);
     if (_carta.object_index == obj_carta && _carta.esta_na_mao && lado_controlado_localmente(_carta.dono))
         _texto += "\n\nDISPONIBILIDADE: " + disponibilidade_carta_mao(_carta).motivo;
 
@@ -1840,7 +1827,7 @@ function descricao_carta_preview(_carta) {
         case "item_consumivel": _texto += "\n\n" + descricao_efeito_preview(_carta) + " É consumido depois do uso."; break;
         case "magica": _texto += "\n\n" + descricao_efeito_preview(_carta) + " Magias possuem limite por turno."; break;
         case "terreno":
-            if (_carta.efeito_terreno == "planicies_profanas") _texto += "\n\nReduz em 1 o custo de Mana de todas as tropas enquanto estiver ativo.";
+            if (_carta.efeito_terreno == "planicies_profanas") _texto += "\n\nCada carta custa 1 Mana a menos para ambos os jogadores, até o mínimo de zero.";
             else if (_carta.efeito_terreno == "cemiterio") _texto += "\n\nNo início de cada turno, 20% de chance de esconder as tropas adversárias até o fim dele. Bloqueia consultar detalhes, mas permite atacar os espaços ocupados.";
             else _texto += "\n\nAltera regras ou atributos do campo enquanto estiver ativo.";
         break;

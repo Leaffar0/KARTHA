@@ -510,12 +510,6 @@ function atualizar_escala_hud(_controle) {
     _controle.hud_superficie_h = _h;
 }
 
-function desenhar_opcao_tamanho_interface(_x, _y) {
-    draw_set_color(c_aqua);
-    desenhar_texto_interface(_x, _y, "INTERFACE  " + string(round(global.escala_interface * 100)) + "%  >");
-    draw_set_color(c_white);
-}
-
 function aplicar_config_audio() {
     var _musica = variable_global_exists("volume_musica") ? global.volume_musica : 0.8;
     var _efeitos = variable_global_exists("volume_efeitos") ? global.volume_efeitos : 0.8;
@@ -538,11 +532,6 @@ function chave_canal_audio() {
 function ajustar_canal_audio(_delta) {
     var _chave=chave_canal_audio();
     variable_global_set(_chave,clamp(variable_global_get(_chave)+_delta,0,1));
-}
-function desenhar_seletor_audio(_x,_y) {
-    var _nomes=["GERAL","INTERFACE","COMBATE","MAGIAS"];
-    desenhar_texto_ajustado_ui(_nomes[global.canal_audio_opcoes]+" "+string(round(variable_global_get(chave_canal_audio())*100))+"%",_x,_y,165,0.5);
-    desenhar_texto_ajustado_ui("Clique no nome para trocar",_x,_y+21,190,0.28);
 }
 function multiplicador_audio_asset(_som) {
     var _nome=audio_get_name(_som);

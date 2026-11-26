@@ -33,7 +33,7 @@ Compilação e testes automatizados não substituem a avaliação auditiva no jo
 
 ## Complemento: criaturas e magia sombria
 
-Mais 12 arquivos foram integrados, com origens e ganhos em catalogo_criaturas.json; importar_criaturas.cjs reproduz essa importação. A cópia idêntica de dark-magic com sufixo (1) não foi importada novamente. Os originais continuam preservados.
+Mais 12 arquivos foram integrados, com origens e ganhos em catalogo_criaturas.json; importar_criaturas.cjs reproduz essa importação. Os originais continuam preservados.
 
 - Imitação: alterna os dois wooden-trunk-latch. Os rangidos anteriores continuam disponíveis no F7 em madeira_rangido.
 - Slime, Slimet e Slime Digestão: slime_ataque ao causar dano físico; slime_dano quando recebem dano.

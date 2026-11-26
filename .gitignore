@@ -5,3 +5,8 @@ output/
 # Pacotes/exportações que podem ser recriados a partir do projeto
 *.yyz
 *.yymp
+
+.pnpm-store/
+fonts/*/*.old.yy
+fonts/*/*.old.png
+audio_importar/preparacao/compilacao*.log

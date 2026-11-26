@@ -139,8 +139,3 @@ function evento_partida_aplicar(_evento) {
     }
     return false;
 }
-
-function eventos_partida_aplicar(_eventos) {
-    if (!is_array(_eventos)) return;
-    for (var i = 0; i < array_length(_eventos); i++) evento_partida_aplicar(_eventos[i]);
-}

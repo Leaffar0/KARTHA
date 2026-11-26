@@ -469,10 +469,6 @@ function fator_efeitos_visuais() {
     var _nivel=variable_global_exists("intensidade_visual")?global.intensidade_visual:1;
     return _nivel==0?0.35:(_nivel==2?1.35:1);
 }
-function opcao_efeitos_visuais(_x,_y) {
-    var _nomes=["DISCRETO","NORMAL","INTENSO"];
-    desenhar_texto_interface(_x,_y,"VISUAL: "+_nomes[global.intensidade_visual]+"  >");
-}
 function alternar_efeitos_visuais() {
     global.intensidade_visual=(global.intensidade_visual+1) mod 3;
     salvar_configuracoes();

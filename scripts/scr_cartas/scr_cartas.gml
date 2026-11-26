@@ -702,14 +702,6 @@ function criar_dados_terreno_cemiterio() {
     };
 }
 	
-// Infere se um slot de batalha é elegível pra colocar armadilha: qualquer posição
-// do MEIO (2) pra trás no seu lado (3, 4). O MEIO conta porque é passagem obrigatória
-// de qualquer tropa inimiga que avança.
-function dono_slot_armadilha(_slot) {
-    if (_slot.posicao < posicao_ataque()) return "inimigo"; // posições 0, 1 -- não pode
-    return "jogador"; // posições 2 (meio), 3, 4 -- pode colocar armadilha
-}
-
 // Cada espaço aceita apenas uma armadilha ativa, independentemente do dono.
 function slot_tem_armadilha(_lane, _posicao, _ignorar = noone) {
     var _encontrou = false;
@@ -1188,42 +1180,6 @@ function catalogo_cartas() {
     ];
 }
 
-function validar_contagens_baralho(_catalogo, _contagens) {
-    if (!is_array(_contagens) || array_length(_contagens) != array_length(_catalogo)) return false;
-    var _total = 0;
-    for (var i = 0; i < array_length(_contagens); i++) {
-        if (_contagens[i] < 0 || floor(_contagens[i]) != _contagens[i]) return false;
-        _total += _contagens[i];
-    }
-    return _total == 50;
-}
-
-function salvar_contagens_baralho(_contagens) {
-    ini_open("kartha_deck.ini");
-    ini_write_real("deck", "quantidade_tipos", array_length(_contagens));
-    for (var i = 0; i < array_length(_contagens); i++) ini_write_real("deck", "carta_" + string(i), _contagens[i]);
-    ini_close();
-}
-
-function carregar_contagens_baralho(_quantidade_tipos) {
-    if (!file_exists("kartha_deck.ini")) return noone;
-    ini_open("kartha_deck.ini");
-    var _quantidade_salva = ini_read_real("deck", "quantidade_tipos", -1);
-    if (_quantidade_salva != _quantidade_tipos) { ini_close(); return noone; }
-    var _contagens = array_create(_quantidade_tipos, 0);
-    for (var i = 0; i < _quantidade_tipos; i++) _contagens[i] = max(0, floor(ini_read_real("deck", "carta_" + string(i), 0)));
-    ini_close();
-    return _contagens;
-}
-
-function montar_deck_personalizado(_catalogo, _contagens) {
-    var _monte = [];
-    for (var i = 0; i < array_length(_catalogo); i++) {
-        for (var c = 0; c < _contagens[i]; c++) array_push(_monte, _catalogo[i]);
-    }
-    return embaralhar_array(_monte);
-}
-
 // Executor declarativo para cartas futuras. Uma carta pode fornecer um array
 // efeitos com structs {tipo, ...} sem precisar ganhar um novo switch exclusivo.
 function executar_efeitos_declarativos(_efeitos, _alvo, _dono, _origem = noone) {
@@ -1289,24 +1245,31 @@ function embaralhar_array(_array) {
     return _array;
 }
 
-// Monta o monte de compra com exatamente 50 cartas (regra do manual),
-// distribuindo as cópias o mais igual possível entre os tipos do baralho.
-function montar_deck() {
+#macro COPIAS_POR_CARTA 2
+#macro TAMANHO_MAO_INICIAL 7
+
+function montar_deck(_catalogo) {
     var _monte = [];
-    var _total_cartas_desejado = 50;
-    var _n_tipos = array_length(baralho);
-
-    var _copias_base = _total_cartas_desejado div _n_tipos;
-    var _sobra = _total_cartas_desejado mod _n_tipos;
-
-    for (var i = 0; i < _n_tipos; i++) {
-        var _copias = _copias_base + (i < _sobra ? 1 : 0);
-        for (var c = 0; c < _copias; c++) {
-            array_push(_monte, baralho[i]);
-        }
+    for (var i = 0; i < array_length(_catalogo); i++) {
+        for (var c = 0; c < COPIAS_POR_CARTA; c++) array_push(_monte, _catalogo[i]);
     }
 
-    return embaralhar_array(_monte);
+    embaralhar_array(_monte);
+    var _mao = [];
+    var _garantias = ["tropa", "recurso", "recurso"];
+    for (var g = 0; g < array_length(_garantias); g++) {
+        for (var j = 0; j < array_length(_monte); j++) {
+            var _definicao = _monte[j];
+            if (_definicao().categoria != _garantias[g]) continue;
+            array_push(_mao, _definicao);
+            array_delete(_monte, j, 1);
+            break;
+        }
+    }
+    // Sorteia as vagas livres entre todas as cópias restantes, inclusive tropas e recursos.
+    embaralhar_array(_monte);
+    while (array_length(_mao) < TAMANHO_MAO_INICIAL) array_push(_mao, array_pop(_monte));
+    return array_concat(embaralhar_array(_mao), _monte);
 }
 
 // Compra a próxima carta do monte (consumindo ele, igual um baralho físico) e coloca na mão.
@@ -1738,11 +1701,6 @@ function retirar_recurso_do_campo(_recurso) {
     return true;
 }
 
-// função auxiliar (workaround pro "with" não enxergar _custo direto às vezes)
-function other_custo_tipo(_custo) {
-    return _custo.tipo;
-}
-
 // Feedback visual reutilizável para ações negadas por regra ou recurso insuficiente.
 function mostrar_aviso_regra(_texto, _x = mouse_x, _y = mouse_y) {
     static _ultimo_som=-1000;
@@ -1775,17 +1733,6 @@ function criar_animacao_item(_sprite, _origem_x, _origem_y, _destino_x, _destino
         origem_x: _origem_x, origem_y: _origem_y, destino_x: _destino_x, destino_y: _destino_y,
         timer: 0, duracao: 32, cor: _cor, tropa: _tropa, equipamento: _equipamento,
         indice_online: _indice_online, definicao_online: _definicao_online });
-}
-
-function equipamento_online_em_voo(_tropa, _item, _indice) {
-    if (!variable_struct_exists(_item, "online_definition_id")) return false;
-    var _animacoes = obj_controlador.animacoes_item;
-    for (var i = 0; i < array_length(_animacoes); i++) {
-        var _anim = _animacoes[i];
-        if (_anim.tipo == "item" && _anim.tropa == _tropa && _anim.indice_online == _indice
-            && _anim.definicao_online == _item.online_definition_id) return true;
-    }
-    return false;
 }
 
 function revelar_armadilha_visual(_sprite, _x, _y) {
@@ -1826,11 +1773,14 @@ function ajustar_custo_por_terreno(_custo, _categoria) {
     if (_custo == noone) return [];
     var _entrada = is_array(_custo) ? _custo : [_custo];
     var _saida = [];
+    // Uma categoria identifica o custo de uma carta. Ativações usam a categoria vazia.
+    var _desconto_mana = (_categoria != "" && obj_controlador.terreno_ativo == "planicies_profanas") ? 1 : 0;
     for (var i = 0; i < array_length(_entrada); i++) {
         var _quantidade = _entrada[i].quantidade;
-        if (_categoria == "tropa" && obj_controlador.terreno_ativo == "planicies_profanas"
-            && _entrada[i].tipo == "mana") {
-            _quantidade = max(0, _quantidade - 1);
+        if (_entrada[i].tipo == "mana" && _desconto_mana > 0) {
+            var _abatimento = min(_desconto_mana, _quantidade);
+            _quantidade -= _abatimento;
+            _desconto_mana -= _abatimento;
         }
         if (_quantidade > 0) array_push(_saida, { tipo: _entrada[i].tipo, quantidade: _quantidade });
     }
@@ -2169,15 +2119,11 @@ function registrar_evolucao(_dono) {
 
 #region Abismo - Cartas especiais
 function mandar_para_abismo(_nome_carta, _dono = "") {
-    array_push(obj_controlador.abismo, _nome_carta);
     if (_dono == "jogador") array_push(obj_controlador.abismo_jogador, _nome_carta);
     else if (_dono == "inimigo") array_push(obj_controlador.abismo_inimigo, _nome_carta);
     debug_combate(_nome_carta + " foi engolida pelo ABISMO. Nunca mais volta.");
 }
 
-function esta_no_abismo(_nome_carta) {
-    return array_get_index(obj_controlador.abismo, _nome_carta) != -1;
-}
 #endregion
 
 // Equipamentos permanecem ligados à tropa para que cartas futuras possam removê-los,
@@ -2328,7 +2274,7 @@ function usar_grimorio_iniciante(_tropa, _magia) {
         return false;
     }
     var _custo = { tipo: "mana", quantidade: 1 };
-    if (!pode_pagar_custo(_custo, _tropa.dono, "magica")) {
+    if (!pode_pagar_custo(_custo, _tropa.dono)) {
         if (_tropa.dono == "jogador") mostrar_aviso_regra("O Grimório precisa de 1 Mana", _tropa.x, _tropa.y);
         return false;
     }
@@ -2343,7 +2289,7 @@ function usar_grimorio_iniciante(_tropa, _magia) {
         }
     }
 
-    pagar_custo(_custo, _tropa.dono, "magica", _tropa);
+    pagar_custo(_custo, _tropa.dono, "", _tropa);
     _tropa.grimorio_usado_este_turno = true;
     tocar_som_magia(_magia);
     if (_magia == "curazinha") {

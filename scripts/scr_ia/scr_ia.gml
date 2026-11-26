@@ -596,7 +596,7 @@ function ia_preparar_armadilha() {
     var _funcao_armadilha = noone;
     for (var i = 0; i < array_length(obj_controlador.mao_inimigo); i++) {
         var _teste = obj_controlador.mao_inimigo[i]();
-        if (_teste.categoria == "armadilha" && pode_pagar_custo(_teste.custo, "inimigo")) {
+        if (_teste.categoria == "armadilha" && pode_pagar_custo(_teste.custo, "inimigo", _teste.categoria)) {
             _indice = i;
             _dados = _teste;
             _funcao_armadilha = obj_controlador.mao_inimigo[i];

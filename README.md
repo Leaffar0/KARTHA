@@ -35,7 +35,7 @@ Com DEBUG_COMBATE ativo, pressione **F6** durante seu turno numa partida contra 
 uma tropa com três condições, duas tropas equipadas, esvaziar o baralho com
 cópia temporária ou restaurá-lo. A preparação preserva os limites do turno.
 Os cenários de tropas precisam de colunas livres; não removem tropas existentes.
-O baralho salvo no editor de decks não é alterado. Os cenários não funcionam online.
+Esses cenários de teste estão disponíveis nas partidas contra o bot.
 
 Inspecione uma carta da mão com o botão direito para ver o custo e a disponibilidade.
 Durante o arrasto, uma dica junto ao cursor mostra o custo e eventuais bloqueios.

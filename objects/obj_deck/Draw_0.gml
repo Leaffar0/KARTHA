@@ -3,7 +3,7 @@ draw_set_font(Fontenil);
 // A curva deixa a borda da penúltima folha visível até em uma janela pequena.
 var _folhas = max(0, quantidade_cartas - 1);
 var _max_visivel = min(12, quantidade_cartas);
-var _espessura = min(7.5, 6 * sqrt(_folhas / 49));
+var _espessura = min(7.5, 6 * sqrt(_folhas / max(1, capacidade_baralho - 1)));
 var _cor_anterior = draw_get_color();
 if (_max_visivel > 0) {
     desenhar_sombra_contato(sprite_index, 0, x, y, escala_pilha, escala_pilha, 0, 1, 1);

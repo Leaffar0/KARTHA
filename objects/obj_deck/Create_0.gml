@@ -1,4 +1,5 @@
-quantidade_cartas = 30; // sincronizado com o monte real a cada Step agora
+capacidade_baralho = array_length(catalogo_cartas()) * COPIAS_POR_CARTA;
+quantidade_cartas = capacidade_baralho;
 
 // Animação idle (respiração) e pulso ao comprar carta
 bob_timer = random(1000); // offset aleatório pra não sincronizar com outras animações

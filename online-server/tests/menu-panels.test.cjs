@@ -5,7 +5,7 @@ const step=fs.readFileSync(path.join(root,'objects/obj_menu/Step_0.gml'),'utf8')
 let click=false,escape=false;
 const c={os_type:0,os_linux:1,transicao_sala_ativa:()=>false,room_width:1152,room_height:648,delta_time:16667,tempo_menu:3,menu_hover:[0,0,0,0],menu_hover_anterior:-1,
  opcoes_abertas:false,modo_jogo_aberto:false,online_aberto:false,deck_aberto:false,painel_menu_abertura:1,painel_menu_anterior:'',
- online_copiado_timer:0,deck_aviso_timer:0,deck_por_pagina:8,deck_pagina:0,deck_catalogo_menu:[()=>({nome:'Slime'})],deck_backup_menu:[],global:{deck_contagens:[50]},
+ online_copiado_timer:0,deck_por_pagina:8,deck_pagina:0,deck_catalogo_menu:[()=>({nome:'Slime'})],global:{},
  min:Math.min,max:Math.max,abs:Math.abs,ceil:Math.ceil,sin:Math.sin,power:Math.pow,lerp:(a,b,t)=>a+(b-a)*t,clamp:(x,a,b)=>Math.max(a,Math.min(b,x)),dcos:a=>Math.cos(a*Math.PI/180),dsin:a=>Math.sin(a*Math.PI/180),
  mb_left:1,vk_escape:27,mouse_x:0,mouse_y:0,
  mouse_check_button_pressed:()=>click,keyboard_check_pressed:k=>escape&&k===27,
@@ -18,7 +18,7 @@ vm.runInContext('function frame(){'+step+'}',c);
 function select(i){const p=c.carta_menu_layout(i,false,c.tempo_menu,c.room_width,c.room_height,c.menu_hover[i]);c.mouse_x=p.x;c.mouse_y=p.y;click=true;c.frame();click=false;}
 function settle(){for(let i=0;i<20;i++)c.frame();}
 select(2);assert.equal(c.opcoes_abertas,true,'Opening click must not close options');settle();escape=true;c.frame();escape=false;assert.equal(c.opcoes_abertas,false);settle();
-select(1);settle();assert.deepEqual(Array.from(c.deck_backup_menu),[50]);c.global.deck_contagens[0]=2;escape=true;c.frame();escape=false;assert.equal(c.deck_aberto,false);assert.deepEqual(Array.from(c.global.deck_contagens),[50]);
+select(1);settle();assert.equal(c.deck_aberto,true);escape=true;c.frame();escape=false;assert.equal(c.deck_aberto,false);
 function selectMode(i) {
   const card = c.carta_modo_menu(i, c.centro_painel_menu(c));
   c.mouse_x = card.x;
@@ -53,7 +53,7 @@ selectMode(1);
 assert.equal(c.online_aberto, true);
 assert.equal(c.modo_jogo_aberto, false);
 assert.equal(started, 1);
-console.log('OK: options, deck cancellation and both playable mode cards');
+console.log('OK: options, deck catalog and both playable mode cards');
 
 // Drive the actual lobby Step so a failed paste cannot leak the previous field into the room ID.
 const keys = new Set();

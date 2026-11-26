@@ -3,7 +3,7 @@ import {
   KarthaRoomState, PlayerSchema, PublicCardSchema,
 } from "./schema/UnoRoomState.ts";
 import {
-  CARD_DEFINITIONS, CardDefinition, CostPart, ResourceType, defaultDeck, validateDeck,
+  CARD_DEFINITIONS, CardDefinition, CostPart, ResourceType, defaultDeck, OPENING_HAND_SIZE, STARTING_DECK_SIZE,
 } from "../game/cards.ts";
 
 type RoomState = InstanceType<typeof KarthaRoomState>;
@@ -36,7 +36,6 @@ interface PrivatePlayer {
   deck: PrivateCard[];
   hand: PrivateCard[];
   discard: PrivateCard[];
-  configuredDeck: string[];
 }
 
 interface ActionMessage {
@@ -169,13 +168,11 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     this.state.discardCount1 = 0;
     this.state.lastAction = "";
 
-    this.onMessage("ready", (client: Client, rawMessage: { name?: string; deck?: unknown } | string) => {
-      const message = decodeIncoming<{ name?: string; deck?: unknown }>(rawMessage) ?? {};
+    this.onMessage("ready", (client: Client, rawMessage: { name?: string } | string) => {
+      const message = decodeIncoming<{ name?: string }>(rawMessage) ?? {};
       const player = this.findPlayer(client.sessionId);
       if (!player || this.state.phase !== "waiting") return;
       player.name = safeName(message?.name);
-      const selectedDeck = validateDeck(message?.deck) ?? defaultDeck();
-      this.privatePlayers[player.seatIndex].configuredDeck = selectedDeck;
       player.ready = true;
       this.startInitiativeWhenReady();
     });
@@ -213,7 +210,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     this.onMessage("draw_initial", (client: Client) => {
       const player = this.findPlayer(client.sessionId);
       if (!player || this.state.phase !== "drawing" || player.initialHandDrawn) return;
-      this.drawCards(player.seatIndex, 7);
+      this.drawCards(player.seatIndex, OPENING_HAND_SIZE);
       player.initialHandDrawn = true;
       this.bump("initial_hand_drawn");
       this.sendPrivateState(player.seatIndex);
@@ -313,7 +310,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     player.ready = false;
     player.life = 20;
     player.handCount = 0;
-    player.deckCount = 50;
+    player.deckCount = STARTING_DECK_SIZE;
     player.initiative = 0;
     player.hasTakenTurn = false;
     player.initialHandDrawn = false;
@@ -323,7 +320,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     player.evolutionsUsed = 0;
     this.state.players.set(client.sessionId, player);
     this.privatePlayers[seat] = { deck: [], hand: [], discard: [], abyss: [], resources: [],
-      configuredDeck: defaultDeck(), traps: [], effects: [], effectCards: [], lastNonTroopDefinitionId: "" };
+      traps: [], effects: [], effectCards: [], lastNonTroopDefinitionId: "" };
     this.setMetadata({ players: this.clients.length, phase: this.state.phase });
     this.sendJson(client, "seat", { seat, roomId: this.roomId, seed: this.state.seed });
   }
@@ -389,7 +386,8 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       data.lastNonTroopDefinitionId = "";
       this.pendingMagnet[seat] = [];
       this.pendingMitosis[seat] = undefined;
-      data.deck = this.shuffle(data.configuredDeck.map((definitionId) => this.makePrivateCard(seat, definitionId)));
+      data.deck = this.buildStartingDeck(seat);
+      this.updateCounts(seat);
       const player = this.playerBySeat(seat);
       if (!player) continue;
       player.life = 20;
@@ -2065,7 +2063,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
   }
 
   private adjustedCost(definition: CardDefinition): CostPart[] {
-    let manaDiscount = definition.category === "tropa" && this.state.terrainDefinitionId === "planicies_profanas" ? 1 : 0;
+    let manaDiscount = this.state.terrainDefinitionId === "planicies_profanas" ? 1 : 0;
     return definition.cost.flatMap((part) => {
       if (part.type !== "mana" || manaDiscount <= 0) return [{ ...part }];
       const amount = Math.max(0, part.amount - manaDiscount);
@@ -2407,6 +2405,19 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     player.itemsUsed = 0;
     player.terrainPlayed = false;
     player.evolutionsUsed = 0;
+  }
+
+  private buildStartingDeck(seat: number): PrivateCard[] {
+    const deck = this.shuffle(defaultDeck());
+    const opening: string[] = [];
+    for (const category of ["tropa", "recurso", "recurso"]) {
+      const index = deck.findIndex(id => CARD_DEFINITIONS[id].category === category);
+      if (index < 0) throw new Error(`Categoria ausente do baralho inicial: ${category}`);
+      opening.push(...deck.splice(index, 1));
+    }
+    this.shuffle(deck);
+    opening.push(...deck.splice(0, OPENING_HAND_SIZE - opening.length));
+    return this.shuffle(opening).concat(deck).map(id => this.makePrivateCard(seat, id));
   }
 
   private makePrivateCard(seat: number, definitionId: string): PrivateCard {
