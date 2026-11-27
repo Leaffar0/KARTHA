@@ -1309,7 +1309,7 @@ function desenhar_historico_legivel() {
         if (_hover && _linha.indice < array_length(_c.historico_referencias)) {
             var _refs=_c.historico_referencias[_linha.indice];
             var _cam=view_camera[0];
-            for (var r=0; r<array_length(_refs); r++) if (instance_exists(_refs[r]) && !_refs[r].morrendo && _refs[r].travada) {
+            for (var r=0; r<array_length(_refs); r++) if (instance_exists(_refs[r]) && !_refs[r].morrendo && _refs[r].travada && !tropa_oculta_nevoa(_refs[r])) {
                 var _ref=_refs[r], _sx=display_get_gui_width()/camera_get_view_width(_cam), _sy=display_get_gui_height()/camera_get_view_height(_cam);
                 var _x=(_ref.x-camera_get_view_x(_cam))*_sx, _y=(_ref.y-camera_get_view_y(_cam))*_sy;
                 var _w=sprite_get_width(_ref.sprite_index)*abs(_ref.image_xscale)*_sx*0.52;
@@ -1617,5 +1617,62 @@ function desenhar_conteudo_opcoes_compacto(_cx,_cy,_gui=false) {
         var _y=_cy+_ys[_i],_hw=_i==3?110:130;
         botao_carta_painel(_cx-_hw,_y-14,_cx+_hw,_y+14,"",_gui);
         desenhar_texto_ajustado_ui(_textos[_i],_cx,_y,_hw*2-24,0.51);
+    }
+}
+
+function desenhar_face_consulta(_carta, _centro_x, _centro_y, _escala_preview, _frame, _inspecao, _catalogo) {
+    var _largura_real = sprite_get_width(_carta.sprite_index);
+    var _altura_real = sprite_get_height(_carta.sprite_index);
+    var _escala_texto = _catalogo ? 0.60 : global.ESCALA_TEXTO_CARTA;
+    var _escala_atk = _catalogo ? 0.75 : global.ESCALA_TEXTO_ATK;
+    desenhar_carta_mesa(
+        _carta.sprite_index,
+        _frame,
+        _centro_x + (sprite_get_xoffset(_carta.sprite_index) - _largura_real * 0.5) * _escala_preview,
+        _centro_y + (sprite_get_yoffset(_carta.sprite_index) - _altura_real * 0.5) * _escala_preview,
+        _escala_preview,
+        _escala_preview,
+        0,
+        c_white,
+        1,
+        _inspecao
+    );
+
+    if (!_carta.tem_arte_propria) {
+	    var _largura_maxima_preview = _largura_real * _escala_preview * 0.85;
+	    var _largura_texto_preview = string_width(_carta.nome_carta);
+	    var _escala_nome_preview = _escala_preview * 0.4;
+
+    if (_largura_texto_preview * _escala_nome_preview > _largura_maxima_preview) {
+        _escala_nome_preview = _largura_maxima_preview / _largura_texto_preview;
+    }
+
+	    draw_set_halign(fa_center);
+	    draw_set_valign(fa_top);
+	    draw_set_color(c_white);
+	    draw_text_transformed(_centro_x, _centro_y - (_altura_real/2 * _escala_preview) + 10, _carta.nome_carta, _escala_nome_preview, _escala_nome_preview, 0);
+	}
+
+    if (_carta.categoria == "tropa") {
+	    var _escala_stats_preview = _carta.tem_arte_propria ? _escala_preview : (_escala_preview * _escala_texto * 0.7);
+
+	    desenhar_stat_preview(_carta, _carta.vida, _carta.vida_pos_x, _carta.vida_pos_y, _centro_x, _centro_y, _largura_real, _altura_real, _escala_preview, _escala_stats_preview);
+	    desenhar_stat_preview(_carta, string(_carta.nivel_inteligencia), _carta.int_pos_x, _carta.int_pos_y, _centro_x, _centro_y, _largura_real, _altura_real, _escala_preview, _escala_stats_preview, true);
+	    desenhar_stat_preview(_carta, string(_carta.mochila), _carta.mochila_pos_x, _carta.mochila_pos_y, _centro_x, _centro_y, _largura_real, _altura_real, _escala_preview, _escala_stats_preview, true);
+	    desenhar_stat_preview(_carta, (_catalogo ? _carta.defesa_fisica : calcular_defesa_fisica_total(_carta)), _carta.def_pos_x, _carta.def_pos_y, _centro_x, _centro_y, _largura_real, _altura_real, _escala_preview, _escala_stats_preview);
+		desenhar_stat_preview(_carta, (_catalogo ? _carta.defesa_magica : calcular_defesa_magica_total(_carta)), _carta.def_magico_pos_x, _carta.def_magico_pos_y, _centro_x, _centro_y, _largura_real, _altura_real, _escala_preview, _escala_stats_preview);
+
+	    if (_carta.dado_dano != 0) {
+		    var _texto_atk = (_carta.qtd_dados_dano > 1 ? string(_carta.qtd_dados_dano) : "") + "D" + string(_carta.dado_dano) + "+" + string((_catalogo ? _carta.mod_dano : calcular_mod_dano_total(_carta)));
+		    desenhar_stat_preview(_carta, _texto_atk, _carta.atk_pos_x, _carta.atk_pos_y, _centro_x, _centro_y, _largura_real, _altura_real, _escala_preview, _escala_stats_preview * _escala_atk, true);
+		}
+		if (_carta.dado_dano_magico != 0) {
+			var _texto_atk_m = (_carta.qtd_dados_dano_magico > 1 ? string(_carta.qtd_dados_dano_magico) : "") + "D" + string(_carta.dado_dano_magico) + "+" + string((_catalogo ? _carta.mod_dano : calcular_mod_dano_total(_carta)));
+		    desenhar_stat_preview(_carta, _texto_atk_m, _carta.atk_magico_pos_x, _carta.atk_magico_pos_y, _centro_x, _centro_y, _largura_real, _altura_real, _escala_preview, _escala_stats_preview * _escala_atk, true);
+		}
+	} else if (_carta.categoria == "construcao") {
+        var _escala_vida_construcao = _carta.tem_arte_propria ? _escala_preview : 0.90 * _largura_real * _escala_preview / 350;
+        desenhar_stat_preview(_carta, _carta.vida, _carta.vida_pos_x, _carta.vida_pos_y,
+            _centro_x, _centro_y, _largura_real, _altura_real, _escala_preview, _escala_vida_construcao);
     }
 }

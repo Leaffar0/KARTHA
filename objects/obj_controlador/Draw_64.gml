@@ -65,7 +65,9 @@ if (dano_castelo_impacto_timer > 0) {
 
 draw_set_halign(fa_left);
 draw_set_valign(fa_top);
-draw_text(20, 82, (turno == "preparacao") ? "Disputa inicial"
+var _espera = modo_partida == "online" ? online_aviso_escolha() : "";
+if (_espera != "") desenhar_texto_ajustado_ui(_espera, 20, 83, 232, 0.62);
+else draw_text(20, 82, (turno == "preparacao") ? "Disputa inicial"
     : (modo_partida == "online" ? nome_jogador_lado(turno) + " — turno"
     : ((turno == "jogador") ? "Seu turno" : "Turno do inimigo")));
 
@@ -380,58 +382,8 @@ if (instance_exists(previa_visual_carta) && previa_visual_progresso > 0 && contr
         _centro_x+_largura_real*_escala_preview*0.5+8,
         _centro_y+_altura_real*_escala_preview*0.5+12,false);
     draw_set_alpha(1);draw_set_color(c_white);
-    desenhar_carta_mesa(
-        _carta.sprite_index,
-        _carta.image_index,
-        _centro_x + (sprite_get_xoffset(_carta.sprite_index) - _largura_real * 0.5) * _escala_preview,
-        _centro_y + (sprite_get_yoffset(_carta.sprite_index) - _altura_real * 0.5) * _escala_preview,
-        _escala_preview,
-        _escala_preview,
-        0,
-        c_white,
-        1,
-        _carta == carta_preview ? previa_visual_progresso : 0
-    );
-
-    if (!_carta.tem_arte_propria) {
-	    var _largura_maxima_preview = _largura_real * _escala_preview * 0.85;
-	    var _largura_texto_preview = string_width(_carta.nome_carta);
-	    var _escala_nome_preview = _escala_preview * 0.4;
-
-    if (_largura_texto_preview * _escala_nome_preview > _largura_maxima_preview) {
-        _escala_nome_preview = _largura_maxima_preview / _largura_texto_preview;
-    }
-
-	    draw_set_halign(fa_center);
-	    draw_set_valign(fa_top);
-	    draw_set_color(c_white);
-	    draw_text_transformed(_centro_x, _centro_y - (_altura_real/2 * _escala_preview) + 10, _carta.nome_carta, _escala_nome_preview, _escala_nome_preview, 0);
-	}
-
-    if (_carta.categoria == "tropa") {
-	    var _escala_stats_preview = _carta.tem_arte_propria ? _escala_preview : (_escala_preview * global.ESCALA_TEXTO_CARTA * 0.7);
-
-	    desenhar_stat_preview(_carta, _carta.vida, _carta.vida_pos_x, _carta.vida_pos_y, _centro_x, _centro_y, _largura_real, _altura_real, _escala_preview, _escala_stats_preview);
-	    desenhar_stat_preview(_carta, string(_carta.nivel_inteligencia), _carta.int_pos_x, _carta.int_pos_y, _centro_x, _centro_y, _largura_real, _altura_real, _escala_preview, _escala_stats_preview, true);
-	    desenhar_stat_preview(_carta, string(_carta.mochila), _carta.mochila_pos_x, _carta.mochila_pos_y, _centro_x, _centro_y, _largura_real, _altura_real, _escala_preview, _escala_stats_preview, true);
-	    desenhar_stat_preview(_carta, calcular_defesa_fisica_total(_carta), _carta.def_pos_x, _carta.def_pos_y, _centro_x, _centro_y, _largura_real, _altura_real, _escala_preview, _escala_stats_preview);
-		desenhar_stat_preview(_carta, calcular_defesa_magica_total(_carta), _carta.def_magico_pos_x, _carta.def_magico_pos_y, _centro_x, _centro_y, _largura_real, _altura_real, _escala_preview, _escala_stats_preview);
-
-	    if (_carta.dado_dano != 0) {
-		    var _texto_atk = (_carta.qtd_dados_dano > 1 ? string(_carta.qtd_dados_dano) : "") + "D" + string(_carta.dado_dano) + "+" + string(calcular_mod_dano_total(_carta));
-		    desenhar_stat_preview(_carta, _texto_atk, _carta.atk_pos_x, _carta.atk_pos_y, _centro_x, _centro_y, _largura_real, _altura_real, _escala_preview, _escala_stats_preview * global.ESCALA_TEXTO_ATK, true);
-		}
-		if (_carta.dado_dano_magico != 0) {
-			var _texto_atk_m = (_carta.qtd_dados_dano_magico > 1 ? string(_carta.qtd_dados_dano_magico) : "") + "D" + string(_carta.dado_dano_magico) + "+" + string(calcular_mod_dano_total(_carta));
-		    desenhar_stat_preview(_carta, _texto_atk_m, _carta.atk_magico_pos_x, _carta.atk_magico_pos_y, _centro_x, _centro_y, _largura_real, _altura_real, _escala_preview, _escala_stats_preview * global.ESCALA_TEXTO_ATK, true);
-		}
-	} else if (_carta.categoria == "construcao") {
-        var _escala_vida_construcao = _carta.tem_arte_propria ? _escala_preview : 0.90 * _largura_real * _escala_preview / 350;
-        desenhar_stat_preview(_carta, _carta.vida, _carta.vida_pos_x, _carta.vida_pos_y,
-            _centro_x, _centro_y, _largura_real, _altura_real, _escala_preview, _escala_vida_construcao);
-    }
-
-
+    desenhar_face_consulta(_carta, _centro_x, _centro_y, _escala_preview, _carta.image_index,
+        _carta == carta_preview ? previa_visual_progresso : 0, false);
 
     draw_set_halign(fa_center);
     draw_set_color(c_silver);

@@ -10,7 +10,8 @@ painel_menu_abertura=min(1,painel_menu_abertura+min(delta_time/1000000,0.05)*5);
 tempo_menu += min(delta_time/1000000,0.05);
 var _menu_livre=!(opcoes_abertas || modo_jogo_aberto || online_aberto || deck_aberto);
 var _clique = mouse_check_button_pressed(mb_left);
-if (mouse_x != menu_mouse_x || mouse_y != menu_mouse_y || _clique) menu_por_teclado = false;
+var _mouse_moveu = mouse_x != menu_mouse_x || mouse_y != menu_mouse_y;
+if (_mouse_moveu || _clique) menu_por_teclado = false;
 menu_mouse_x = mouse_x;
 menu_mouse_y = mouse_y;
 var _confirmar = false;
@@ -145,19 +146,37 @@ if (online_aberto) {
 
 if (deck_aberto) {
     var _deck_cx = room_width / 2;
-    if (mouse_check_button_pressed(mb_left)) {
-        var _paginas_deck = ceil(array_length(deck_catalogo_menu) / deck_por_pagina);
-        if (point_in_rectangle(mouse_x, mouse_y, _deck_cx - 220, centro_painel_menu(id) + 150, _deck_cx - 80, centro_painel_menu(id) + 185))
-            deck_pagina = max(0, deck_pagina - 1);
-        else if (point_in_rectangle(mouse_x, mouse_y, _deck_cx + 80, centro_painel_menu(id) + 150, _deck_cx + 220, centro_painel_menu(id) + 185))
-            deck_pagina = min(_paginas_deck - 1, deck_pagina + 1);
-        else if (point_in_rectangle(mouse_x, mouse_y, _deck_cx - 70, centro_painel_menu(id) + 150, _deck_cx + 70, centro_painel_menu(id) + 185)) {
-            deck_aberto = false;
-        }
+    var _cy = centro_painel_menu(id);
+    var _anterior = keyboard_check_pressed(vk_left) || (_clique && point_in_rectangle(mouse_x,mouse_y,_deck_cx-220,_cy+150,_deck_cx-80,_cy+185));
+    var _proxima = keyboard_check_pressed(vk_right) || (_clique && point_in_rectangle(mouse_x,mouse_y,_deck_cx+80,_cy+150,_deck_cx+220,_cy+185));
+    var _voltar = keyboard_check_pressed(vk_escape) || (_clique && (point_in_rectangle(mouse_x,mouse_y,_deck_cx-70,_cy+150,_deck_cx+70,_cy+185)
+        || point_in_rectangle(mouse_x,mouse_y,_deck_cx+260,_cy-195,_deck_cx+298,_cy-162)));
+    if (_voltar) {
+        if (is_struct(deck_ficha)) deck_ficha = noone;
+        else deck_aberto = false;
+        exit;
     }
-    if (keyboard_check_pressed(vk_escape) || (mouse_check_button_pressed(mb_left)
-        && point_in_rectangle(mouse_x,mouse_y,_deck_cx+260,centro_painel_menu(id)-195,_deck_cx+298,centro_painel_menu(id)-162))) {
-        deck_aberto=false;
+    if (is_struct(deck_ficha)) {
+        deck_texto_pagina = clamp(deck_texto_pagina + _proxima - _anterior, 0, array_length(deck_textos)-1);
+        exit;
+    }
+    var _total = array_length(deck_catalogo_menu);
+    var _nova = clamp(deck_pagina + _proxima - _anterior, 0, ceil(_total/deck_por_pagina)-1);
+    if (_nova != deck_pagina) deck_linha = 0;
+    deck_pagina = _nova;
+    var _linhas = min(deck_por_pagina, _total - deck_pagina * deck_por_pagina);
+    deck_linha = clamp(deck_linha + keyboard_check_pressed(vk_down) - keyboard_check_pressed(vk_up), 0, _linhas-1);
+    var _linha_mouse = floor((mouse_y - (_cy - 130)) / 31);
+    var _sobre_linha = mouse_x >= _deck_cx-280 && mouse_x <= _deck_cx+280 && _linha_mouse >= 0 && _linha_mouse < _linhas;
+    if (_sobre_linha && (_clique || _mouse_moveu)) deck_linha = _linha_mouse;
+    if (_linhas > 0 && (keyboard_check_pressed(vk_enter) || (_clique && _sobre_linha))) {
+        deck_ficha = { custo: noone, vida_pos_x: 0.10, vida_pos_y: 0.07 };
+        aplicar_definicao_carta(deck_ficha, deck_catalogo_menu[deck_pagina * deck_por_pagina + deck_linha]);
+        var _fonte = draw_get_font();
+        draw_set_font(Fontenil);
+        deck_textos = paginar_detalhes_carta(descricao_carta_preview(deck_ficha, true), 310, 242, 0.62);
+        draw_set_font(_fonte);
+        deck_texto_pagina = 0;
     }
     exit;
 }

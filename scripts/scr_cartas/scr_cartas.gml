@@ -1318,15 +1318,10 @@ function buscar_recurso_no_deck(_tipo_recurso, _dono) {
     return true;
 }
 
-// Mesma lógica de sempre, mas recebe a função da carta já escolhida
-// (compra normal E efeitos de busca tipo Sangue Suga usam essa mesma função).
-function comprar_carta_do_deck_por_funcao(_funcao_sorteada, _x_inicial, _y_inicial, _dono = "jogador", _inserir_na_mao = true) {
+function aplicar_definicao_carta(_carta, _funcao_sorteada) {
     var _dados = _funcao_sorteada();
-
-    var _carta = instance_create_layer(_x_inicial, _y_inicial, "Instances", obj_carta);
     _carta.nome_carta = _dados.nome;
     _carta.sprite_index = (_dados.sprite_carta != noone) ? _dados.sprite_carta : spr_carta_placeholder;
-    _carta.escala_base = global.CARTA_LARGURA / sprite_get_width(_carta.sprite_index);
     _carta.tem_arte_propria = (_dados.sprite_carta != noone);
     _carta.categoria = _dados.categoria;
     _carta.funcao_dados_origem = _funcao_sorteada;
@@ -1437,7 +1432,14 @@ function comprar_carta_do_deck_por_funcao(_funcao_sorteada, _x_inicial, _y_inici
     } else if (_dados.nome == "Choque Elétrico") {
         _carta.efeito_tipo = "choque";
     }
+}
 
+// Mesma lógica de sempre, mas recebe a função da carta já escolhida
+// (compra normal E efeitos de busca tipo Sangue Suga usam essa mesma função).
+function comprar_carta_do_deck_por_funcao(_funcao_sorteada, _x_inicial, _y_inicial, _dono = "jogador", _inserir_na_mao = true) {
+    var _carta = instance_create_layer(_x_inicial, _y_inicial, "Instances", obj_carta);
+    aplicar_definicao_carta(_carta, _funcao_sorteada);
+    _carta.escala_base = global.CARTA_LARGURA / sprite_get_width(_carta.sprite_index);
     _carta.dono = _dono;
     _carta.esta_na_mao = true;
     _carta.compra_animando = true;

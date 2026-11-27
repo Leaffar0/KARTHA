@@ -1,5 +1,6 @@
 const fs=require('fs'),vm=require('vm'),assert=require('assert/strict');
-const read=p=>fs.readFileSync(p,'utf8');
+const path = require('node:path');
+const read = p => fs.readFileSync(path.resolve(__dirname, '../..', p), 'utf8');
 for(const fps of [30,60,144]) {
  let switched=0,dead=false,lastAlpha=0;
  const c={room:1,min:Math.min,clamp:(v,a,b)=>Math.max(a,Math.min(b,v)),delta_time:1e6/fps,

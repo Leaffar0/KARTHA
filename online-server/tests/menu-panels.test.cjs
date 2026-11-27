@@ -7,6 +7,8 @@ const c={os_type:0,os_linux:1,transicao_sala_ativa:()=>false,room_width:1152,roo
  opcoes_abertas:false,modo_jogo_aberto:false,online_aberto:false,deck_aberto:false,painel_menu_abertura:1,painel_menu_anterior:'',
  online_copiado_timer:0,deck_por_pagina:8,deck_pagina:0,deck_catalogo_menu:[()=>({nome:'Slime'})],global:{},
  min:Math.min,max:Math.max,abs:Math.abs,ceil:Math.ceil,sin:Math.sin,power:Math.pow,lerp:(a,b,t)=>a+(b-a)*t,clamp:(x,a,b)=>Math.max(a,Math.min(b,x)),dcos:a=>Math.cos(a*Math.PI/180),dsin:a=>Math.sin(a*Math.PI/180),
+ noone:null,deck_ficha:null,deck_linha:0,deck_textos:[],deck_texto_pagina:0,
+ floor:Math.floor,is_struct:v=>v!==null && typeof v==="object",
  menu_foco:0,modo_foco:0,menu_por_teclado:false,menu_mouse_x:0,menu_mouse_y:0,
  vk_enter:13,vk_left:37,vk_up:38,vk_right:39,vk_down:40,mb_left:1,vk_escape:27,mouse_x:0,mouse_y:0,
  mouse_check_button_pressed:()=>click,keyboard_check_pressed:k=>escape&&k===27,
@@ -107,3 +109,19 @@ assert.equal(c.modo_jogo_aberto,true);
 press(c.vk_right); press(c.vk_enter);
 assert.equal(c.online_aberto,true);
 assert.equal(started,1);
+
+c.online_aberto=false;
+c.deck_aberto=true;
+c.deck_catalogo_menu=Array.from({length:10},(_,i)=>()=>({nome:'Carta '+i}));
+Object.assign(c,{Fontenil:1,draw_get_font:()=>0,draw_set_font(){},
+  aplicar_definicao_carta:(card,factory)=>Object.assign(card,factory()),
+  descricao_carta_preview:card=>card.nome,paginar_detalhes_carta:s=>[s,'segunda página']});
+settle(); press(c.vk_right); press(c.vk_down); press(c.vk_enter);
+assert.equal(c.deck_ficha.nome,'Carta 9');
+press(c.vk_right); assert.equal(c.deck_texto_pagina,1);
+press(c.vk_escape); assert.equal(c.deck_aberto,true); assert.equal(c.deck_ficha,null);
+press(c.vk_left);
+c.mouse_x=c.room_width/2; c.mouse_y=c.centro_painel_menu(c)-115+3*31;
+click=true; c.frame(); click=false;
+assert.equal(c.deck_ficha.nome,'Carta 3');
+press(c.vk_escape); press(c.vk_escape); assert.equal(c.deck_aberto,false);

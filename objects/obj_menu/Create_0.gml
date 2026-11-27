@@ -14,6 +14,10 @@ online_servidor_input = online_carregar_endpoint();
 online_copiado_timer = 0;
 deck_aberto = false;
 deck_pagina = 0;
+deck_linha = 0;
+deck_ficha = noone;
+deck_textos = [];
+deck_texto_pagina = 0;
 deck_por_pagina = 8;
 deck_catalogo_menu = catalogo_cartas();
 

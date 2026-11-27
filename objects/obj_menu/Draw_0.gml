@@ -179,30 +179,38 @@ if (deck_aberto) {
     var _deck_cy = centro_painel_menu(id);
     desenhar_painel_carta_menu(_deck_cx-310,_deck_cy-215,_deck_cx+310,_deck_cy+220);
     botao_carta_painel(_deck_cx+260,_deck_cy-195,_deck_cx+298,_deck_cy-162,"X");
-    botao_carta_painel(_deck_cx-220,_deck_cy+150,_deck_cx-80,_deck_cy+185,"");
-    botao_carta_painel(_deck_cx-70,_deck_cy+150,_deck_cx+70,_deck_cy+185,"");
-    botao_carta_painel(_deck_cx+80,_deck_cy+150,_deck_cx+220,_deck_cy+185,"");
-    desenhar_texto_interface(_deck_cx, _deck_cy - 178, "BARALHO");
-
-    var _total_deck = array_length(deck_catalogo_menu) * COPIAS_POR_CARTA;
-    desenhar_texto_interface(_deck_cx, _deck_cy - 150, string(_total_deck) + " CARTAS");
-
-    var _deck_inicio = deck_pagina * deck_por_pagina;
-    var _deck_inicio_y = _deck_cy - 115;
-    for (var _dr = 0; _dr < deck_por_pagina; _dr++) {
-        var _deck_indice = _deck_inicio + _dr;
-        if (_deck_indice >= array_length(deck_catalogo_menu)) break;
-        var _dados_deck = deck_catalogo_menu[_deck_indice]();
-        var _deck_y = _deck_inicio_y + _dr * 31;
-        draw_set_halign(fa_left); draw_set_color(c_white);
-        desenhar_texto_ajustado_ui(_dados_deck.nome,_deck_cx-275,_deck_y,360,0.58);
-        draw_set_halign(fa_center);
-        desenhar_texto_interface(_deck_cx + 167, _deck_y, "×" + string(COPIAS_POR_CARTA));
+    var _ficha = is_struct(deck_ficha);
+    var _pagina = _ficha ? deck_texto_pagina : deck_pagina;
+    var _paginas = _ficha ? array_length(deck_textos) : ceil(array_length(deck_catalogo_menu) / deck_por_pagina);
+    if (_pagina > 0) botao_carta_painel(_deck_cx-220,_deck_cy+150,_deck_cx-80,_deck_cy+185,"< Anterior");
+    if (_pagina+1 < _paginas) botao_carta_painel(_deck_cx+80,_deck_cy+150,_deck_cx+220,_deck_cy+185,"Próxima >");
+    botao_carta_painel(_deck_cx-70,_deck_cy+150,_deck_cx+70,_deck_cy+185,"Voltar");
+    if (_paginas > 1) desenhar_texto_interface(_deck_cx, _deck_cy+125, string(_pagina+1)+" / "+string(_paginas),0.48);
+    if (_ficha) {
+        desenhar_texto_ajustado_ui(deck_ficha.nome_carta, _deck_cx, _deck_cy-174, 482, 0.90);
+        var _sprite = deck_ficha.sprite_index;
+        var _escala = min(202 / sprite_get_width(_sprite), 249 / sprite_get_height(_sprite));
+        desenhar_face_consulta(deck_ficha, _deck_cx-168, _deck_cy-15, _escala, 0, 0, true);
+        draw_set_halign(fa_left); draw_set_valign(fa_top); draw_set_color(c_white);
+        draw_text_transformed(_deck_cx-33, _deck_cy-139, deck_textos[deck_texto_pagina], 0.62, 0.62, 0);
+    } else {
+        desenhar_texto_interface(_deck_cx, _deck_cy-178, "BARALHO");
+        desenhar_texto_interface(_deck_cx, _deck_cy-150, string(array_length(deck_catalogo_menu)*COPIAS_POR_CARTA)+" CARTAS");
+        var _inicio = deck_pagina * deck_por_pagina;
+        for (var _dr=0; _dr<min(deck_por_pagina,array_length(deck_catalogo_menu)-_inicio); _dr++) {
+            var _dados = deck_catalogo_menu[_inicio+_dr]();
+            var _y = _deck_cy-115+_dr*31;
+            if (_dr == deck_linha) {
+                draw_set_color(make_color_rgb(62,60,56));
+                draw_roundrect(_deck_cx-280,_y-14,_deck_cx+280,_y+14,false);
+            }
+            draw_set_color(c_white); draw_set_halign(fa_left); draw_set_valign(fa_middle);
+            desenhar_texto_ajustado_ui(_dados.nome,_deck_cx-270,_y,385,0.58);
+            draw_set_halign(fa_center);
+            desenhar_texto_interface(_deck_cx+167,_y,"×"+string(COPIAS_POR_CARTA));
+        }
     }
-    draw_set_halign(fa_center); draw_set_color(c_white);
-    desenhar_texto_ajustado_ui("< ANTERIOR",_deck_cx-150,_deck_cy+167,124,0.48);
-    desenhar_texto_interface(_deck_cx, _deck_cy + 167, "VOLTAR");
-    desenhar_texto_ajustado_ui("PRÓXIMA >",_deck_cx+150,_deck_cy+167,124,0.48);
+    draw_set_color(c_white); draw_set_halign(fa_left); draw_set_valign(fa_top);
 }
 #endregion
 

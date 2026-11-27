@@ -1709,7 +1709,7 @@ function descricao_habilidade(_chave) {
         case "alcance_magico": return "Alcance mágico: permite atacar com o dano mágico original a até 2 casas.";
         case "voar": return "Voar: atravessa tropas terrestres e ignora armadilhas de solo. Só pode ser atacada por tropas com Voar ou Alcance/Alcance mágico.";
         case "golpe_duplo": return "Golpe Duplo: realiza dois ataques com o ataque original da tropa.";
-        case "mitose": return "Mitose: ao morrer, gera duas tropas menores quando houver espaço.";
+        case "mitose": return "Mitose: ao morrer, usa um Slimet da mão ou do baralho para ocupar sua casa. Se houver outro Slimet e uma casa vizinha livre, você escolhe onde ele nasce.";
         case "imitacao": return "Imitação: disputa 1D20 + inteligência com o inimigo à frente. Se vencer, bloqueia seus ataques e permite contra-atacar. Cada tentativa de ataque exige novo teste para romper o bloqueio. Uma ativação por turno, antes de atacar. Ao perder o reteste contra o Mimic, o inimigo recebe um contra-ataque.";
         case "sombra_translucida": return "Sombra Translúcida: custa 2 Mana. Fica invisível por 1 turno, impedindo ser alvo de ataques; depois precisa de 1 turno de recarga.";
         case "visao_do_veu": return "Visão do Véu: uso único. Revela a mão inimiga; escolha destruir uma armadilha ou proteger esta tropa de uma armadilha direcionada a ela.";
@@ -1740,8 +1740,10 @@ function categoria_exibicao(_categoria) {
 }
 
 function descricao_efeito_preview(_carta) {
+    if (_carta.categoria == "item_consumivel" && _carta.cura_item > 0)
+        return "Recupera até " + string(_carta.cura_item) + " de vida da tropa aliada.";
     switch (_carta.efeito_tipo) {
-        case "bola_fogo": return "Causa " + string(_carta.dado_efeito) + " de dano e pode queimar o alvo.";
+        case "bola_fogo": return "Causa 1D" + string(_carta.dado_efeito) + " de dano e pode queimar o alvo.";
         case "veneno": return "Envenena a tropa alvo, causando dano ao longo dos turnos.";
         case "gelo": return "Congela a tropa alvo e limita suas ações.";
         case "choque": return "Eletrocuta a tropa alvo; choques repetidos podem causar Loucura.";
@@ -1757,49 +1759,52 @@ function descricao_efeito_preview(_carta) {
         case "bloqueio_recurso": return "Impede usar ou retirar o recurso escolhido durante 3 turnos do dono.";
         case "loucura_mutua": return "Quando uma tropa sua recebe Loucura, uma tropa inimiga da fileira também recebe.";
         case "raizes_espinhosas": return "Cancela o movimento de uma tropa terrestre com menos de 10 de vida e a envenena.";
+        case "armadilha_urso": return "Quando uma tropa inimiga terrestre entrar na casa, pode ser ativada para causar 2D6 de dano. Uma moeda decide se há Sangramento.";
         case "destrocos": return "Quando uma construção sua é destruída, causa 1D4 às tropas inimigas da fileira.";
     }
     return "Use o efeito da carta em um alvo válido.";
 }
 
-function descricao_carta_preview(_carta) {
+function descricao_carta_preview(_carta, _catalogo = false) {
     var _custo = texto_custo_exibicao(_carta.custo);
-    if (_carta.object_index == obj_carta && _carta.esta_na_mao) {
+    if (!_catalogo && _carta.object_index == obj_carta && _carta.esta_na_mao) {
         var _efetivo = texto_custo_exibicao(ajustar_custo_por_terreno(_carta.custo, _carta.categoria));
         if (_efetivo != _custo) _custo += " para " + _efetivo + " (Planícies Profanas)";
     }
     var _texto = "TIPO: " + categoria_exibicao(_carta.categoria) + "\nCUSTO: " + _custo;
-    if (_carta.object_index == obj_carta && _carta.esta_na_mao && lado_controlado_localmente(_carta.dono))
+    if (!_catalogo && _carta.object_index == obj_carta && _carta.esta_na_mao && lado_controlado_localmente(_carta.dono))
         _texto += "\n\nDISPONIBILIDADE: " + disponibilidade_carta_mao(_carta).motivo;
 
     if (_carta.categoria == "tropa") {
-        _texto += "\n\nITENS EQUIPADOS (" + string(array_length(_carta.itens_equipados)) + "):";
-        if (array_length(_carta.itens_equipados) == 0) _texto += "\nNenhum item equipado.";
-        for (var _eq = 0; _eq < array_length(_carta.itens_equipados); _eq++) {
-            var _item = _carta.itens_equipados[_eq];
-            _texto += "\n• " + _item.nome;
-            if (_item.dado > 0) _texto += " — ataque D" + string(_item.dado);
-            if (_item.bonus_dano != 0) _texto += " | dano +" + string(_item.bonus_dano);
-            if (_item.bonus_defesa != 0) _texto += " | defesa +" + string(_item.bonus_defesa);
-        }
-        if (_carta.travada) {
-            _texto += "\n\nAÇÕES DA TROPA:";
-            _texto += "\nAtaque: " + (!tropa_pode_agir(_carta) ? "bloqueado por condição"
-                : (primeiro_turno_do_lado(_carta.dono) ? "bloqueado no 1º turno"
-                : (_carta.atacou_este_turno ? "já usado" : "disponível")));
-            _texto += "\nMovimento: " + (!tropa_pode_agir(_carta) ? "bloqueado por condição"
-                : (_carta.turnos_no_campo < 1 ? "a partir do próximo turno"
-                : (_carta.moveu_este_turno ? "já usado" : "disponível")));
-            _texto += "\nAção de item: " + (_carta.troca_item_usada_este_turno ? "já usada" : "disponível");
-            if (_carta.sombra_cooldown > 0)
-                _texto += "\nSombra Translúcida: " + (_carta.sombra_ativa ? "invisível; depois recarrega" : "recarregando por 1 turno");
-            if (_carta.iludido_por_imitacao) _texto += "\nImitação: novo teste de inteligência a cada tentativa de ataque.";
-        }
-        if (array_length(_carta.condicoes) > 0) {
-            _texto += "\n\nCONDIÇÕES ATIVAS:";
-            for (var _ci = 0; _ci < array_length(_carta.condicoes); _ci++) {
-                var _estado = _carta.condicoes[_ci];
-                _texto += "\n" + obter_config_condicao(_estado.tipo).nome + " (" + duracao_condicao_exibida(_estado.turnos) + ")";
+        if (!_catalogo) {
+            _texto += "\n\nITENS EQUIPADOS (" + string(array_length(_carta.itens_equipados)) + "):";
+            if (array_length(_carta.itens_equipados) == 0) _texto += "\nNenhum item equipado.";
+            for (var _eq = 0; _eq < array_length(_carta.itens_equipados); _eq++) {
+                var _item = _carta.itens_equipados[_eq];
+                _texto += "\n• " + _item.nome;
+                if (_item.dado > 0) _texto += " — ataque D" + string(_item.dado);
+                if (_item.bonus_dano != 0) _texto += " | dano +" + string(_item.bonus_dano);
+                if (_item.bonus_defesa != 0) _texto += " | defesa +" + string(_item.bonus_defesa);
+            }
+            if (_carta.travada) {
+                _texto += "\n\nAÇÕES DA TROPA:";
+                _texto += "\nAtaque: " + (!tropa_pode_agir(_carta) ? "bloqueado por condição"
+                    : (primeiro_turno_do_lado(_carta.dono) ? "bloqueado no 1º turno"
+                    : (_carta.atacou_este_turno ? "já usado" : "disponível")));
+                _texto += "\nMovimento: " + (!tropa_pode_agir(_carta) ? "bloqueado por condição"
+                    : (_carta.turnos_no_campo < 1 ? "a partir do próximo turno"
+                    : (_carta.moveu_este_turno ? "já usado" : "disponível")));
+                _texto += "\nAção de item: " + (_carta.troca_item_usada_este_turno ? "já usada" : "disponível");
+                if (_carta.sombra_cooldown > 0)
+                    _texto += "\nSombra Translúcida: " + (_carta.sombra_ativa ? "invisível; depois recarrega" : "recarregando por 1 turno");
+                if (_carta.iludido_por_imitacao) _texto += "\nImitação: novo teste de inteligência a cada tentativa de ataque.";
+            }
+            if (array_length(_carta.condicoes) > 0) {
+                _texto += "\n\nCONDIÇÕES ATIVAS:";
+                for (var _ci = 0; _ci < array_length(_carta.condicoes); _ci++) {
+                    var _estado = _carta.condicoes[_ci];
+                    _texto += "\n" + obter_config_condicao(_estado.tipo).nome + " (" + duracao_condicao_exibida(_estado.turnos) + ")";
+                }
             }
         }
         if (array_length(_carta.habilidades) > 0) {
@@ -1841,10 +1846,13 @@ function descricao_carta_preview(_carta) {
         case "terreno":
             if (_carta.efeito_terreno == "planicies_profanas") _texto += "\n\nCada carta custa 1 Mana a menos para ambos os jogadores, até o mínimo de zero.";
             else if (_carta.efeito_terreno == "cemiterio") _texto += "\n\nNo início de cada turno, 20% de chance de esconder as tropas adversárias até o fim dele. Bloqueia consultar detalhes, mas permite atacar os espaços ocupados.";
+            else if (_carta.bonus_defesa_global < 0) _texto += "\n\nReduz a defesa das tropas dos dois lados em " + string(-_carta.bonus_defesa_global) + ".";
             else _texto += "\n\nAltera regras ou atributos do campo enquanto estiver ativo.";
         break;
-        case "bencao": _texto += "\n\nEfeito positivo permanente para seu lado da partida: " + string(_carta.efeito_passivo) + "."; break;
-        case "maldicao": _texto += "\n\nEfeito negativo permanente aplicado ao lado escolhido: " + string(_carta.efeito_passivo) + "."; break;
+        case "bencao": case "maldicao":
+            if (_carta.efeito_passivo == "cura_ao_morrer") _texto += "\n\nQuando uma das suas tropas morre, seu castelo recupera 1 de vida.";
+            else if (_carta.efeito_passivo == "perde_vida_ao_morrer") _texto += "\n\nO castelo do lado amaldiçoado perde 1 de vida quando o adversário destrói uma tropa desse lado.";
+            break;
     }
     return _texto;
 }

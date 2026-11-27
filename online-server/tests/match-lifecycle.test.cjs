@@ -267,3 +267,27 @@ test('a Null Resource keeps its identity on placement, activation and return to 
   assert.equal(player.nulo, 0);
   assert.equal(data.hand[0].definitionId, 'nulo');
 });
+
+test('public choice notices identify only the chooser and the kind of decision', () => {
+  const r = match();
+  assert.equal(r.publicChoice(), null);
+  r.pendingMitosis[0] = { candidates: [[0, 1]] };
+  r.pendingMagnet[1].push({ equipment: ['elmo_ferro'] });
+  assert.equal(JSON.stringify(r.publicChoice()), '{"seat":0,"kind":"mitosis"}');
+  r.pendingMagnet[0].push({ equipment: ['elmo_ferro'] });
+  assert.equal(JSON.stringify(r.publicChoice()), '{"seat":0,"kind":"magnet"}');
+  r.pendingMagnet[0] = [];
+  r.pendingMitosis[0] = undefined;
+  assert.equal(r.publicChoice().kind, 'magnet');
+  r.pendingCritical = { seat: 0, dice: 2 };
+  assert.equal(r.publicChoice().kind, 'critical');
+  r.pendingManipulated = { waiting: { seat: 1, natural: 1, fixed: 3 } };
+  assert.equal(JSON.stringify(r.publicChoice()), '{"seat":1,"kind":"dice"}');
+  r.pendingManipulated = undefined;
+  r.pendingCritical = undefined;
+  r.pendingMagnet[1] = [];
+  r.veilChoice = { seat: 0, cardId: 'private' };
+  assert.equal(JSON.stringify(r.publicChoice()), '{"seat":0,"kind":"veil"}');
+  r.state.phase = 'finished';
+  assert.equal(r.publicChoice(), null);
+});

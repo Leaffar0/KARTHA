@@ -152,6 +152,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
   private privatePlayers: PrivatePlayer[] = [];
   private nextCardId = 1;
   private finalBlow?: FinalBlow;
+  private veilChoice?: { seat: number; cardId: string };
   private pendingCritical?: { seat: number; cardId: string; targetId?: string; targetSeat?: number; targetType: "card" | "castle"; attackType: "fisica" | "magica"; die: number; dice: number; modifier: number; defense: number; itemDefinitionId?: string; repeatAfter?: number; damageMultiplier: number };
   private pendingMagnet: PendingMagnetChoice[][] = [[], []];
   private pendingMitosis: Array<PendingMitosisChoice | undefined> = [undefined, undefined];
@@ -365,6 +366,26 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     this.sendPendingChoices(client, player);
   }
 
+  private publicChoice() {
+    if (this.state.phase !== "playing") return null;
+    if (this.pendingManipulated?.waiting) return { seat: this.pendingManipulated.waiting.seat, kind: "dice" };
+    if (this.pendingCritical) return { seat: this.pendingCritical.seat, kind: "critical" };
+    const seat = this.pendingChoiceSeat();
+    if (seat >= 0) return { seat, kind: this.pendingMagnet[seat]?.length ? "magnet" : "mitosis" };
+    if (this.veilChoice) return { seat: this.veilChoice.seat, kind: "veil" };
+    return null;
+  }
+
+  private sendVeilOptions(client: Client, seat: number, cardId: string) {
+    this.sendJson(client, "veil_options", {
+      cardId,
+      cards: this.privatePlayers[1 - seat].hand.map(card => ({
+        instanceId: card.instanceId, name: CARD_DEFINITIONS[card.definitionId]?.name ?? "Carta",
+        category: CARD_DEFINITIONS[card.definitionId]?.category ?? "",
+      })),
+    });
+  }
+
   private sendPendingChoices(client: Client, player: PlayerState) {
     if (this.state.phase !== "playing") return;
     if (this.pendingManipulated?.waiting?.seat === player.seatIndex) {
@@ -373,6 +394,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       const { cardId, targetId, dice, die } = this.pendingCritical;
       this.sendJson(client, "critical_choice", { cardId, targetId, dice, die });
     } else {
+      if (this.veilChoice?.seat === player.seatIndex) this.sendVeilOptions(client, player.seatIndex, this.veilChoice.cardId);
       this.sendNextMagnetChoice(player.seatIndex);
       const mitosis = this.pendingMitosis[player.seatIndex];
       if (mitosis) this.sendJson(client, "mitosis_choice", {
@@ -396,6 +418,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
   }
 
   private startMatch(firstSeat: number) {
+    this.veilChoice = undefined;
     this.pendingManipulated = undefined;
     this.rematchVotes.clear();
     this.activeTerrain = undefined;
@@ -484,7 +507,16 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
   private confirmAction(seat: number, kind: string, result: ActionResult) {
     this.state.revision += 1;
     this.state.lastAction = kind;
-    this.broadcastJson("action_confirmed", { revision: this.state.revision, seat, kind, payload: result.details ?? {} });
+    if (kind === "use_ability" && result.details?.ability === "visao_do_veu"
+      && result.details.waitingChoice && typeof result.details.cardId === "string") {
+      this.veilChoice = { seat, cardId: result.details.cardId };
+      const viewer = this.clientBySeat(seat);
+      if (viewer) this.sendVeilOptions(viewer, seat, result.details.cardId);
+    } else if (this.veilChoice?.seat === seat || (this.veilChoice && !this.state.cards.has(this.veilChoice.cardId))) {
+      this.veilChoice = undefined;
+    }
+    this.broadcastJson("action_confirmed", { revision: this.state.revision, seat, kind,
+      choice: this.publicChoice(), payload: result.details ?? {} });
     for (let targetSeat = 0; targetSeat < 2; targetSeat++) this.sendPrivateState(targetSeat);
     if (!result.details?.criticalChoice) this.sendPublicState();
   }
@@ -509,6 +541,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       const chooser = this.clientBySeat(pending.waiting.seat);
       if (chooser) this.sendJson(chooser, "manipulated_roll_choice", pending.waiting);
       else { this.pendingManipulated = undefined; if (initiator) this.reject(initiator, "jogador_indisponivel"); }
+      this.broadcastJson("choice_status", { choice: this.publicChoice() });
       return;
     } finally {
       this.manipulatedReplay = undefined;
@@ -517,6 +550,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     if (!result.ok) {
       this.restoreMatchSnapshot(pending.snapshot);
       this.pendingManipulated = undefined;
+      this.broadcastJson("choice_status", { choice: this.publicChoice() });
       if (initiator) this.reject(initiator, result.reason ?? "acao_invalida");
       return;
     }
@@ -1413,15 +1447,6 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       const choice = payload.choice === "destroy" ? "destroy" : payload.choice === "protect" ? "protect" : "";
       const enemy = this.privatePlayers[1 - seat];
       if (!choice) {
-        const viewer = this.clientBySeat(seat);
-        if (viewer) this.sendJson(viewer, "veil_options", {
-          cardId,
-          cards: enemy.hand.map((item) => ({
-            instanceId: item.instanceId,
-            name: CARD_DEFINITIONS[item.definitionId]?.name ?? "Carta",
-            category: CARD_DEFINITIONS[item.definitionId]?.category ?? "",
-          })),
-        });
         return { ok: true, details: { ability, cardId, waitingChoice: true } };
       }
       const trapId = typeof payload.trapId === "string" ? payload.trapId : "";
@@ -2388,7 +2413,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       fogProtectedSeat: this.state.fogProtectedSeat,
       discardCounts: [this.state.discardCount0, this.state.discardCount1],
       cemetery, abyss, resources, finalBlow: this.finalBlow, lastAction: this.state.lastAction,
-      players, cards, traps,
+      players, cards, traps, choice: this.publicChoice(),
     };
     this.sendJson(client, "public_state", payload);
   }

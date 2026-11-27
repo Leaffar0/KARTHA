@@ -46,6 +46,7 @@ function online_inicializar() {
     global.online_armadilhas_privadas = [];
     global.online_efeitos_privados = [];
     global.online_estado_publico = noone;
+    global.online_escolha = noone;
     global.online_deck_count = array_length(online_catalogo_ids()) * COPIAS_POR_CARTA;
     global.online_descarte_privado = [];
     global.online_mao_pendente = false;
@@ -216,8 +217,24 @@ function online_aviso_conexao() {
     return "";
 }
 
+function online_aviso_escolha() {
+    var _escolha = global.online_escolha;
+    if (!is_struct(_escolha) || _escolha.seat == global.online_assento
+        || global.online_fase != "playing" || online_aviso_conexao() != "") return "";
+    switch (_escolha.kind) {
+        case "mitosis": return "Adversário escolhe a casa do Slimet";
+        case "critical": return "Adversário escolhe o dano crítico";
+        case "magnet": return "Adversário escolhe um equipamento";
+        case "dice": return "Adversário escolhe o resultado do dado";
+        case "veil": return "Adversário resolve a Visão do Véu";
+    }
+    return "";
+}
+
 function online_limpar_escolhas_de_rede() {
+    global.online_escolha = noone;
     if (instance_exists(obj_controlador)) {
+        obj_controlador.ui_modal.visao_veu_ativa = false;
         obj_controlador.ui_modal.critico_escolha_ativa = false;
         obj_controlador.ui_modal.mitose_selecao_ativa = false;
         obj_controlador.ui_modal.maquina_ima_escolha_ativa = false;
@@ -444,6 +461,7 @@ function online_configurar_callbacks(_sala) {
                     global.online_sync_pendente = false;
                 }
                 online_atualizar_nomes(_dados.players);
+                global.online_escolha = _dados[$ "choice"];
                 global.online_estado_publico = _dados;
                 global.online_revisao = _dados.revision;
                 if (instance_exists(obj_controlador)) {
@@ -474,11 +492,16 @@ function online_configurar_callbacks(_sala) {
                 global.online_vencedor_iniciativa = -1;
                 global.online_primeiro = -1;
                 global.online_estado_publico = noone;
+                global.online_escolha = noone;
                 global.online_estado_publico_pendente = noone;
                 global.online_atraso_visual_frames = 0;
                 // match_started reinicia a mesa para comprar as novas mãos.
                 break;
+            case "choice_status":
+                global.online_escolha = _dados[$ "choice"];
+                break;
             case "action_confirmed":
+                global.online_escolha = _dados[$ "choice"];
                 global.online_revisao = _dados.revision;
                 if (instance_exists(obj_controlador)) obj_controlador.online_acao_pagamento = _dados;
                 var _adiar_animacao = _dados.kind == "play_troop" || _dados.kind == "play_construction" || _dados.kind == "evolve_troop" || _dados.kind == "choose_mitosis";
@@ -529,6 +552,7 @@ function online_conectar(_criar, _codigo, _nome, _endpoint = "wss://doily-pointy
     global.online_nome_inimigo = "Inimigo";
     global.online_status = "conectando";
     global.online_estado_publico = noone;
+    global.online_escolha = noone;
     global.online_mao_privada = [];
     global.online_ultima_nao_tropa = "";
     global.online_armadilhas_privadas = [];
@@ -2014,6 +2038,72 @@ function online_sincronizar_condicoes(_carta, _registro) {
     sincronizar_condicao_principal(_carta);
 }
 
+function online_peca_historico(_id) {
+    if (!is_string(_id) || _id == "") return noone;
+    var _peca = online_encontrar_carta_campo(_id);
+    if (!instance_exists(_peca)) _peca = online_encontrar_construcao_campo(_id);
+    return _peca;
+}
+
+function online_relato_acao(_mensagem, _origem, _destino, _resumo) {
+    var _d = _mensagem.payload;
+    var _nome = instance_exists(_origem) ? _origem.nome_carta : "";
+    var _oculta = tropa_oculta_nevoa(_origem);
+    if (_oculta) _nome = "Tropa na névoa";
+    var _alvo = instance_exists(_destino) ? _destino.nome_carta : "";
+    if (tropa_oculta_nevoa(_destino)) _alvo = "tropa na névoa";
+    if (_d[$ "target"] == "castle") _alvo = "o castelo";
+    if (_alvo == "" && is_string(_d[$ "targetId"]) && _d.targetId != "") _alvo = "o alvo";
+    var _em = _alvo == "" ? "" : " em " + _alvo;
+    var _carta = "";
+    if (is_string(_d[$ "definitionId"])) {
+        var _def = online_funcao_carta_por_id(_d.definitionId);
+        if (_def != noone) _carta = _def().nome;
+    }
+    var _texto = _resumo;
+    var _dano = is_real(_d[$ "damage"]);
+    switch (_mensagem.kind) {
+        case "play_spell": case "play_item": case "activate_trap":
+            if (_carta != "") {
+                _texto = _carta + _em;
+                if (_dano && _alvo != "") _texto = _carta + " atingiu " + _alvo;
+            }
+            break;
+        case "use_ability": case "use_item_ability": case "use_construction":
+            var _hab = obter_nome_exibicao_habilidade(_d[$ "ability"]);
+            if (_d[$ "ability"] == "hemodrenario") _hab = "Hemodrenário";
+            if (_d[$ "ability"] == "grimorio_iniciante") _hab = "Grimório (" + string(_d.spell) + ")";
+            _texto = (_nome == "" ? "Tropa" : _nome) + " usou " + (_oculta ? "uma habilidade" : _hab) + _em;
+            if (_d[$ "ability"] == "grimorio_iniciante" && _d.spell != "raio") _dano = false;
+            if (is_bool(_d[$ "success"])) _texto += _d.success ? " e venceu a disputa" : " e perdeu a disputa";
+            break;
+        case "attack": case "choose_critical":
+            if (_nome != "") {
+                _texto = _nome + (_d[$ "critical"] == true ? " acertou um crítico" : " atacou");
+                if (_alvo != "") _texto += (_d[$ "critical"] == true ? " em " : " ") + _alvo;
+                if (_d[$ "hit"] == false && variable_struct_exists(_d,"hit")) _texto += " e errou";
+            }
+            break;
+        case "play_troop": case "play_construction": case "evolve_troop":
+            if (_carta != "") _texto += " — " + (_oculta ? "tropa na névoa" : _carta);
+            break;
+        case "choose_mitosis": _texto = "O segundo Slimet ocupou a casa escolhida"; break;
+        case "move_troop": if (_nome != "") _texto = _nome + " — " + _resumo; break;
+    }
+    if (_d[$ "illusion"] == true) _texto += " · ilusão impediu o ataque";
+    if (is_real(_d[$ "maxLife"]) && _d[$ "ability"] == "digestao")
+        _texto += " · vida máxima " + string(_d.maxLife);
+    if (_d[$ "effect"] == "cura" && is_real(_d[$ "targetLife"])) _texto += " · vida final " + string(_d.targetLife);
+    if (is_string(_d[$ "restoredResource"])) _texto += " · recuperou " + nome_recurso_exibicao(_d.restoredResource, 1);
+    if (_dano) _texto += " · " + string(_d.damage) + " de dano";
+    if (_d[$ "destroyed"] == true) _texto += " · alvo destruído";
+    else if (is_string(_d[$ "condition"]) && _d.condition != "")
+        _texto += " · " + obter_config_condicao(_d.condition).nome;
+    if (is_real(_d[$ "attackerRoll"]) && is_real(_d[$ "defenderRoll"]))
+        _texto += " (" + string(_d.attackerRoll) + " contra " + string(_d.defenderRoll) + ")";
+    return _texto;
+}
+
 function registrar_historico_online(_mensagem) {
     var _dados = _mensagem.payload;
     var _acao = "";
@@ -2028,7 +2118,8 @@ function registrar_historico_online(_mensagem) {
         case "choose_critical": _acao = "Crítico resolvido"; break;
         case "play_spell": _acao = "Magia usada"; break;
         case "play_item": _acao = "Item usado"; break;
-        case "use_ability": _acao = "Habilidade usada"; break;
+        case "use_ability": case "use_item_ability": case "use_construction": _acao = "Habilidade usada"; break;
+        case "choose_mitosis": _acao = "Mitose"; break;
         case "end_turn": _acao = "Turno encerrado"; break;
         case "remove_item": _acao = "Item devolvido à mão"; break;
         case "transfer_item": _acao = "Equipamento transferido"; break;
@@ -2042,26 +2133,19 @@ function registrar_historico_online(_mensagem) {
         if (_mensagem.kind != "end_turn")
             registrar_jogada_recente(online_lado_do_assento(_mensagem.seat), _acao,
                 variable_struct_exists(_dados, "lane") ? online_lane_local(_dados.lane) : -1, _movida);
-        if (variable_struct_exists(_dados, "damage")) _acao += ": " + string(_dados.damage) + " de dano";
-        if (variable_struct_exists(_dados, "attackerRoll") && variable_struct_exists(_dados, "defenderRoll"))
-            _acao += "; teste de inteligência " + string(_dados.attackerRoll) + " contra " + string(_dados.defenderRoll);
+        var _origem = online_peca_historico(_dados[$ "cardId"] ?? _dados[$ "instanceId"]);
+        var _destino = online_peca_historico(_dados[$ "targetId"]);
         var _refs = [];
-        if (variable_struct_exists(_dados, "cardId")) {
-            var _ref_origem = online_encontrar_carta_campo(_dados.cardId);
-            if (instance_exists(_ref_origem)) array_push(_refs, _ref_origem);
-        }
-        if (variable_struct_exists(_dados, "targetId")) {
-            var _ref_alvo = online_encontrar_carta_campo(_dados.targetId);
-            if (instance_exists(_ref_alvo)) array_push(_refs, _ref_alvo);
-        }
-        debug_combate(_acao + ".", _refs);
+        if (instance_exists(_origem) && _origem.object_index == obj_carta && !tropa_oculta_nevoa(_origem)) array_push(_refs, _origem);
+        if (instance_exists(_destino) && _destino.object_index == obj_carta && !tropa_oculta_nevoa(_destino)) array_push(_refs, _destino);
+        debug_combate(online_relato_acao(_mensagem, _origem, _destino, _acao) + ".", _refs, online_lado_do_assento(_mensagem.seat));
     }
     if (variable_struct_exists(_dados, "conditionEvents") && is_array(_dados.conditionEvents)) {
         for (var i = 0; i < array_length(_dados.conditionEvents); i++) {
             var _evento = _dados.conditionEvents[i];
             var _carta = online_encontrar_carta_campo(_evento.cardId);
-            var _nome = instance_exists(_carta) ? _carta.nome_carta : "Tropa";
-            debug_combate(_nome + ": " + _evento.condition + ", " + string(_evento.amount)
+            var _nome = instance_exists(_carta) && !tropa_oculta_nevoa(_carta) ? _carta.nome_carta : "Tropa";
+            debug_combate(_nome + " · " + obter_config_condicao(_evento.condition).nome + ", " + string(_evento.amount)
                 + (_evento.kind == "heal" ? " de cura." : " de dano."));
         }
     }
