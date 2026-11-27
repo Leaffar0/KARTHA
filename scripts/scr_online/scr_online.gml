@@ -18,6 +18,10 @@ function online_salvar_endpoint(_endpoint) {
 function online_inicializar() {
     if (variable_global_exists("online_inicializado")) return;
     global.online_inicializado = true;
+    global.online_sync_pendente = false;
+    global.online_sync_proxima = 0;
+    global.online_sync_mao = -1;
+    global.online_json_parcial = undefined;
     global.online_reabrir_lobby = false;
     global.net_client = 0;
     global.net_room = 0;
@@ -181,7 +185,53 @@ function online_colar_codigo_sala() {
 }
 
 
+// As mensagens de uma sala chegam em ordem. Ao perder uma parte, peça os dois estados.
+function online_marcar_ressincronizacao() {
+    global.online_json_parcial = undefined;
+    global.online_sync_pendente = true;
+    global.online_sync_mao = -1;
+}
+
+function online_verificar_sincronizacao() {
+    if (!online_ativo()) return;
+    if (is_struct(global.online_json_parcial) && current_time >= global.online_json_parcial.expira)
+        online_marcar_ressincronizacao();
+    if (global.online_sync_pendente && current_time >= global.online_sync_proxima) {
+        global.online_sync_proxima = current_time + 3000;
+        colyseus_send(global.net_room, "request_private_state", {});
+    }
+}
+
+function online_aviso_conexao() {
+    if (global.online_status == "reconectando") return "Reconectando à sala...";
+    if (global.online_sync_pendente) return "Sincronizando a mão e a mesa...";
+    var _estado = global.online_estado_publico;
+    if (is_struct(_estado) && _estado.phase != "finished") {
+        for (var i = 0; i < array_length(_estado.players); i++) {
+            var _p = _estado.players[i];
+            if (_p.seat != global.online_assento && _p[$ "connected"] == false)
+                return "Aguardando o adversário reconectar...";
+        }
+    }
+    return "";
+}
+
+function online_limpar_escolhas_de_rede() {
+    if (instance_exists(obj_controlador)) {
+        obj_controlador.ui_modal.critico_escolha_ativa = false;
+        obj_controlador.ui_modal.mitose_selecao_ativa = false;
+        obj_controlador.ui_modal.maquina_ima_escolha_ativa = false;
+        obj_controlador.ui_modal.dados_manipulados_escolha_ativa = false;
+        obj_controlador.dados_manipulados_escolhas = [];
+        obj_controlador.maquina_ima_pendencias = [];
+    }
+}
+
 function online_configurar_callbacks(_sala) {
+    global.online_sync_pendente = false;
+    global.online_sync_proxima = 0;
+    global.online_sync_mao = -1;
+    global.online_json_parcial = undefined;
     colyseus_on_error(_sala, function(_codigo, _mensagem) {
         global.online_status = "erro";
         global.online_erro = "Não foi possível conectar: " + string(_mensagem);
@@ -189,6 +239,7 @@ function online_configurar_callbacks(_sala) {
     });
 
     colyseus_on_drop(_sala, function(_codigo, _motivo) {
+        online_marcar_ressincronizacao();
         global.net_connected = false;
         global.online_status = "reconectando";
         global.online_erro = "Conexão perdida. Tentando voltar...";
@@ -198,15 +249,9 @@ function online_configurar_callbacks(_sala) {
         global.net_connected = true;
         global.online_status = "na_sala";
         global.online_erro = "";
-        // O servidor reenvia mão, tabuleiro e escolhas ao recuperar o assento.
-        if (instance_exists(obj_controlador)) {
-            obj_controlador.ui_modal.critico_escolha_ativa = false;
-            obj_controlador.ui_modal.mitose_selecao_ativa = false;
-            obj_controlador.ui_modal.maquina_ima_escolha_ativa = false;
-            obj_controlador.ui_modal.dados_manipulados_escolha_ativa = false;
-            obj_controlador.dados_manipulados_escolhas = [];
-            obj_controlador.maquina_ima_pendencias = [];
-        }
+        online_marcar_ressincronizacao();
+        global.online_sync_proxima = current_time + 3000;
+        online_limpar_escolhas_de_rede();
     });
 
     colyseus_on_leave(_sala, function(_codigo, _motivo) {
@@ -226,8 +271,36 @@ function online_configurar_callbacks(_sala) {
     });
 
     colyseus_on_message(_sala, function(_ref, _tipo, _dados) {
-        // Mensagens estruturadas chegam como JSON para preservar arrays e structs aninhados.
-        if (is_string(_dados)) _dados = json_parse(_dados);
+        if (_ref != global.net_room) return;
+        if (_tipo == "json_part") {
+            if (!is_struct(_dados) || !is_string(_dados[$ "type"]) || !is_string(_dados[$ "text"])
+                || !is_real(_dados[$ "index"]) || !is_bool(_dados[$ "last"])) {
+                online_marcar_ressincronizacao();
+                return;
+            }
+            if (_dados.index == 0 && is_struct(global.online_json_parcial)) online_marcar_ressincronizacao();
+            if (_dados.index == 0) global.online_json_parcial = { tipo: _dados.type, partes: [], expira: 0 };
+            var _parcial = global.online_json_parcial;
+            if (!is_struct(_parcial) || _parcial.tipo != _dados.type || array_length(_parcial.partes) != _dados.index) {
+                online_marcar_ressincronizacao();
+                return;
+            }
+            _parcial.expira = current_time + 3000;
+            array_push(_parcial.partes, _dados.text);
+            if (!_dados.last) return;
+            _tipo = _parcial.tipo;
+            _dados = string_concat_ext(_parcial.partes);
+        } else if (is_struct(global.online_json_parcial)) online_marcar_ressincronizacao();
+        global.online_json_parcial = undefined;
+        if (is_string(_dados)) {
+            try { _dados = json_parse(_dados); }
+            catch (_erro_json) {
+                online_marcar_ressincronizacao();
+                show_debug_message("Mensagem online com JSON incompleto ou inválido (" + string(_tipo) + ").");
+                return;
+            }
+        }
+        if (!is_struct(_dados)) { online_marcar_ressincronizacao(); return; }
         switch (_tipo) {
             case "seat":
                 global.online_assento = _dados.seat;
@@ -339,8 +412,16 @@ function online_configurar_callbacks(_sala) {
                 }
                 break;
 
+            case "sync_begin":
+                online_limpar_escolhas_de_rede();
+                break;
             case "private_state":
-                global.online_mao_privada = variable_struct_exists(_dados, "hand") && is_array(_dados.hand) ? _dados.hand : [];
+                if (!is_array(_dados[$ "hand"]) || !is_real(_dados[$ "deckCount"]) || !is_real(_dados[$ "revision"])) {
+                    online_marcar_ressincronizacao();
+                    return;
+                }
+                if (global.online_sync_pendente) global.online_sync_mao = _dados.revision;
+                global.online_mao_privada = _dados.hand;
                 global.online_armadilhas_privadas = variable_struct_exists(_dados, "activeTraps") && is_array(_dados.activeTraps) ? _dados.activeTraps : [];
                 global.online_efeitos_privados = variable_struct_exists(_dados, "activeEffects") && is_array(_dados.activeEffects) ? _dados.activeEffects : [];
                 global.online_ultima_nao_tropa = variable_struct_exists(_dados, "lastNonTroopDefinitionId")
@@ -349,10 +430,20 @@ function online_configurar_callbacks(_sala) {
                 global.online_deck_count = _dados.deckCount;
                 global.online_descarte_privado = variable_struct_exists(_dados, "discard") && is_array(_dados.discard) ? _dados.discard : [];
                 global.online_revisao = _dados.revision;
-                if (instance_exists(obj_controlador)) online_reconstruir_mao_privada();
+                if (!global.online_sync_pendente && instance_exists(obj_controlador)) online_reconstruir_mao_privada();
                 break;
             case "public_state":
-                if (variable_struct_exists(_dados, "players")) online_atualizar_nomes(_dados.players);
+                if (!is_array(_dados[$ "players"]) || !is_array(_dados[$ "cards"]) || !is_real(_dados[$ "revision"])
+                    || !is_string(_dados[$ "phase"]) || !is_real(_dados[$ "currentPlayer"]) || !is_real(_dados[$ "turnNumber"])) {
+                    online_marcar_ressincronizacao();
+                    return;
+                }
+                if (global.online_sync_pendente) {
+                    if (global.online_sync_mao != _dados.revision) return;
+                    _dados.ressincronizado = true;
+                    global.online_sync_pendente = false;
+                }
+                online_atualizar_nomes(_dados.players);
                 global.online_estado_publico = _dados;
                 global.online_revisao = _dados.revision;
                 if (instance_exists(obj_controlador)) {
@@ -402,7 +493,7 @@ function online_configurar_callbacks(_sala) {
                 if (instance_exists(obj_controlador)) obj_controlador.online_aguardando_turno = false;
                 global.online_erro = online_mensagem_erro(_dados.reason);
                 if (instance_exists(obj_controlador)) mostrar_aviso_regra(global.online_erro);
-                if (_dados.reason == "revisao" && online_ativo()) colyseus_send(_ref, "request_private_state", {});
+                if (_dados.reason == "revisao") online_marcar_ressincronizacao();
                 break;
         }
     });
@@ -460,21 +551,25 @@ function online_conectar(_criar, _codigo, _nome, _endpoint = "wss://doily-pointy
     return true;
 }
 
+function online_pode_enviar_jogada() {
+    return online_ativo() && !global.online_sync_pendente;
+}
+
 function online_comprar_mao_inicial() {
-    if (!online_ativo() || global.online_fase != "drawing") return false;
+    if (!online_pode_enviar_jogada() || global.online_fase != "drawing") return false;
     colyseus_send(global.net_room, "draw_initial", {});
     return true;
 }
 
 function online_rolar_iniciativa() {
-    if (online_ativo() && global.online_fase == "initiative"
+    if (online_pode_enviar_jogada() && global.online_fase == "initiative"
         && global.online_assento >= 0 && global.online_iniciativa[global.online_assento] < 0) {
         colyseus_send(global.net_room, "roll_initiative", {});
     }
 }
 
 function online_escolher_primeiro(_assento) {
-    if (online_ativo() && global.online_fase == "choose_first"
+    if (online_pode_enviar_jogada() && global.online_fase == "choose_first"
         && global.online_vencedor_iniciativa == global.online_assento) {
         colyseus_send(global.net_room, "choose_first", { seat: _assento });
     }
@@ -490,7 +585,7 @@ function online_enviar_acao(_tipo, _dados = {}) {
         if (variable_struct_exists(_dados, "lane")) _dados.lane = online_lane_servidor(_dados.lane);
         if (variable_struct_exists(_dados, "position")) _dados.position = online_posicao_servidor(_dados.position);
     }
-    if (!online_ativo()) return false;
+    if (!online_pode_enviar_jogada()) return false;
     if (_tipo != "choose_critical" && online_aguarda_animacao()) {
         if (instance_exists(obj_controlador)) mostrar_aviso_regra("Aguarde a animação terminar");
         return false;
@@ -518,7 +613,7 @@ function online_desconectar() {
 function online_catalogo_ids() {
     return [
         "esquilo","lobo","urso","slime","slimet","mimic","olho_demonio","mago_sombra","gato_mago","goblin",
-        "hollow_jack","esqueleto","shroomilin","sangue","ossos","sucata","mana","torre_vigia","hemodrenario","maquina_ima",
+        "hollow_jack","esqueleto","shroomilin","sangue","ossos","sucata","mana","nulo","torre_vigia","hemodrenario","maquina_ima",
         "bola_fogo","veneno_mortal","congelante","choque_eletrico","dados_manipulados","refracao_temporal","eutanasia",
         "bloqueio_recurso","sangue_suga","espada_enferrujada","escudo_madeira","pocao_cura","grimorio_iniciante","pocao_mana",
         "armadilha_urso","loucura_mutua","raizes_espinhosas","destrocos","bencao_vida","maldicao_perda","bencao_decomposicao",
@@ -809,6 +904,7 @@ function online_sprite_recurso(_tipo) {
         case "ossos": return spr_recurso_ossos;
         case "sucata": return spr_recurso_sucata;
         case "mana": return spr_recurso_mana;
+        case "nulo": return spr_recurso_nulo;
     }
     return spr_recurso_mana;
 }
@@ -849,12 +945,13 @@ function online_criar_recurso_confirmado(_tipo, _dono, _virado, _quantidade = 1,
 function online_assinatura_recursos(_jogadores, _recursos = noone) {
     if (is_array(_recursos)) return json_stringify(_recursos);
     var _assinatura = "";
-    var _tipos = ["mana", "sangue", "ossos", "sucata"];
+    var _tipos = ["mana", "sangue", "ossos", "sucata", "nulo"];
     for (var p = 0; p < array_length(_jogadores); p++) {
         var _dados = _jogadores[p];
         _assinatura += string(_dados.seat) + ":";
         for (var t = 0; t < array_length(_tipos); t++) {
             var _tipo = _tipos[t];
+            if (!variable_struct_exists(_dados, _tipo)) continue;
             _assinatura += _tipo + "=" + string(variable_struct_get(_dados, _tipo))
                 + "/" + string(variable_struct_get(_dados, _tipo + "Used")) + ";";
         }
@@ -920,12 +1017,13 @@ function online_reconstruir_recursos(_jogadores, _recursos = noone, _acao = noon
         return;
     }
 
-    var _tipos = ["mana", "sangue", "ossos", "sucata"];
+    var _tipos = ["mana", "sangue", "ossos", "sucata", "nulo"];
     for (var p = 0; p < array_length(_jogadores); p++) {
         var _dados = _jogadores[p];
         var _dono = online_lado_do_assento(_dados.seat);
         for (var t = 0; t < array_length(_tipos); t++) {
             var _tipo = _tipos[t];
+            if (!variable_struct_exists(_dados, _tipo)) continue;
             var _total = variable_struct_get(_dados, _tipo);
             var _gastos = variable_struct_get(_dados, _tipo + "Used");
             for (var n = 0; n < _total; n++) online_criar_recurso_confirmado(_tipo, _dono, n < _gastos);
@@ -950,7 +1048,7 @@ function online_slot_construcao(_dono, _lane) {
     return noone;
 }
 
-function online_criar_carta_publica(_registro) {
+function online_criar_carta_publica(_registro, _animar_mitose = false) {
     var _funcao = online_funcao_carta_por_id(_registro.definitionId);
     if (_funcao == noone) return noone;
     var _dados = _funcao();
@@ -982,6 +1080,12 @@ function online_criar_carta_publica(_registro) {
         _carta.slot_atual = _slot;
         _carta.x = _slot.x; _carta.y = _slot.y;
         _slot.ocupado = true; _slot.carta_atual = _carta;
+        if (variable_struct_exists(_registro, "mitosisRevision")) {
+            _carta.destino_x = _slot.x;
+            _carta.destino_y = _slot.y;
+            _carta.mitose_pouso = _animar_mitose ? 1 : 0;
+            return _carta;
+        }
         var _destino_entrada_x = _slot.x; var _destino_entrada_y = _slot.y;
         _carta.x = room_width / 2;
         _carta.y = (_dono == "jogador") ? room_height + 45 : -45;
@@ -1129,11 +1233,11 @@ function online_sincronizar_efeitos_ativos(_jogadores, _terreno_id) {
     online_sincronizar_terreno_visual(_terreno_id);
 }
 
-function online_atualizar_carta_publica(_registro) {
+function online_atualizar_carta_publica(_registro, _animar_mitose = false) {
     var _instancia = (_registro.category == "construcao")
         ? online_encontrar_construcao_campo(_registro.instanceId)
         : online_encontrar_carta_campo(_registro.instanceId);
-    if (!instance_exists(_instancia)) return online_criar_carta_publica(_registro);
+    if (!instance_exists(_instancia)) return online_criar_carta_publica(_registro, _animar_mitose);
 
     if (_registro.category == "tropa" && _instancia.nome_carta != _registro.name) {
         // Cria a evolução primeiro. Se o cliente ainda não conhecer uma evolução futura,
@@ -1230,7 +1334,7 @@ function online_atualizar_carta_publica(_registro) {
 function online_remover_cartas_ausentes() {
     with (obj_carta) {
         if (travada && online_instance_id != "" && !online_presente) {
-            if (slot_atual != noone) {
+            if (slot_atual != noone && slot_atual.carta_atual == id) {
                 slot_atual.ocupado = false;
                 slot_atual.carta_atual = noone;
             }
@@ -1307,6 +1411,8 @@ function online_aplicar_estado_publico(_estado) {
     if (!instance_exists(obj_controlador) || obj_controlador.modo_partida != "online") return;
     if (_estado.revision < obj_controlador.online_estado_aplicado_revisao) return;
 
+    var _revisao_anterior = obj_controlador.online_estado_aplicado_revisao;
+    var _acompanhando = _revisao_anterior >= 0 && !variable_struct_exists(_estado, "ressincronizado");
     var _turno_visual_anterior = obj_controlador.turno;
     // Só ligamos gastos a uma ação quando vimos exatamente essa transição.
     var _acao = obj_controlador.online_acao_pagamento;
@@ -1368,6 +1474,10 @@ function online_aplicar_estado_publico(_estado) {
             variable_struct_exists(_jogador, "turnUsage") ? _jogador.turnUsage : noone);
         variable_struct_set(obj_controlador.troca_item_usada_por_lado, _lado_jogador_online,
             variable_struct_exists(_jogador, "itemSwapUsed") && _jogador.itemSwapUsed);
+        if (_acompanhando && is_struct(_acao) && _acao.kind != "concede" && _acao.kind != "disconnect") {
+            var _anterior = _lado_jogador_online == "jogador" ? obj_controlador.vida_jogador : obj_controlador.vida_inimigo;
+            registrar_impacto_mesa(_anterior, _jogador.life);
+        }
         if (_lado_jogador_online == "jogador") { obj_controlador.vida_jogador = _jogador.life; obj_controlador.primeiro_turno_jogador = !_jogador.hasTakenTurn; }
         else { obj_controlador.vida_inimigo = _jogador.life; obj_controlador.primeiro_turno_inimigo = !_jogador.hasTakenTurn; }
     }
@@ -1384,7 +1494,12 @@ function online_aplicar_estado_publico(_estado) {
     with (obj_construcao) {
         if (variable_instance_exists(id, "online_instance_id") && online_instance_id != "") online_presente = false;
     }
-    for (var c = 0; c < array_length(_estado.cards); c++) online_atualizar_carta_publica(_estado.cards[c]);
+    for (var c = 0; c < array_length(_estado.cards); c++) {
+        var _registro = _estado.cards[c];
+        var _nasceu_agora = _acompanhando && variable_struct_exists(_registro, "mitosisRevision")
+            && _registro.mitosisRevision > _revisao_anterior && _registro.mitosisRevision <= _estado.revision;
+        online_atualizar_carta_publica(_registro, _nasceu_agora);
+    }
     online_remover_cartas_ausentes();
     online_sincronizar_armadilhas_publicas(variable_struct_exists(_estado, "traps") ? _estado.traps : []);
     organizar_mao();

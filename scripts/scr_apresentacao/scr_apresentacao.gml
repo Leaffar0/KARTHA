@@ -751,7 +751,7 @@ function catalogo_sons_jogo() {
         magia_arcana: [snd_magia_sombria],
         magia_antiga: [snd_arcano_1,snd_arcano_2,snd_arcano_3,snd_arcano_4,snd_arcano_5,snd_arcano_6,snd_arcano_7],
         magia_veneno: [snd_magia_sombria],
-        magia_choque: [snd_magia_raio_2,snd_magia_raio_1],
+        magia_choque: [snd_magia_descarga,snd_magia_raio_2,snd_magia_raio_1],
         magia_cura: [snd_arcano_2],
         magia_escudo: [snd_arcano_5],
         magia_veu: [snd_magia_sombria],

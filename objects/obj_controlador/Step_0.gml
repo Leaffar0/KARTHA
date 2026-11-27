@@ -64,6 +64,7 @@ if (modo_partida == "online") {
         trocar_sala_suave(rm_menu);
         exit;
     }
+    online_verificar_sincronizacao();
     online_atualizar_atraso_visual();
 }
 apresentacao_atualizar(id);

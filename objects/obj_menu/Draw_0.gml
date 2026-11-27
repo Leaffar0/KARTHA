@@ -48,7 +48,7 @@ if(modo_jogo_aberto) {
     var _sub=["Você contra a máquina","Convide outro jogador"];
     for(var _m=0;_m<array_length(_nomes);_m++) {
         var _c=carta_modo_menu(_m,_cy);
-        var _h=ponto_carta_menu(_c,mouse_x,mouse_y);
+        var _h = menu_por_teclado ? _m == modo_foco : ponto_carta_menu(_c,mouse_x,mouse_y);
         desenhar_carta_menu(_c,_nomes[_m],false,_h?1:0,_m,0.76);
         draw_set_color(c_silver);
         desenhar_texto_ajustado_ui(_sub[_m],_c.x,_c.y+44,_c.w-22,0.40);

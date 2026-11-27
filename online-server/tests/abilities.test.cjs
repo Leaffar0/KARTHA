@@ -78,10 +78,14 @@ function card(room, id, definitionId, owner, position) {
   r.state.cards.delete('parent');
   const pool=[{instanceId:'one',definitionId:'slimet'},{instanceId:'two',definitionId:'slimet'}];
   r.takeDefinitionFromHandOrDeck=()=>pool.shift();
+  r.state.revision=8;
   r.performMitosis(parent);
+  assert.equal(r.state.cards.get("one").mitosisRevision,9);
+  r.state.revision++;
   assert.ok(r.pendingMitosis[0].candidates.some(([lane,pos])=>lane===0 && pos===3));
   assert.equal(r.chooseMitosis(0,{lane:0,position:3}).ok,true);
   assert.equal(r.state.cards.size,2);
+  assert.equal(r.state.cards.get("two").mitosisRevision,10);
 }
 // Olhar Vazio tests the stationary enemy once, including fresh placements.
 {

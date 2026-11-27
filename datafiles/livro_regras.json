@@ -9,7 +9,7 @@
   },
   {
     "titulo": "1.3. Cartas de Recursos",
-    "corpo": "As cartas de recursos possuem 4 subtipos:\n- Sangue\n- Ossos\n- Sucata\n- Mana\n\nNão têm texto, apenas arte, e são a base do jogo, pois quase todas as cartas possuem custo.\nPara usar um recurso, vira-se a carta de recurso na horizontal.\nPodem existir recursos especiais, como cartas que geram dois recursos do mesmo tipo.\nO espaço de recursos em campo é limitado a 6 cartas por jogador."
+    "corpo": "As cartas de recursos possuem 5 subtipos:\n- Sangue\n- Ossos\n- Sucata\n- Mana\n- Recurso Nulo\n\nO Recurso Nulo vale 1 unidade de qualquer tipo no pagamento de cartas e habilidades. Cada símbolo de asterisco no custo pede 1 recurso de qualquer tipo. O Slimet custa 1 e o Slime custa 3, que podem ser de tipos diferentes.\n\nNão têm texto, apenas arte, e são a base do jogo, pois quase todas as cartas possuem custo.\nPara usar um recurso, vira-se a carta de recurso na horizontal.\nPodem existir recursos especiais, como cartas que geram dois recursos do mesmo tipo.\nO espaço de recursos em campo é limitado a 6 cartas por jogador."
   },
   {
     "titulo": "1.4. Cartas de Itens",

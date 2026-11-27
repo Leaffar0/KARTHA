@@ -428,6 +428,12 @@ function causar_dano_castelo(_dono, _dano, _origem = "") {
     debug_combate("Castelo do " + _dono + " recebeu " + string(_dano) + " de dano.");
 }
 
+function registrar_impacto_mesa(_vida_antes, _vida_depois) {
+    if (_vida_antes > 0 && (_vida_antes - _vida_depois >= 5 || _vida_depois <= 0)) {
+        obj_controlador.impacto_mesa_inicio = current_time;
+    }
+}
+
 function atualizar_animacao_dano_castelo() {
     var _controle = instance_find(obj_controlador, 0);
     if (_controle == noone) return;
@@ -479,6 +485,7 @@ function atualizar_animacao_dano_castelo() {
             _controle.vida_inimigo -= _controle.dano_castelo_valor;
         }
         _controle.dano_castelo_aplicado = true;
+        registrar_impacto_mesa(_vida_antes, _vida_antes - _controle.dano_castelo_valor);
         _controle.dano_castelo_impacto_timer = 10;
     }
 
@@ -1273,7 +1280,7 @@ function executar_mitose(_carta) {
     }
 
     var _dados_filhote = _funcao_filhote();
-    criar_tropa_no_slot(_dados_filhote, _slot_morte, _carta.dono);
+    criar_tropa_no_slot(_dados_filhote, _slot_morte, _carta.dono, true);
     var _slots_livres = slots_adjacentes_livres(_slot_morte);
 
     if (array_length(_slots_livres) > 0 && consumir_carta_de_funcao(_funcao_filhote, _carta.dono)) {
@@ -1284,15 +1291,16 @@ function executar_mitose(_carta) {
             obj_controlador.ui_modal.mitose_dono_pendente = _carta.dono;
             obj_controlador.ui_modal.mitose_slots_pendentes = _slots_livres;
         } else {
-            criar_tropa_no_slot(_dados_filhote, _slots_livres[irandom(array_length(_slots_livres) - 1)], "inimigo");
+            criar_tropa_no_slot(_dados_filhote, _slots_livres[irandom(array_length(_slots_livres) - 1)], "inimigo", true);
         }
     }
     mostrar_feedback("MITOSE", _slot_morte.x, _slot_morte.y - 40, c_lime, 55);
 }
 
 // Helper genérico: cria uma tropa direto num slot do campo (usado pela Mitose e pode reaproveitar na IA depois)
-function criar_tropa_no_slot(_dados, _slot, _dono) {
+function criar_tropa_no_slot(_dados, _slot, _dono, _por_mitose = false) {
     var _carta = instance_create_layer(_slot.x, _slot.y, "Instances", obj_carta);
+    if (_por_mitose) _carta.mitose_pouso = 1;
     _carta.nome_carta = _dados.nome;
     _carta.sprite_index = (_dados.sprite_carta != noone) ? _dados.sprite_carta : spr_carta_placeholder;
     _carta.escala_base = global.CARTA_LARGURA / sprite_get_width(_carta.sprite_index);
@@ -1755,10 +1763,12 @@ function descricao_efeito_preview(_carta) {
 }
 
 function descricao_carta_preview(_carta) {
-    var _custo = _carta.custo;
-    if (_carta.object_index == obj_carta && _carta.esta_na_mao)
-        _custo = ajustar_custo_por_terreno(_custo, _carta.categoria);
-    var _texto = "TIPO: " + categoria_exibicao(_carta.categoria) + "\nCUSTO: " + texto_custo_exibicao(_custo);
+    var _custo = texto_custo_exibicao(_carta.custo);
+    if (_carta.object_index == obj_carta && _carta.esta_na_mao) {
+        var _efetivo = texto_custo_exibicao(ajustar_custo_por_terreno(_carta.custo, _carta.categoria));
+        if (_efetivo != _custo) _custo += " para " + _efetivo + " (Planícies Profanas)";
+    }
+    var _texto = "TIPO: " + categoria_exibicao(_carta.categoria) + "\nCUSTO: " + _custo;
     if (_carta.object_index == obj_carta && _carta.esta_na_mao && lado_controlado_localmente(_carta.dono))
         _texto += "\n\nDISPONIBILIDADE: " + disponibilidade_carta_mao(_carta).motivo;
 
@@ -1806,7 +1816,9 @@ function descricao_carta_preview(_carta) {
     }
 
     switch (_carta.categoria) {
-        case "recurso": _texto += "\n\nColoque no seu campo de recursos. Recursos virados pagam cartas e voltam no próximo turno."; break;
+        case "recurso":
+            if (_carta.tipo_recurso == "nulo") _texto += "\n\nVale 1 recurso de qualquer tipo ao pagar uma carta ou habilidade.";
+            _texto += "\n\nColoque no seu campo de recursos. Recursos virados pagam cartas e voltam no próximo turno."; break;
         case "construcao":
             if (_carta.efeito_construcao == "maquina_ima")
                 _texto += "\n\nQuando uma tropa aliada da fileira morrer, escolha um item dela para devolver à mão.";

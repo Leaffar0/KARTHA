@@ -1,9 +1,7 @@
 // Exercise the actual local GML preview/selection functions with engine stubs.
-const fs = require('node:fs');
-const path = require('node:path');
+const load = require('./helpers/load-gml.cjs');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
-const root = path.resolve(__dirname, '../..');
 const groups = { resource: [], troop: [], battleSlot: [], resourceSlot: [], constructionSlot: [], construction: [] };
 const context = {
   groups, noone: null, obj_recurso: 'resource', obj_carta: 'troop', obj_slot_batalha: 'battleSlot',
@@ -26,19 +24,8 @@ const context = {
   obj_controlador: { turno: 'jogador', modo_partida: 'ia', rolagens_pendentes: 0, terreno_ativo: '' },
 };
 vm.createContext(context);
-function load(file, names) {
-  const source = fs.readFileSync(path.join(root, file), 'utf8');
-  for (const name of names) {
-    const start = source.indexOf(`function ${name}(`), end = source.indexOf('\nfunction ', start + 1);
-    assert.ok(start >= 0, name);
-    let code = source.slice(start, end < 0 ? undefined : end).replace(/^#.*$/gm, '');
-    code = code.replace(/with \(obj_recurso\) \{([\s\S]*?)\n    \}/,
-      'for (const _instance of groups[obj_recurso]) { with (_instance) {$1\n    }}');
-    vm.runInContext(code, context);
-  }
-}
-load('scripts/scr_cartas/scr_cartas.gml', ['ajustar_custo_por_terreno', 'selecionar_recursos_para_custo', 'nome_recurso_exibicao']);
-load('scripts/scr_ui/scr_ui.gml', ['motivo_bloqueio_arrasto', 'carta_arrasto_sem_alvo', 'alvos_previa_arrasto', 'estado_previa_arrasto']);
+load(context, 'scripts/scr_cartas/scr_cartas.gml', ['ajustar_custo_por_terreno', 'selecionar_recursos_para_custo', 'nome_recurso_exibicao']);
+load(context, 'scripts/scr_ui/scr_ui.gml', ['motivo_bloqueio_arrasto', 'carta_arrasto_sem_alvo', 'alvos_previa_arrasto', 'estado_previa_arrasto']);
 function resource(type, amount = 1) {
   const r = { tipo: type, quantidade: amount, virado: false, dono: 'jogador', bloqueado_turnos: 0 };
   r.id = r; return r;
@@ -105,3 +92,18 @@ for (const side of ['jogador', 'inimigo']) {
 const mixedCost = [{ tipo: 'mana', quantidade: 1 }, { tipo: 'mana', quantidade: 1 }, { tipo: 'qualquer', quantidade: 1 }];
 assert.equal(JSON.stringify(context.ajustar_custo_por_terreno(mixedCost, 'magica')), JSON.stringify(mixedCost.slice(1)));
 assert.equal(context.ajustar_custo_por_terreno(printedCost, '')[0].quantidade, 2);
+
+load(context, 'scripts/scr_combate/scr_combate.gml', ['texto_custo_exibicao', 'descricao_carta_preview']);
+Object.assign(context, { categoria_exibicao: () => 'Magia', lado_controlado_localmente: () => false,
+  descricao_efeito_preview: () => '' });
+const inspected = { object_index: context.obj_carta, categoria: 'magica', esta_na_mao: true, custo: printedCost };
+assert.match(context.descricao_carta_preview(inspected), /2 Mana para 1 Mana \(Planícies Profanas\)/);
+inspected.custo = { tipo: 'mana', quantidade: 1 };
+assert.match(context.descricao_carta_preview(inspected), /1 Mana para Sem custo/);
+inspected.custo = eyeCost;
+assert.match(context.descricao_carta_preview(inspected), /1 Mana \+ 1 Sangue para 1 Sangue/);
+inspected.esta_na_mao = false;
+assert.doesNotMatch(context.descricao_carta_preview(inspected), /Planícies/);
+inspected.esta_na_mao = true;
+context.obj_controlador.terreno_ativo = 'cemiterio';
+assert.doesNotMatch(context.descricao_carta_preview(inspected), /Planícies/);

@@ -123,7 +123,7 @@ function criar_dados_slime() {
 		mochila: 3,
         defesa_fisica: 0, 
         defesa_magica: 0,
-		custo: noone, 
+		custo: { tipo: "qualquer", quantidade: 3 },
 		habilidades: ["mitose"], 
 		mitose: criar_dados_slimet,
         evolucao: criar_dados_slime_digestao,
@@ -146,7 +146,7 @@ function criar_dados_slimet() {
 		mochila: 1,
         defesa_fisica: 0, 
         defesa_magica: 0,
-		custo: noone, 
+		custo: { tipo: "qualquer", quantidade: 1 },
 		habilidades: [] };
 }
 	
@@ -409,6 +409,10 @@ function criar_dados_recurso_sucata() {
 
 function criar_dados_recurso_mana() {
     return { categoria: "recurso", nome: "Mana", tipo_recurso: "mana", valor_recurso: 1, sprite_carta: spr_recurso_mana };
+}
+
+function criar_dados_recurso_nulo() {
+    return { categoria: "recurso", nome: "Recurso Nulo", tipo_recurso: "nulo", valor_recurso: 1, sprite_carta: spr_recurso_nulo };
 }
 
 // Use esta fábrica para recursos futuros que gerem 2 ou mais unidades.
@@ -1136,11 +1140,13 @@ function entregar_resultado_dado_manipulado(_dono, _tamanho_dado, _resultado, _c
 function resolver_escolha_dados_manipulados(_usar_alternativo) {
     if (!obj_controlador.ui_modal.dados_manipulados_escolha_ativa || !is_struct(obj_controlador.ui_modal.dados_manipulados_escolha_atual)) return;
     var _escolha = obj_controlador.ui_modal.dados_manipulados_escolha_atual;
+    var _online = variable_struct_exists(_escolha, "online") && _escolha.online;
+    if (_online && !online_pode_enviar_jogada()) return;
     var _valor = _usar_alternativo ? _escolha.alternativo : _escolha.original;
     obj_controlador.ui_modal.dados_manipulados_escolha_ativa = false;
     obj_controlador.ui_modal.dados_manipulados_escolha_atual = noone;
-    if (variable_struct_exists(_escolha, "online") && _escolha.online) {
-        if (online_ativo()) colyseus_send(global.net_room, "choose_manipulated_roll", { useAlternative: _usar_alternativo });
+    if (_online) {
+        colyseus_send(global.net_room, "choose_manipulated_roll", { useAlternative: _usar_alternativo });
         return;
     }
     if (variable_struct_exists(_escolha, "callback") && _escolha.callback != noone) _escolha.callback(_valor);
@@ -1164,7 +1170,7 @@ function catalogo_cartas() {
         criar_dados_esquilo, criar_dados_lobo, criar_dados_urso, criar_dados_slime, criar_dados_slimet, criar_dados_mimic,
         criar_dados_olho_demonio, criar_dados_mago_da_sombra, criar_dados_gato_mago, criar_dados_goblin,
         criar_dados_hollow_jack, criar_dados_esqueleto, criar_dados_shroomilin,
-        criar_dados_recurso_sangue, criar_dados_recurso_ossos, criar_dados_recurso_sucata, criar_dados_recurso_mana,
+        criar_dados_recurso_sangue, criar_dados_recurso_ossos, criar_dados_recurso_sucata, criar_dados_recurso_mana, criar_dados_recurso_nulo,
         criar_dados_construcao_torre, criar_dados_construcao_hemodrenario, criar_dados_construcao_maquina_ima,
         criar_dados_magica_bola_fogo, criar_dados_magica_veneno, criar_dados_magica_gelo, criar_dados_magica_choque,
         criar_dados_magica_dados_manipulados, criar_dados_magica_refracao_temporal, criar_dados_magica_eutanasia,
@@ -1290,13 +1296,7 @@ function comprar_carta_do_deck(_x_inicial, _y_inicial, _dono = "jogador") {
 function buscar_recurso_no_deck(_tipo_recurso, _dono) {
     var _monte = (_dono == "jogador") ? obj_controlador.monte : obj_controlador.monte_inimigo;
 
-    var _funcao_alvo = noone;
-    switch (_tipo_recurso) {
-        case "sangue": _funcao_alvo = criar_dados_recurso_sangue; break;
-        case "ossos":  _funcao_alvo = criar_dados_recurso_ossos;  break;
-        case "sucata": _funcao_alvo = criar_dados_recurso_sucata; break;
-        case "mana":   _funcao_alvo = criar_dados_recurso_mana;   break;
-    }
+    var _funcao_alvo = funcao_recurso_por_tipo(_tipo_recurso);
     if (_funcao_alvo == noone) return false;
 
     var _indice = array_get_index(_monte, _funcao_alvo);
@@ -1649,6 +1649,7 @@ function colocar_recurso(_tipo, _dono, _origem_x = noone, _origem_y = noone, _sl
         case "ossos": _recurso.sprite_index = spr_recurso_ossos; break;
         case "sucata": _recurso.sprite_index = spr_recurso_sucata; break;
         case "mana": _recurso.sprite_index = spr_recurso_mana; break;
+        case "nulo": _recurso.sprite_index = spr_recurso_nulo; break;
     }
 
     _recurso.escala_recurso = global.RECURSO_LARGURA / sprite_get_width(_recurso.sprite_index);
@@ -1675,6 +1676,7 @@ function funcao_recurso_por_tipo(_tipo) {
         case "ossos": return criar_dados_recurso_ossos;
         case "sucata": return criar_dados_recurso_sucata;
         case "mana": return criar_dados_recurso_mana;
+        case "nulo": return criar_dados_recurso_nulo;
     }
     return noone;
 }
@@ -1763,7 +1765,9 @@ function nome_recurso_exibicao(_tipo, _quantidade) {
         case "sangue": return (_quantidade == 1) ? "Sangue" : "Sangues";
         case "ossos": return (_quantidade == 1) ? "Osso" : "Ossos";
         case "sucata": return "Sucata";
+        case "qualquer": return _quantidade == 1 ? "recurso de qualquer tipo" : "recursos de qualquer tipo";
         case "mana": return "Mana";
+        case "nulo": return "Recurso Nulo";
     }
     return "recurso";
 }
@@ -1792,6 +1796,7 @@ function ajustar_custo_por_terreno(_custo, _categoria) {
 function selecionar_recursos_para_custo(_custo, _dono, _categoria = "") {
     var _necessidades = ajustar_custo_por_terreno(_custo, _categoria);
     var _disponiveis = [];
+    var _nulos = [];
     var _online = obj_controlador.modo_partida == "online";
     if (_online) {
         // O estado público conserva a ordem de pagamento do servidor.
@@ -1799,12 +1804,14 @@ function selecionar_recursos_para_custo(_custo, _dono, _categoria = "") {
         for (var r = 0; r < array_length(_recursos); r++) {
             var _r = _recursos[r];
             if (instance_exists(_r) && !_r.virado && _r.bloqueado_turnos <= 0)
-                array_push(_disponiveis, { recurso: _r, restante: max(1, _r.quantidade) });
+                array_push(_r.tipo == "nulo" ? _nulos : _disponiveis, { recurso: _r, restante: max(1, _r.quantidade) });
         }
     } else with (obj_recurso) {
         if (!virado && dono == _dono && bloqueado_turnos <= 0)
-            array_push(_disponiveis, { recurso: id, restante: max(1, quantidade) });
+            array_push(tipo == "nulo" ? _nulos : _disponiveis, { recurso: id, restante: max(1, quantidade) });
     }
+    // Use os coringas só depois dos recursos comuns.
+    for (var n = 0; n < array_length(_nulos); n++) array_push(_disponiveis, _nulos[n]);
     var _selecionados = [];
     var _faltas = [];
 
@@ -1818,7 +1825,7 @@ function selecionar_recursos_para_custo(_custo, _dono, _categoria = "") {
                 var _entrada_recurso = _disponiveis[j];
                 var _recurso = _entrada_recurso.recurso;
                 if (!instance_exists(_recurso) || _entrada_recurso.restante <= 0) continue;
-                if (_eh_neutro || _recurso.tipo == _item.tipo) {
+                if (_eh_neutro || _recurso.tipo == _item.tipo || _recurso.tipo == "nulo") {
                     var _usar = min(_entrada_recurso.restante, _item.quantidade - _pagos);
                     // No servidor, cada recurso é reservado por inteiro para uma parte do custo.
                     _entrada_recurso.restante = _online ? 0 : _entrada_recurso.restante - _usar;

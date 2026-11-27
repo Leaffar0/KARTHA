@@ -21,6 +21,11 @@ audio_opcoes_anterior=false;
 
 menu_hover=array_create(4,0);
 menu_hover_anterior=-1;
+menu_foco = 0;
+modo_foco = 0;
+menu_por_teclado = false;
+menu_mouse_x = mouse_x;
+menu_mouse_y = mouse_y;
 
 painel_menu_abertura=0;
 painel_menu_anterior="";

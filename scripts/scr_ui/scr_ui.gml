@@ -627,7 +627,7 @@ function debug_adicionar_carta_a_mao(_texto_busca) {
 // Enche todos os tipos de recurso do jogador de uma vez, até o limite de 6 por tipo,
 // só pra testar cartas com custo sem precisar juntar recursos manualmente.
 function debug_encher_recursos(_dono = "jogador") {
-    var _tipos = ["sangue", "ossos", "sucata", "mana"];
+    var _tipos = ["sangue", "ossos", "sucata", "mana", "nulo"];
 
     for (var i = 0; i < array_length(_tipos); i++) {
         var _slot_livre = noone;

@@ -784,8 +784,8 @@ function ia_jogar_recursos() {
     }
 
     // Prefere, entre as opções que ela TEM na mão, o tipo que está em menor quantidade em campo.
-    var _tipos = ["sangue", "ossos", "sucata", "mana"];
-    var _contagens = [0, 0, 0, 0];
+    var _tipos = ["sangue", "ossos", "sucata", "mana", "nulo"];
+    var _contagens = array_create(array_length(_tipos), 0);
 
     var _recursos = obj_controlador.recursos_inimigo;
     for (var i = 0; i < array_length(_recursos); i++) {

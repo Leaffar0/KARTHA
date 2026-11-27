@@ -44,7 +44,7 @@ Ou:
 cost: mixed(["mana", 1], ["sucata", 2])
 ```
 
-Os tipos aceitos são `mana`, `sangue`, `ossos`, `sucata` e `qualquer`.
+Use `qualquer` para cada asterisco no custo. Ele aceita Mana, Sangue, Ossos, Sucata ou Recurso Nulo. A carta de recurso usa o tipo `nulo` e paga uma unidade de qualquer custo.
 
 ## Magia simples com o sistema genérico
 

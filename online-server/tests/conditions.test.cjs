@@ -140,7 +140,7 @@ Object.assign(context, { min: Math.min, aplicar_flash_dano() {}, mostrar_dano_tr
 for (const name of ['processar_condicoes', 'expirar_condicoes']) {
   const start = local.indexOf(`function ${name}(`), next = local.indexOf('\nfunction ', start + 1);
   let code = local.slice(start, next).replace(/^#.*$/gm, '').trim();
-  code = code.replace('with (obj_carta) {', 'for (const _current of [obj_carta]) { with (_current) {');
+  code = code.replace('with (obj_carta) {', 'for (const _current of [localTroop]) { with (_current) {');
   // Insert a matching close immediately before the function's last close.
   const close = code.lastIndexOf('}');
   code = code.slice(0, close) + '}\n' + code.slice(close);
@@ -152,7 +152,7 @@ context.aplicar_condicao(localCard, 'envenenado', -1, 1);
 context.aplicar_condicao(localCard, 'queimado', 3, 2);
 context.aplicar_condicao(localCard, 'paralisado', 2, 0);
 localCard.id = localCard;
-context.obj_carta = localCard;
+context.localTroop = localCard;
 context.processar_condicoes('jogador');
 assert.equal(localCard.vida, 17);
 context.expirar_condicoes('jogador');
@@ -175,3 +175,24 @@ assert.equal(localCard.sombra_cooldown, 1);
 context.expirar_condicoes('jogador');
 context.processar_condicoes('jogador');
 assert.equal(localCard.sombra_cooldown, 0);
+
+
+// Poison ticks when control passes to the affected troop's owner.
+for (const seat of [0, 1]) {
+  const online = setup();
+  const target = troop('poisoned', seat);
+  online.state.cards.set(target.instanceId, target);
+  online.applyCondition(target, 'envenenado', -1, 1);
+  Object.assign(localCard, { vida: target.life, condicoes: [], dono: seat === 0 ? 'jogador' : 'inimigo' });
+  assert.equal(context.aplicar_condicao(localCard, 'envenenado', -1, 1), true);
+  let ending = online.state.currentPlayer;
+  for (let turn = 0; turn < 4; turn++) {
+    const next = 1 - ending;
+    context.expirar_condicoes(ending === 0 ? 'jogador' : 'inimigo');
+    context.processar_condicoes(next === 0 ? 'jogador' : 'inimigo');
+    online.endTurn(ending);
+    assert.equal(localCard.vida, target.life);
+    ending = next;
+  }
+  assert.equal(target.life, 18);
+}

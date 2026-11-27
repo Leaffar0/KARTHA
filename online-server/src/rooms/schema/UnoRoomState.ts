@@ -30,6 +30,8 @@ export const PlayerSchema = schema({
   blockedResource: t.string(),
   blockedTurns: t.number(),
   evolutionsUsed: t.number(),
+  nulo: t.number(),
+  nuloUsed: t.number(),
 });
 
 export const PublicCardSchema = schema({
@@ -53,6 +55,7 @@ export const PublicCardSchema = schema({
   intelligence: t.number(),
   equipmentJson: t.string(),
   abilityStateJson: t.string(),
+  mitosisRevision: t.number(),
 });
 
 export const KarthaRoomState = schema({

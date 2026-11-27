@@ -9,17 +9,41 @@ if(_painel_atual!=painel_menu_anterior) {
 painel_menu_abertura=min(1,painel_menu_abertura+min(delta_time/1000000,0.05)*5);
 tempo_menu += min(delta_time/1000000,0.05);
 var _menu_livre=!(opcoes_abertas || modo_jogo_aberto || online_aberto || deck_aberto);
+var _clique = mouse_check_button_pressed(mb_left);
+if (mouse_x != menu_mouse_x || mouse_y != menu_mouse_y || _clique) menu_por_teclado = false;
+menu_mouse_x = mouse_x;
+menu_mouse_y = mouse_y;
+var _confirmar = false;
+if ((_menu_livre || modo_jogo_aberto) && !transicao_sala_ativa()
+    && (_menu_livre || painel_menu_abertura >= 0.85)) {
+    if (modo_jogo_aberto && !menu_por_teclado) {
+        for (var _i_modo = 0; _i_modo < 2; _i_modo++) {
+            var _carta_modo = carta_modo_menu(_i_modo, centro_painel_menu(id));
+            if (ponto_carta_menu(_carta_modo, mouse_x, mouse_y)) modo_foco = _i_modo;
+        }
+    }
+    var _direcao = (keyboard_check_pressed(vk_right) || keyboard_check_pressed(vk_down))
+        - (keyboard_check_pressed(vk_left) || keyboard_check_pressed(vk_up));
+    _confirmar = keyboard_check_pressed(vk_enter) && !_clique;
+    if (_direcao != 0 || _confirmar) menu_por_teclado = true;
+    if (_menu_livre) menu_foco = clamp(menu_foco + _direcao, 0, 3);
+    else modo_foco = clamp(modo_foco + _direcao, 0, 1);
+}
 var _menu_sobre=-1;
 for(var _i=0;_i<4;_i++) {
     var _mc=carta_menu_layout(_i,false,tempo_menu,room_width,room_height,menu_hover[_i]);
-    var _ativo=_menu_livre && ponto_carta_menu(_mc,mouse_x,mouse_y);
+    var _ativo = _menu_livre && (menu_por_teclado ? menu_foco == _i : ponto_carta_menu(_mc,mouse_x,mouse_y));
+    if (_ativo) menu_foco = _i;
     menu_hover[_i]=lerp(menu_hover[_i],_ativo?1:0,0.18);
     if(_ativo) _menu_sobre=_i;
 }
 if(_menu_sobre>=0 && _menu_sobre!=menu_hover_anterior) tocar_som_variado("pagina",0.10);
 menu_hover_anterior=_menu_sobre;
 // O SDK usa uma fila de eventos; ela precisa ser processada a cada frame.
-if (colyseus_is_ready()) colyseus_process();
+if (colyseus_is_ready()) {
+    colyseus_process();
+    online_verificar_sincronizacao();
+}
 if (transicao_sala_ativa()) exit;
 if (online_copiado_timer > 0) online_copiado_timer--;
 if (_painel_atual!="" && painel_menu_abertura<0.85) exit;
@@ -143,10 +167,10 @@ if (deck_aberto) {
 if (modo_jogo_aberto) {
     var _cy=centro_painel_menu(id);
     if(keyboard_check_pressed(vk_escape)) modo_jogo_aberto=false;
-    else if(mouse_check_button_pressed(mb_left)) {
+    else if(_clique || _confirmar) {
         for(var _m=0;_m<2;_m++) {
             var _c=carta_modo_menu(_m,_cy);
-            if(ponto_carta_menu(_c,mouse_x,mouse_y)) {
+            if (_confirmar ? _m == modo_foco : ponto_carta_menu(_c,mouse_x,mouse_y)) {
                 tocar_som_variado("clique",0.20);
                 if (_m == 0) {
                     global.modo_partida = "ia";
@@ -161,16 +185,16 @@ if (modo_jogo_aberto) {
                 break;
             }
         }
-        if(point_in_rectangle(mouse_x,mouse_y,room_width/2-100,_cy+135,room_width/2+100,_cy+175)) modo_jogo_aberto=false;
+        if(_clique && point_in_rectangle(mouse_x,mouse_y,room_width/2-100,_cy+135,room_width/2+100,_cy+175)) modo_jogo_aberto=false;
     }
     exit;
 }
 
 #region Cliques do menu
-if (_menu_livre && _menu_sobre>=0 && mouse_check_button_pressed(mb_left)) {
+if (_menu_livre && _menu_sobre>=0 && (_clique || _confirmar)) {
     tocar_som_variado("clique",0.20);
     switch(_menu_sobre) {
-        case 0: modo_jogo_aberto=true; break;
+        case 0: modo_jogo_aberto=true; modo_foco=0; break;
         case 1: deck_aberto=true; break;
         case 2: opcoes_abertas=true; break;
         case 3: game_end(); break;

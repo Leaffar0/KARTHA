@@ -1,4 +1,4 @@
-export type ResourceType = "mana" | "sangue" | "ossos" | "sucata";
+export type ResourceType = "mana" | "sangue" | "ossos" | "sucata" | "nulo";
 export type CardCategory =
   | "tropa" | "recurso" | "construcao" | "magica"
   | "item_equipavel" | "item_consumivel" | "armadilha"
@@ -76,9 +76,9 @@ export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
   esquilo: { ...troop("esquilo", "Esquilo", 5, 6, 0, 0, 0, 1, 2), evolvesTo: "esquilo_gigante" },
   lobo: { ...troop("lobo", "Lobo", 12, 8, 1, 1, 0, 2, 2, cost("sangue", 1)), evolvesTo: "lobo_alfa" },
   urso: troop("urso", "Urso", 14, 12, 2, 3, 0, 2, 3, cost("ossos", 2)),
-  slime: { ...troop("slime", "Slime", 14, 4, 2, 0, 0, 0, 3, [], ["mitose"], 2),
+  slime: { ...troop("slime", "Slime", 14, 4, 2, 0, 0, 0, 3, cost("qualquer", 3), ["mitose"], 2),
     evolvesTo: "slime_digestao", mitosisChild: "slimet", tags: ["slime"] },
-  slimet: troop("slimet", "Slimet", 8, 4, 1, 0, 0, 0, 1),
+  slimet: troop("slimet", "Slimet", 8, 4, 1, 0, 0, 0, 1, cost("qualquer", 1)),
   mimic: troop("mimic", "Mimic", 16, 10, 0, 3, 0, 1, 3,
     mixed(["sucata", 1], ["sangue", 1]), ["imitacao"], 1, 4, 1),
   olho_demonio: troop("olho_demonio", "Olho Demônio", 8, 6, 0, 0, 0, 1, 1,
@@ -98,6 +98,7 @@ export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
   sangue: { id: "sangue", name: "Sangue", category: "recurso", cost: [], resourceType: "sangue", resourceAmount: 1 },
   ossos: { id: "ossos", name: "Ossos", category: "recurso", cost: [], resourceType: "ossos", resourceAmount: 1 },
   sucata: { id: "sucata", name: "Sucata", category: "recurso", cost: [], resourceType: "sucata", resourceAmount: 1 },
+  nulo: { id: "nulo", name: "Recurso Nulo", category: "recurso", cost: [], resourceType: "nulo", resourceAmount: 1 },
   mana: { id: "mana", name: "Mana", category: "recurso", cost: [], resourceType: "mana", resourceAmount: 1 },
 
   torre_vigia: { id: "torre_vigia", name: "Torre de Vigia", category: "construcao", cost: cost("sucata", 1), life: 20, effect: "artilharia" },
@@ -152,7 +153,7 @@ export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
 export const CARD_ORDER = [
   "esquilo", "lobo", "urso", "slime", "slimet", "mimic", "olho_demonio",
   "mago_sombra", "gato_mago", "goblin", "hollow_jack", "esqueleto", "shroomilin",
-  "sangue", "ossos", "sucata", "mana", "torre_vigia", "hemodrenario", "maquina_ima",
+  "sangue", "ossos", "sucata", "mana", "nulo", "torre_vigia", "hemodrenario", "maquina_ima",
   "bola_fogo", "veneno_mortal", "congelante", "choque_eletrico", "dados_manipulados",
   "refracao_temporal", "eutanasia", "bloqueio_recurso", "sangue_suga",
   "espada_enferrujada", "escudo_madeira", "pocao_cura", "grimorio_iniciante",

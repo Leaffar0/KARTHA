@@ -7,7 +7,8 @@ const c={os_type:0,os_linux:1,transicao_sala_ativa:()=>false,room_width:1152,roo
  opcoes_abertas:false,modo_jogo_aberto:false,online_aberto:false,deck_aberto:false,painel_menu_abertura:1,painel_menu_anterior:'',
  online_copiado_timer:0,deck_por_pagina:8,deck_pagina:0,deck_catalogo_menu:[()=>({nome:'Slime'})],global:{},
  min:Math.min,max:Math.max,abs:Math.abs,ceil:Math.ceil,sin:Math.sin,power:Math.pow,lerp:(a,b,t)=>a+(b-a)*t,clamp:(x,a,b)=>Math.max(a,Math.min(b,x)),dcos:a=>Math.cos(a*Math.PI/180),dsin:a=>Math.sin(a*Math.PI/180),
- mb_left:1,vk_escape:27,mouse_x:0,mouse_y:0,
+ menu_foco:0,modo_foco:0,menu_por_teclado:false,menu_mouse_x:0,menu_mouse_y:0,
+ vk_enter:13,vk_left:37,vk_up:38,vk_right:39,vk_down:40,mb_left:1,vk_escape:27,mouse_x:0,mouse_y:0,
  mouse_check_button_pressed:()=>click,keyboard_check_pressed:k=>escape&&k===27,
  point_in_rectangle:(x,y,a,b,d,e)=>x>=a&&x<=d&&y>=b&&y<=e,
  colyseus_is_ready:()=>false,tocar_som_variado(){},array_length:a=>a.length,array_create:(n,v)=>Array(n).fill(v),
@@ -68,9 +69,9 @@ Object.assign(c, {
   string_replace_all: (s, from, to) => s.replaceAll(from, to), string_copy: (s, i, n) => s.slice(i-1, i-1+n),
   online_salvar_endpoint() {}, online_conectar: (...args) => { connectedWith = args; }
 });
-const online = fs.readFileSync(path.join(root,'scripts/scr_online/scr_online.gml'),'utf8');
-vm.runInContext(online.slice(online.indexOf('function online_ler_area_transferencia('),
-  online.indexOf('function online_configurar_callbacks(')), c);
+require('./helpers/load-gml.cjs')(c, 'scripts/scr_online/scr_online.gml', [
+  'online_ler_area_transferencia', 'online_colar_codigo_sala',
+]);
 settle();
 function clickLobby(dx, dy) {
   c.mouse_x = c.room_width/2 + dx;
@@ -92,3 +93,17 @@ c.frame(); keys.clear();
 assert.equal(c.online_codigo_input, 'A_b-7K');
 clickLobby(90, 80);
 assert.deepEqual(connectedWith, [false, 'A_b-7K', 'Teste', 'ws://localhost:2567']);
+
+c.online_aberto=false;
+function press(key) { keys.add(key); c.frame(); keys.clear(); }
+c.menu_foco=0;
+press(c.vk_right);
+assert.equal(c.menu_foco,1);
+press(c.vk_enter);
+assert.equal(c.deck_aberto,true);
+settle(); press(c.vk_escape); settle();
+press(c.vk_left); press(c.vk_enter); settle();
+assert.equal(c.modo_jogo_aberto,true);
+press(c.vk_right); press(c.vk_enter);
+assert.equal(c.online_aberto,true);
+assert.equal(started,1);

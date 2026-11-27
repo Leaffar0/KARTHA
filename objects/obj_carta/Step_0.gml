@@ -11,6 +11,7 @@ if (_em_defesa) {
 }
 if (travada && categoria == "tropa" && !morrendo && obj_controlador.modo_partida != "online")
     verificar_olhar_vazio(id);
+if (mitose_pouso > 0) mitose_pouso = max(0, mitose_pouso - _dt_defesa / 0.32);
 atualizar_efeitos_identidade(id);
 var _hover_equip=travada && !morrendo && array_length(itens_equipados)>0
     && controlador_modal_atual(obj_controlador)=="" && obj_controlador.carta_preview==noone

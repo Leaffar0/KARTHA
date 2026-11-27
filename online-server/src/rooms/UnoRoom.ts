@@ -107,13 +107,10 @@ const ACTIONS = new Set([
   "use_ability", "use_construction", "remove_item", "transfer_item", "use_item_ability", "choose_magnet", "choose_mitosis",
 ]);
 
-const RESOURCE_FIELDS: Record<ResourceType, "mana" | "sangue" | "ossos" | "sucata"> = {
-  mana: "mana", sangue: "sangue", ossos: "ossos", sucata: "sucata",
+const USED_FIELDS: Record<ResourceType, `${ResourceType}Used`> = {
+  mana: "manaUsed", sangue: "sangueUsed", ossos: "ossosUsed", sucata: "sucataUsed", nulo: "nuloUsed",
 };
-const USED_FIELDS: Record<ResourceType, "manaUsed" | "sangueUsed" | "ossosUsed" | "sucataUsed"> = {
-  mana: "manaUsed", sangue: "sangueUsed", ossos: "ossosUsed", sucata: "sucataUsed",
-};
-const RESOURCE_ORDER: ResourceType[] = ["mana", "sangue", "ossos", "sucata"];
+const RESOURCE_ORDER: ResourceType[] = ["mana", "sangue", "ossos", "sucata", "nulo"];
 
 function safeName(value: unknown): string {
   const name = typeof value === "string" ? value.trim() : "";
@@ -128,6 +125,27 @@ function numberInRange(value: unknown, min: number, max: number): number | undef
 function decodeIncoming<T extends object>(message: T | string): T | undefined {
   if (typeof message !== "string") return message;
   try { return JSON.parse(message) as T; } catch { return undefined; }
+}
+
+// The native GameMaker reader returns at most 4095 UTF-8 bytes per string.
+function sendGameMessage(send: (type: string, data: string | object) => void, type: string, payload: unknown) {
+  const json = JSON.stringify(payload);
+  const limit = 4095;
+  if (Buffer.byteLength(json) <= limit) {
+    send(type, json);
+    return;
+  }
+
+  const bytes = Buffer.from(json);
+  let offset = 0;
+  let index = 0;
+  while (offset < bytes.length) {
+    let end = Math.min(offset + limit, bytes.length);
+    while (end < bytes.length && (bytes[end] & 0xc0) === 0x80) end--;
+    send("json_part", { type, index, last: end === bytes.length, text: bytes.toString("utf8", offset, end) });
+    index++;
+    offset = end;
+  }
 }
 
 export class KarthaRoom extends Room<{ state: RoomState }> {
@@ -145,11 +163,11 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
   private activeTerrain?: { owner: number; card: PrivateCard };
 
   private sendJson(client: Client, type: string, payload: unknown) {
-    client.send(type, JSON.stringify(payload));
+    sendGameMessage((event, data) => client.send(event, data), type, payload);
   }
 
   private broadcastJson(type: string, payload: unknown) {
-    this.broadcast(type, JSON.stringify(payload));
+    sendGameMessage((event, data) => this.broadcast(event, data), type, payload);
   }
 
   onCreate() {
@@ -180,8 +198,10 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     this.onMessage("request_private_state", (client: Client) => {
       const player = this.findPlayer(client.sessionId);
       if (player) {
+        this.sendJson(client, "sync_begin", {});
         this.sendPrivateState(player.seatIndex);
         this.sendPublicState(client);
+        this.sendPendingChoices(client, player);
       }
     });
 
@@ -315,7 +335,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     player.hasTakenTurn = false;
     player.initialHandDrawn = false;
     this.resetPlayerTurn(player);
-    player.mana = 0; player.sangue = 0; player.ossos = 0; player.sucata = 0;
+    player.mana = 0; player.sangue = 0; player.ossos = 0; player.sucata = 0; player.nulo = 0;
       player.blockedResource = ""; player.blockedTurns = 0;
     player.evolutionsUsed = 0;
     this.state.players.set(client.sessionId, player);
@@ -329,7 +349,10 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     const player = this.findPlayer(client.sessionId);
     if (!player) return;
     player.connected = false;
-    if (this.state.phase !== "waiting") this.allowReconnection(client, 20);
+    if (this.state.phase !== "waiting") {
+      this.allowReconnection(client, 20);
+      for (const peer of this.clients) if (peer !== client) this.sendPublicState(peer);
+    }
   }
 
   onReconnect(client: Client) {
@@ -338,7 +361,11 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     player.connected = true;
     this.sendJson(client, "seat", { seat: player.seatIndex, roomId: this.roomId, seed: this.state.seed });
     this.sendPrivateState(player.seatIndex);
-    this.sendPublicState(client);
+    this.sendPublicState();
+    this.sendPendingChoices(client, player);
+  }
+
+  private sendPendingChoices(client: Client, player: PlayerState) {
     if (this.state.phase !== "playing") return;
     if (this.pendingManipulated?.waiting?.seat === player.seatIndex) {
       this.sendJson(client, "manipulated_roll_choice", this.pendingManipulated.waiting);
@@ -394,10 +421,10 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       player.hasTakenTurn = false;
       player.initialHandDrawn = false;
       player.initiative = 0;
-      player.mana = 0; player.sangue = 0; player.ossos = 0; player.sucata = 0;
+      player.mana = 0; player.sangue = 0; player.ossos = 0; player.sucata = 0; player.nulo = 0;
       player.blockedResource = ""; player.blockedTurns = 0;
     player.evolutionsUsed = 0;
-      player.manaUsed = 0; player.sangueUsed = 0; player.ossosUsed = 0; player.sucataUsed = 0;
+      player.manaUsed = 0; player.sangueUsed = 0; player.ossosUsed = 0; player.sucataUsed = 0; player.nuloUsed = 0;
       this.resetPlayerTurn(player);
     }
 
@@ -588,10 +615,10 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     const found = this.handCard(seat, payload.cardId);
     if (!found || found.definition.category !== "tropa")
       return { ok: false, reason: "carta_tropa_invalida" };
-    if (!this.payCost(player, found.definition)) return { ok: false, reason: "recursos_insuficientes" };
     const position = seat === 0 ? 4 : 0;
     if (this.findPublic((card) => card.category === "tropa" && card.lane === lane && card.position === position))
       return { ok: false, reason: "base_ocupada" };
+    if (!this.payCost(player, found.definition)) return { ok: false, reason: "recursos_insuficientes" };
 
     const publicCard = this.createPublicCard(found.card, found.definition, seat, lane, position);
     publicCard.moved = true; // só poderá se mover quando o turno deste dono voltar
@@ -867,7 +894,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       const targetSeat = numberInRange(payload.targetSeat, 0, 1);
       if (!resourceType || targetSeat === undefined) return { ok: false, reason: "recurso_invalido" };
       const targetPlayer = this.playerBySeat(targetSeat)!;
-      if (targetPlayer[RESOURCE_FIELDS[resourceType]] <= 0) return { ok: false, reason: "recurso_invalido" };
+      if (targetPlayer[resourceType] <= 0) return { ok: false, reason: "recurso_invalido" };
       details = { ...details, resourceType, targetSeat, turns: 3 };
     } else if (effect === "dados_manipulados") {
       details = { ...details, roll: this.roll(4), remaining: 3 };
@@ -1231,9 +1258,6 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       : payload.spell === "escudo" ? "escudo"
       : payload.spell === "curazinha" ? "curazinha" : "";
     if (!spell) return { ok: false, reason: "habilidade_item_invalida" };
-    const player = this.playerBySeat(seat)!;
-    if (player.blockedResource === "mana" || player.mana - player.manaUsed < 1)
-      return { ok: false, reason: "recursos_insuficientes" };
     let target: PublicCardState | undefined;
     if (spell === "raio") {
       target = this.findPublic((other) => other.category === "tropa"
@@ -1299,9 +1323,6 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
 
     if (ability === "sombra_translucida") {
       if ((state.shadowCooldown ?? 0) > 0) return { ok: false, reason: "sombra_recarregando" };
-      const player = this.playerBySeat(seat)!;
-      if (player.blockedResource === "mana" || player.mana - player.manaUsed < 2)
-        return { ok: false, reason: "recursos_insuficientes" };
       if (!this.spendResourceUnits(seat, "mana", 2)) return { ok: false, reason: "recursos_insuficientes" };
       state.shadowTurns = 1;
       state.shadowCooldown = 2;
@@ -1379,9 +1400,6 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
 
     if (ability === "carnica_frenetica") {
       if (state.frenzy) return { ok: false, reason: "carnica_preparada" };
-      const player = this.playerBySeat(seat)!;
-      if (player.blockedResource === "sangue" || player.sangue - player.sangueUsed < 2)
-        return { ok: false, reason: "recursos_insuficientes" };
       if (!this.spendResourceUnits(seat, "sangue", 2)) return { ok: false, reason: "recursos_insuficientes" };
       const coin = this.rollForSeat(seat, 2);
       state.frenzy = coin === 1 ? "bonus" : "self";
@@ -1611,6 +1629,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     const childDefinition = CARD_DEFINITIONS[pending.source.definitionId];
     if (!childDefinition) return { ok: false, reason: "escolha_mitose_invalida" };
     const child = this.createPublicCard(pending.source, childDefinition, seat, lane, position);
+    child.mitosisRevision = this.state.revision + 1;
     child.moved = true;
     this.state.cards.set(child.instanceId, child);
     this.pendingMitosis[seat] = undefined;
@@ -2077,7 +2096,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     const data = this.privatePlayers[seat];
     if (!player || !data) return;
     for (const type of RESOURCE_ORDER) {
-      player[RESOURCE_FIELDS[type]] = data.resources
+      player[type] = data.resources
         .filter((resource) => resource.type === type).reduce((sum, resource) => sum + resource.amount, 0);
       player[USED_FIELDS[type]] = data.resources
         .filter((resource) => resource.type === type && resource.used).reduce((sum, resource) => sum + resource.amount, 0);
@@ -2085,37 +2104,31 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
   }
 
   private spendResourceUnits(seat: number, type: ResourceType, amount: number): boolean {
-    const player = this.playerBySeat(seat)!;
-    if (player.blockedResource === type && player.blockedTurns > 0) return false;
-    const candidates = this.privatePlayers[seat].resources.filter((resource) => resource.type === type && !resource.used);
-    if (candidates.reduce((sum, resource) => sum + resource.amount, 0) < amount) return false;
-    let remaining = amount;
-    for (const resource of candidates) {
-      resource.used = true;
-      remaining -= resource.amount;
-      if (remaining <= 0) break;
-    }
-    this.syncResourceTotals(seat);
-    return true;
+    return this.spendCost(this.playerBySeat(seat)!, [{ type, amount }]);
   }
 
   private payCost(player: PlayerState, definition: CardDefinition): boolean {
+    return this.spendCost(player, this.adjustedCost(definition));
+  }
+
+  private spendCost(player: PlayerState, cost: CostPart[]): boolean {
     const seat = player.seatIndex;
-    const resources = this.privatePlayers[seat].resources;
+    const available = this.privatePlayers[seat].resources.filter(resource =>
+      !resource.used && !(resource.type === player.blockedResource && player.blockedTurns > 0));
+    const resources = [...available.filter(resource => resource.type !== "nulo"),
+      ...available.filter(resource => resource.type === "nulo")];
     const selected = new Set<string>();
     const take = (type: ResourceType | "qualquer", amount: number) => {
       let remaining = amount;
       for (const resource of resources) {
-        if (resource.used || selected.has(resource.instanceId)) continue;
-        if (type !== "qualquer" && resource.type !== type) continue;
-        if (player.blockedResource === resource.type && player.blockedTurns > 0) continue;
+        if (selected.has(resource.instanceId)) continue;
+        if (type !== "qualquer" && resource.type !== type && resource.type !== "nulo") continue;
         selected.add(resource.instanceId);
         remaining -= resource.amount;
         if (remaining <= 0) return true;
       }
       return remaining <= 0;
     };
-    const cost = this.adjustedCost(definition);
     for (const part of cost.filter((item) => item.type !== "qualquer"))
       if (!take(part.type, part.amount)) return false;
     const wildcard = cost.filter((item) => item.type === "qualquer").reduce((sum, item) => sum + item.amount, 0);
@@ -2241,6 +2254,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     if (!first) return;
     const spawn = (source: PrivateCard, lane: number, position: number) => {
       const child = this.createPublicCard(source, childDefinition, parent.owner, lane, position);
+      child.mitosisRevision = this.state.revision + 1;
       child.moved = true;
       this.state.cards.set(child.instanceId, child);
     };
@@ -2330,9 +2344,9 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
         evolutions: player.evolutionsUsed,
       },
       life: player.life, handCount: player.handCount, deckCount: player.deckCount,
-      mana: player.mana, sangue: player.sangue, ossos: player.ossos, sucata: player.sucata,
+      mana: player.mana, sangue: player.sangue, ossos: player.ossos, sucata: player.sucata, nulo: player.nulo,
       manaUsed: player.manaUsed, sangueUsed: player.sangueUsed,
-      ossosUsed: player.ossosUsed, sucataUsed: player.sucataUsed,
+      ossosUsed: player.ossosUsed, sucataUsed: player.sucataUsed, nuloUsed: player.nuloUsed,
       blockedResource: player.blockedResource, blockedTurns: player.blockedTurns, hasTakenTurn: player.hasTakenTurn, initialHandDrawn: player.initialHandDrawn,
       activeEffects: this.privatePlayers[player.seatIndex]
         ? [
@@ -2344,6 +2358,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
     const cards: Record<string, unknown>[] = [];
     this.state.cards.forEach((card: PublicCardState) => cards.push({
       ...this.publicCardPayload(card), moved: card.moved,
+      ...(card.mitosisRevision > 0 ? { mitosisRevision: card.mitosisRevision } : {}),
       attacked: card.attacked, conditions: this.conditions(card), condition: card.condition, conditionTurns: card.conditionTurns,
       conditionPower: card.conditionPower, intelligence: card.intelligence,
       equipment: this.equipmentIds(card), abilityState: this.abilityState(card),
@@ -2395,7 +2410,7 @@ export class KarthaRoom extends Room<{ state: RoomState }> {
       for (const resource of data.resources) resource.used = false;
       this.syncResourceTotals(player.seatIndex);
     } else {
-      player.manaUsed = 0; player.sangueUsed = 0; player.ossosUsed = 0; player.sucataUsed = 0;
+      player.manaUsed = 0; player.sangueUsed = 0; player.ossosUsed = 0; player.sucataUsed = 0; player.nuloUsed = 0;
     }
     player.resourcePlaced = false;
     player.resourceRemoved = false;

@@ -1,8 +1,20 @@
 // A mesa cobre toda a sala; a câmera e os slots mantêm suas posições.
-mesa_ambiente_desenhar(ambiente_mesa, 0, 0, room_width, room_height);
+var _tempo_impacto = instance_exists(obj_controlador) ? current_time - obj_controlador.impacto_mesa_inicio : 1000;
+var _tremor = _tempo_impacto < 165;
+var _matriz_mesa;
+if (_tremor) {
+    var _t = 10 * (1 - _tempo_impacto / 165);
+    var _amplitude = 2.4 * sqr(_t / 10) * fator_efeitos_visuais();
+    _matriz_mesa = matrix_get(matrix_world);
+    matrix_set(matrix_world, matrix_multiply(matrix_build(sin(_t * 2.1) * _amplitude,
+        cos(_t * 1.7) * _amplitude, 0, 0, 0, 0, 1, 1, 1), _matriz_mesa));
+}
+mesa_ambiente_desenhar(ambiente_mesa, -3, -3, room_width + 6, room_height + 6);
 tabuleiro_couro_desenhar(ambiente_mesa);
 tabuleiro_couro_gravuras(tempo_piscada);
 mesa_ambiente_atmosfera(ambiente_mesa,0,0,room_width,room_height);
+
+if (_tremor) matrix_set(matrix_world, _matriz_mesa);
 
 #region Espaços de efeitos ativos
 // Esta instância está na camada do tabuleiro (depth 200), abaixo das cartas.

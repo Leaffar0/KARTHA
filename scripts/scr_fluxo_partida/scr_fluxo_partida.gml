@@ -441,8 +441,8 @@ if (ui_modal.pausa_ativa) {
     var _clicou_sair = mouse_check_button_pressed(mb_left)
         && point_in_rectangle(_tutorial_gui_x, _tutorial_gui_y, _pausa_cx - 125, _pausa_cy + 145, _pausa_cx + 125, _pausa_cy + 185);
     if (_clicou_sair) {
-        if (modo_partida == "online" && online_ativo()) {
-            colyseus_send(global.net_room, "concede", {});
+        if (modo_partida == "online") {
+            if (online_ativo()) colyseus_send(global.net_room, "concede", {});
             online_desconectar();
         }
         ui_modal.pausa_ativa = false;
@@ -617,12 +617,14 @@ if (ui_modal.mitose_selecao_ativa) {
         }
         if (_slot_mitose_escolhido != noone) {
             if (modo_partida == "online") {
-                online_enviar_acao("choose_mitosis", { lane: _slot_mitose_escolhido.lane, position: _slot_mitose_escolhido.posicao });
+                if (!online_enviar_acao("choose_mitosis", {
+                    lane: _slot_mitose_escolhido.lane, position: _slot_mitose_escolhido.posicao
+                })) return true;
                 ui_modal.mitose_selecao_ativa = false;
                 ui_modal.mitose_slots_pendentes = [];
                 return true;
             }
-            criar_tropa_no_slot(ui_modal.mitose_dados_pendentes, _slot_mitose_escolhido, ui_modal.mitose_dono_pendente);
+            criar_tropa_no_slot(ui_modal.mitose_dados_pendentes, _slot_mitose_escolhido, ui_modal.mitose_dono_pendente, true);
             ui_modal.mitose_selecao_ativa = false;
             ui_modal.mitose_slots_pendentes = [];
         } else mostrar_aviso_regra("Escolha uma casa adjacente destacada", mouse_x, mouse_y);

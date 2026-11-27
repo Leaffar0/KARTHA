@@ -165,6 +165,7 @@ testado_olhar_vazio = false;
 visao_do_veu_usada = false;
 imune_armadilha = false;
 funcao_mitose = noone;
+mitose_pouso = 0;
 habilidade_usada_este_turno = false;
 sombra_ativa = false;
 sombra_cooldown = 0; // turnos restantes até poder usar de novo

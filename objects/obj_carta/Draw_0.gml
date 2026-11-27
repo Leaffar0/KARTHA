@@ -77,6 +77,18 @@ if (evoluindo && evolucao_progresso < 0.82) {
     exit;
 }
 
+// O papel e os números se deformam juntos, apoiados na borda inferior.
+var _pouso_mitose = mitose_pouso > 0 && !morrendo && !evoluindo;
+var _matriz_carta;
+if (_pouso_mitose) {
+    var _onda = cos((1 - mitose_pouso) * pi * 2) * sqr(mitose_pouso) * fator_efeitos_visuais();
+    var _sx = 1 + 0.11 * _onda, _sy = 1 - 0.15 * _onda;
+    var _base = _y_desenho + sprite_get_height(sprite_index) * _escala_final * 0.5;
+    _matriz_carta = matrix_get(matrix_world);
+    matrix_set(matrix_world, matrix_multiply(matrix_build(_x_desenho * (1 - _sx),
+        _base * (1 - _sy), 0, 0, 0, 0, _sx, _sy, 1), _matriz_carta));
+}
+
 // Pequenos rastros se espalham pelo chão no momento do pouso.
 if (impacto_colocacao_timer > 0) {
     var _impacto_p = 1 - impacto_colocacao_timer / impacto_colocacao_duracao;
@@ -335,3 +347,4 @@ desenhar_efeitos_identidade(id, _x_desenho, _y_desenho, _escala_final, _rotacao_
 // A faixa lateral acompanha a posição efetivamente desenhada, inclusive durante o recuo.
 condicoes_visual_x = _x_desenho;
 condicoes_visual_y = _y_desenho;
+if (_pouso_mitose) matrix_set(matrix_world, _matriz_carta);

@@ -67,6 +67,7 @@ dano_castelo_timer = 0;
 dano_castelo_duracao = 45;
 dano_castelo_aplicado = false;
 dano_castelo_impacto_timer = 0;
+impacto_mesa_inicio = -1000;
 cartas_jogadas_no_turno = 0;
 max_cartas_por_turno = 1;
 itens_usados_este_turno = 0;

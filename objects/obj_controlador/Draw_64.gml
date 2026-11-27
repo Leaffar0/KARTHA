@@ -952,3 +952,17 @@ desenhar_ligacoes_visuais();
 desenhar_ativacoes_habilidade();
 
 desenhar_previa_ataque();
+
+if (modo_partida == "online" && !partida_encerrada(id)) {
+    var _conexao = online_aviso_conexao();
+    if (_conexao != "") {
+        var _cx_rede = display_get_gui_width() / 2;
+        var _meia_rede = min(166, _cx_rede - 8);
+        desenhar_painel_carta_menu(_cx_rede - _meia_rede, 54, _cx_rede + _meia_rede, 90, 1, false);
+        desenhar_texto_ajustado_ui(_conexao, _cx_rede, 72, _meia_rede * 2 - 16, 0.52);
+        draw_set_font(-1);
+        draw_set_color(c_white);
+        draw_set_halign(fa_left);
+        draw_set_valign(fa_top);
+    }
+}
